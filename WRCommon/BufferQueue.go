@@ -8,7 +8,7 @@ const (
 	QueueStatusOverload  = 2
 )
 
-type IBufferQueue interface {
+type IBufferedQueue interface {
 	Enqueue(interface{})
 	Dequeue() interface{}
 	Status() int

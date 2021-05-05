@@ -57,15 +57,15 @@ func (ws *WServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ws.handler.OnHttpRequest(ws.handleUpgrade, w, r)
 }
 
-func (w *WServer) Start() (err error) {
-	w.listener, err = net.Listen("tcp", w.address)
+func (ws *WServer) Start() (err error) {
+	ws.listener, err = net.Listen("tcp", ws.address)
 	if err != nil {
-		w.logger.Println("net listen error:", err)
+		ws.logger.Println("net listen error:", err)
 		return
 	}
-	err = http.Serve(w.listener, w)
+	err = http.Serve(ws.listener, ws)
 	if err != nil {
-		w.logger.Println("http serve error:", err)
+		ws.logger.Println("http serve error:", err)
 		return
 	}
 	return nil

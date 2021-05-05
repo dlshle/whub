@@ -39,7 +39,7 @@ const (
 type Service struct {
 	id                  string
 	description         string
-	owner               *WRBaseRole
+	owner               *WRClient
 	serviceUris         []string
 	cTime               time.Time
 	serviceType         int
@@ -48,15 +48,15 @@ type Service struct {
 	healthCheckInterval time.Duration
 	status              int
 	requestExecutor     IRequestExecutor
+	healthCheckExecutor IHealthCheckExecutor
 	lock                *sync.RWMutex
-	pendingRequestQueue IBufferQueue
-	processingPool      IServicePool
+	servicePool         IServicePool
 }
 
 type IService interface {
 	Id() string
 	Description() string
-	Owner() *WRBaseRole
+	Owner() *WRClient
 	ServiceType() int
 	ServiceUris() []string
 	CreationTime() time.Time
@@ -68,10 +68,9 @@ type IService interface {
 	Start() bool
 	Stop() bool
 	Status() int
-	HealthCheck() bool
+	HealthCheck() error
 	Request(*Message) *Message // use trackable message to wait for the final state transition(Wait())
-	Cancel(requestId string) error
-	Kill(requestId string) error
+	Cancel(messageId string) error
 	KillAllProcessingJobs() error
 	CancelAllPendingJobs() error
 	OnHealthCheckFails(cb func(IService))
@@ -90,7 +89,6 @@ func (s *Service) setStatus(status int) {
 	})
 }
 
-// TODO implementation
 func (s *Service) Id() string {
 	return s.id
 }
@@ -99,7 +97,7 @@ func (s *Service) Description() string {
 	return s.description
 }
 
-func (s *Service) Owner() *WRBaseRole {
+func (s *Service) Owner() *WRClient {
 	return s.owner
 }
 
@@ -154,34 +152,30 @@ func (s *Service) Status() int {
 	return s.status
 }
 
-func (s *Service) HealthCheck() bool {
-	// TODO
-	return false
+func (s *Service) HealthCheck() (err error) {
+	return s.healthCheckExecutor.DoHealthCheck()
 }
 
-func (s *Service) Request(*Message) *Message {
-	// TODO use requestExecutor and do the job in the async pool
-	return nil
+func (s *Service) Request(message *Message) *Message {
+	serviceMessage := NewServiceMessage(message)
+	s.servicePool.Add(serviceMessage)
+	if s.ExecutionType() == ServiceExecutionAsync {
+		return nil
+	} else {
+		return serviceMessage.Response()
+	}
 }
 
-func (s *Service) Cancel(requestId string) error {
-	// TODO
-	return nil
-}
-
-func (s *Service) Kill(requestId string) error {
-	// TODO
-	return nil
+func (s *Service) Cancel(messageId string) error {
+	return s.servicePool.Cancel(messageId)
 }
 
 func (s *Service) KillAllProcessingJobs() error {
-	// TODO
-	return nil
+	return s.servicePool.KillAll()
 }
 
 func (s *Service) CancelAllPendingJobs() error {
-	// TODO
-	return nil
+	return s.CancelAllPendingJobs()
 }
 
 func (s *Service) OnHealthCheckFails(cb func(IService)) {

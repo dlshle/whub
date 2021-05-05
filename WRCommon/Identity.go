@@ -1,5 +1,4 @@
 package WRCommon
-import "wsdk/Common"
 
 // Client types
 const (
@@ -15,22 +14,22 @@ const (
 	PRMessage = 0b00001
 	PWMessage = 0b00010
 	// below privileges depends on 0x1 and 0x2
-	PDiscoverClients = 0b00100
-	PReadClientDetail = 0b01000
+	PDiscoverClients   = 0b00100
+	PReadClientDetail  = 0b01000
 	PRegisterCallbacks = 0b10000
 )
 
 type WRBaseRole struct {
-	id string
+	id          string
 	description string
-	cType int
+	cType       int
 }
 
 type WRClient struct {
-	*Common.WsConnection
+	*WRConnection
 	*WRBaseRole
 	pScope int // a 16-bit
-	cKey string
+	cKey   string
 }
 
 func (c *WRClient) Id() string {
@@ -61,10 +60,10 @@ func (c *WRClient) Type() int {
 	return c.cType
 }
 
-func NewAnonymousClient(conn *Common.WsConnection) *WRClient {
+func NewAnonymousClient(conn *WRConnection) *WRClient {
 	return NewClient(conn, "", "", ClientTypeAnonymous, "", PRMessage)
 }
 
-func NewClient(conn *Common.WsConnection, id string, description string, cType int, cKey string, pScope int) *WRClient {
+func NewClient(conn *WRConnection, id string, description string, cType int, cKey string, pScope int) *WRClient {
 	return &WRClient{conn, &WRBaseRole{id, description, cType}, pScope, cKey}
 }

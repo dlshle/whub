@@ -1,11 +1,5 @@
 package WRCommon
 
 type IRequestExecutor interface {
-	Execute(message *Message) *ServiceMessage
+	Execute(*ServiceMessage)
 }
-
-type IRequestHandler interface {
-	Handle(message *Message) *ServiceMessage
-}
-
-// RequestExecutor *-- RequestHandler

@@ -98,7 +98,6 @@ func (c *WsConnection) Start() {
 	c.setState(StateReading)
 	go func() {
 		// c.conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
-		// TODO only works for few reads?
 		for c.State() == StateReading {
 			// Read will handle error itself
 			msg, err := c.Read()

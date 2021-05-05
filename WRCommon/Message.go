@@ -2,6 +2,8 @@ package WRCommon
 
 import (
 	"errors"
+	"fmt"
+	"github.com/dlshle/gommon/async"
 	"sync"
 )
 
@@ -24,6 +26,7 @@ const (
 	MessageTypeText           = 3
 	MessageTypeStream         = 4
 	MessageTypeJSON           = 5
+	MessageTypeError          = 6
 )
 
 type Message struct {
@@ -34,8 +37,46 @@ type Message struct {
 	payload     []byte
 }
 
+type IMessage interface {
+	Id() string
+	From() string
+	To() string
+	MessageType() int
+	Payload() []byte
+	String() string
+}
+
+func (t *Message) Id() string {
+	return t.id
+}
+
+func (t *Message) From() string {
+	return t.from
+}
+
+func (t *Message) To() string {
+	return t.to
+}
+
+func (t *Message) MessageType() int {
+	return t.messageType
+}
+
+func (t *Message) Payload() []byte {
+	return t.payload
+}
+
+func (t *Message) String() string {
+	return fmt.Sprintf("{from: \"%s\", to: \"%s\", messageType: %d, payload: %s}", t.from, t.to, t.messageType, t.payload)
+}
+
+
 func NewMessage(id string, from string, to string, messageType int, payload []byte) *Message {
 	return &Message{id, from, to, messageType, payload}
+}
+
+func NewErrorMessage(id string, from string, to string, errorMessage string) *Message {
+	return &Message{id, from, to, MessageTypeError, ([]byte)(errorMessage)}
 }
 
 const (
@@ -46,6 +87,7 @@ const (
 	TrackableMessageStatusCancelled  = 4
 )
 
+var unprocessableServiceMessageMap map[int]bool
 var statusCodeStringMap map[int]string
 
 func initTrackableMessage() {
@@ -55,21 +97,26 @@ func initTrackableMessage() {
 	statusCodeStringMap[TrackableMessageStatusDead] = "dead"
 	statusCodeStringMap[TrackableMessageStatusFinished] = "finished"
 	statusCodeStringMap[TrackableMessageStatusCancelled] = "cancelled"
+
+	unprocessableServiceMessageMap = make(map[int]bool)
+	unprocessableServiceMessageMap[TrackableMessageStatusDead] = true
+	unprocessableServiceMessageMap[TrackableMessageStatusCancelled] = true
 }
 
 type ServiceMessage struct {
-	channel chan *Message
+	barrier *async.StatefulBarrier
 	status  int
 	lock    *sync.RWMutex
 	*Message
 	onStatusChangeCallback func(int)
 }
 
-func NewTrackableMessage(m *Message) *ServiceMessage {
-	return &ServiceMessage{make(chan *Message), TrackableMessageStatusQueued, new(sync.RWMutex), m, nil}
+func NewServiceMessage(m *Message) *ServiceMessage {
+	return &ServiceMessage{async.NewStatefulBarrier(), TrackableMessageStatusQueued, new(sync.RWMutex), m, nil}
 }
 
 type IServiceMessage interface {
+	Id() string
 	Status() int
 	Kill() error
 	Cancel() error
@@ -77,8 +124,9 @@ type IServiceMessage interface {
 	IsCancelled() bool
 	IsFinished() bool
 	OnStatusChange(func(int))
-	Resolve(*Message) error
+	resolve(*Message) error
 	Wait() error // wait for the state to transit to final (dead/finished/cancelled)
+	Response() *Message
 }
 
 func (t *ServiceMessage) withWrite(cb func()) {
@@ -96,6 +144,7 @@ func (t *ServiceMessage) setStatus(status int) {
 	}
 }
 
+
 func (t *ServiceMessage) Status() int {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -108,7 +157,7 @@ func (t *ServiceMessage) Kill() error {
 	}
 	t.withWrite(func() {
 		t.status = TrackableMessageStatusDead
-		close(t.channel)
+		t.barrier.OpenWith(nil)
 	})
 	return nil
 }
@@ -119,18 +168,18 @@ func (t *ServiceMessage) Cancel() error {
 	}
 	t.withWrite(func() {
 		t.status = TrackableMessageStatusCancelled
-		close(t.channel)
+		t.barrier.OpenWith(nil)
 	})
 	return nil
 }
 
-func (t *ServiceMessage) Resolve(m *Message) error {
+func (t *ServiceMessage) resolve(m *Message) error {
 	if t.Status() != TrackableMessageStatusProcessing {
 		return errors.New("can not resolve a non-processing ServiceMessage")
 	}
 	t.withWrite(func() {
 		t.status = TrackableMessageStatusFinished
-		t.channel <- m
+		t.barrier.OpenWith(m)
 	})
 	return nil
 }
@@ -157,6 +206,31 @@ func (t *ServiceMessage) Wait() error {
 	if t.Status() != TrackableMessageStatusProcessing {
 		return errors.New("can not wait for a non-processing ServiceMessage")
 	}
-	<-t.channel
+	t.barrier.Wait()
 	return nil
+}
+
+func (t *ServiceMessage) Response() *Message {
+	return t.barrier.Get().(*Message)
+}
+
+type ServiceMessageExecutor struct {
+	currentMessage *ServiceMessage
+	conn           *WRConnection
+}
+
+// dispatcher should make sure the message is to the right receiver
+func (e *ServiceMessageExecutor) Execute(message *ServiceMessage) {
+	// check if message is processable
+	if unprocessableServiceMessageMap[message.Status()] {
+		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), "request has been cancelled or target server is dead"))
+		return
+	}
+	message.setStatus(TrackableMessageStatusProcessing)
+	response, err := e.conn.Request(message.Message)
+	if err != nil {
+		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), err.Error()))
+	} else {
+		message.resolve(response)
+	}
 }
