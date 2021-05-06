@@ -39,7 +39,7 @@ func (p *ServicePool) withWrite(cb func()) {
 	cb()
 }
 
-func (p *ServicePool) bulkOperation(operation func(message *ServiceMessage) error) error {
+func (p *ServicePool) withAll(operation func(message *ServiceMessage) error) error {
 	errorMessage := ""
 	hasError := false
 	p.withWrite(func() {
@@ -105,7 +105,7 @@ func (p *ServicePool) Pull(id string) (msg *ServiceMessage) {
 }
 
 func (p *ServicePool) KillAll() (errMsg error) {
-	return p.bulkOperation(func(message *ServiceMessage) error {
+	return p.withAll(func(message *ServiceMessage) error {
 		return message.Kill()
 	})
 }
@@ -119,7 +119,7 @@ func (p *ServicePool) Cancel(id string) error {
 }
 
 func (p *ServicePool) CancelAll() error {
-	return p.bulkOperation(func(message *ServiceMessage) error {
+	return p.withAll(func(message *ServiceMessage) error {
 		return message.Cancel()
 	})
 }

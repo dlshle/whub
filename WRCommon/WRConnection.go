@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/dlshle/gommon/async"
 	"github.com/dlshle/gommon/timed"
-	"github.com/dlshle/gommon/notification"
 	"time"
 	"wsdk/Common"
 )
@@ -13,29 +12,30 @@ type WRConnection struct {
 	c *Common.WsConnection
 	requestTimeoutMills time.Duration
 	messageHandler IMessageHandler
+	notificationEmitter IMessageNotificationEmitter
 }
 
 type IWRConnection interface {
 	AsyncRequest(*Message) (*async.StatefulBarrier, error)
 	Request(*Message) (*Message, error)
 	Send(*Message) error
-	// TODO how to observe on new message with current notification design?
-	OnceMessage(string, func(*Message)) (notification.Disposable, error)
-	OnMessage(string, func(*Message)) (notification.Disposable, error)
+	OnceMessage(string, func(*Message)) (Disposable, error)
+	OnMessage(string, func(*Message)) (Disposable, error)
 	OffMessage(string, func(*Message))
-	OffAllMessage(string)
+	OffAll(string)
+	Close() error
 }
 
-func NewWRConnection(c *Common.WsConnection, timeoutInMills time.Duration, messageHandler IMessageHandler) *WRConnection {
-	conn := &WRConnection{c, timeoutInMills, messageHandler}
+func NewWRConnection(c *Common.WsConnection, timeoutInMills time.Duration, messageHandler IMessageHandler, notifications IMessageNotificationEmitter) *WRConnection {
+	conn := &WRConnection{c, timeoutInMills, messageHandler, notifications}
 	conn.c.OnError(func(err error) {
 		conn.c.Close()
 	})
-	conn.c.Start()
+	conn.c.StartListening()
 	conn.c.OnMessage(func(stream []byte) {
 		msg, err := conn.messageHandler.Deserialize(stream)
 		if err != nil {
-			notification.Notify(msg.Id(), msg)
+			notifications.Notify(msg.Id(), msg)
 		}
 	})
 	return conn
@@ -50,7 +50,7 @@ func (c *WRConnection) AsyncRequest(message *Message) (barrier *async.StatefulBa
 	timeoutEvent := timed.RunAsyncTimeout(func() {
 		barrier.OpenWith(NewErrorMessage(message.Id(), message.From(), message.To(), "Request timeout"))
 	}, c.requestTimeoutMills)
-	notification.Once(message.Id(), func(msg interface{}) {
+	c.notificationEmitter.Once(message.Id(), func(msg *Message) {
 		timed.Cancel(timeoutEvent)
 		if msg == nil {
 			barrier.OpenWith(NewErrorMessage(message.Id(), message.From(), message.To(), "invalid(nil) response for request " + message.Id()))
@@ -70,12 +70,12 @@ func (c *WRConnection) Request(message *Message) (response *Message, err error) 
 	timeoutEvent := timed.RunAsyncTimeout(func() {
 		close(waiter)
 	}, c.requestTimeoutMills)
-	notification.Once(message.Id(), func(msg interface{}) {
+	c.OnceMessage(message.Id(), func(msg *Message) {
 		timed.Cancel(timeoutEvent)
 		if msg == nil {
 			err = errors.New("invalid(nil) response for request " + message.Id())
 		} else {
-			response = msg.(*Message)
+			response = msg
 		}
 		close(waiter)
 	})
@@ -91,6 +91,22 @@ func (c *WRConnection) Send(message *Message) error {
 	}
 }
 
-func (c *WRConnection) OnMessage(id string, cb func(*Message)) (notification.Disposable, error) {
-	return notification.On(id, cb)
+func (c *WRConnection) OnMessage(id string, cb func(*Message)) (Disposable, error) {
+	return c.notificationEmitter.On(id, cb)
+}
+
+func (c *WRConnection) OnceMessage(id string, cb func(*Message)) (Disposable, error) {
+	return c.notificationEmitter.Once(id, cb)
+}
+
+func (c *WRConnection) OffMessage(id string, cb func(*Message)) {
+	c.notificationEmitter.Off(id, cb)
+}
+
+func (c *WRConnection) OffAll(id string) {
+	c.notificationEmitter.OffAll(id)
+}
+
+func (c *WRConnection) Close() error {
+	return c.c.Close()
 }

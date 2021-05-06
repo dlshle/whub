@@ -215,8 +215,11 @@ func (t *ServiceMessage) Response() *Message {
 }
 
 type ServiceMessageExecutor struct {
-	currentMessage *ServiceMessage
 	conn           *WRConnection
+}
+
+func NewServiceMessageExecutor(c *WRConnection) *ServiceMessageExecutor {
+	return &ServiceMessageExecutor{c}
 }
 
 // dispatcher should make sure the message is to the right receiver

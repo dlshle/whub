@@ -26,10 +26,20 @@ type WRBaseRole struct {
 }
 
 type WRClient struct {
-	*WRConnection
+	conn *WRConnection
 	*WRBaseRole
 	pScope int // a 16-bit
 	cKey   string
+}
+
+type IWRClient interface {
+	Id() string
+	Scopes() []int
+	HasScope(int) bool
+	Description() string
+	CKey() string
+	Type() int
+	RequestExecutor() IRequestExecutor
 }
 
 func (c *WRClient) Id() string {
@@ -58,6 +68,10 @@ func (c *WRClient) CKey() string {
 
 func (c *WRClient) Type() int {
 	return c.cType
+}
+
+func (c *WRClient) RequestExecutor() IRequestExecutor {
+	return NewServiceMessageExecutor(c.conn)
 }
 
 func NewAnonymousClient(conn *WRConnection) *WRClient {

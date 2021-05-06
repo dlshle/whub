@@ -150,12 +150,12 @@ func (c *WClient) OnError(cb func(error)) {
 // TODO not so good...
 func (c *WClient) ListenToMessage() {
 	if c.conn != nil {
-		c.conn.Start()
+		c.conn.StartListening()
 	}
 }
 
 func (c *WClient) StopListenToMessage() {
 	if c.conn != nil {
-		c.conn.Stop()
+		c.conn.StopListening()
 	}
 }

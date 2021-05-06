@@ -39,7 +39,7 @@ const (
 type Service struct {
 	id                  string
 	description         string
-	owner               *WRClient
+	owner               IWRClient
 	serviceUris         []string
 	cTime               time.Time
 	serviceType         int
@@ -56,7 +56,7 @@ type Service struct {
 type IService interface {
 	Id() string
 	Description() string
-	Owner() *WRClient
+	Owner() IWRClient
 	ServiceType() int
 	ServiceUris() []string
 	CreationTime() time.Time
@@ -97,7 +97,7 @@ func (s *Service) Description() string {
 	return s.description
 }
 
-func (s *Service) Owner() *WRClient {
+func (s *Service) Owner() IWRClient {
 	return s.owner
 }
 

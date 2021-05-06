@@ -28,11 +28,12 @@ type WsConnection struct {
 	isClosing     bool
 	state         int
 	rwLock        *sync.RWMutex
+	closeChannel  chan bool
 }
 
 func NewWsConnection(conn *websocket.Conn, onMessage func([]byte), onClose func(error), onError func(error)) *WsConnection {
 	now := time.Now()
-	return &WsConnection{conn, onMessage, onClose, onError, now, now, now, false, 0, new(sync.RWMutex)}
+	return &WsConnection{conn, onMessage, onClose, onError, now, now, now, false, 0, new(sync.RWMutex), make(chan bool)}
 }
 
 type IWsConnection interface {
@@ -88,10 +89,11 @@ func (c *WsConnection) Close() (err error) {
 		c.onClose(err)
 	}
 	c.setState(StateDisconnected)
+	<- c.closeChannel
 	return err
 }
 
-func (c *WsConnection) Start() {
+func (c *WsConnection) StartListening() {
 	if c.State() > StateIdle {
 		return
 	}
@@ -106,14 +108,16 @@ func (c *WsConnection) Start() {
 			}
 		}
 		c.setState(StateStopped)
+		close(c.closeChannel)
 	}()
 }
 
-func (c *WsConnection) Stop() {
+func (c *WsConnection) StopListening() {
 	if c.State() != StateReading {
 		return
 	}
 	c.setState(StateStopping)
+	<- c.closeChannel
 }
 
 func (c *WsConnection) Read() ([]byte, error) {
