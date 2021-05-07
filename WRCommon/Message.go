@@ -79,6 +79,14 @@ func NewErrorMessage(id string, from string, to string, errorMessage string) *Me
 	return &Message{id, from, to, MessageTypeError, ([]byte)(errorMessage)}
 }
 
+func NewPingMessage(id string, from string, to string) *Message {
+	return &Message{id, from, to, MessageTypePing, nil}
+}
+
+func NewPongMessage(id string, from string, to string) *Message {
+	return &Message{id, from, to, MessageTypePong, nil}
+}
+
 const (
 	TrackableMessageStatusQueued     = 0
 	TrackableMessageStatusProcessing = 1

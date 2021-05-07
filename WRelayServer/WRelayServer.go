@@ -11,7 +11,7 @@ type WRelayServer struct {
 	*WServer.WServer
 	*WRCommon.WRBaseRole
 	clients map[string]*WRCommon.WRClient
-	serviceMap map[string]WRCommon.IService // client-id <--> Service when a client is closed, should also kill the service until it's expired(Tdead + Texipre_period)
+	serviceMap map[string]IService // client-id <--> Service when a client is closed, should also kill the service until it's expired(Tdead + Texipre_period)
 	serviceExpirePeriod time.Duration
 	scheduleJobPool timed.IJobPool
 }

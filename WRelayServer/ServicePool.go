@@ -1,4 +1,4 @@
-package WRCommon
+package WRelayServer
 
 import (
 	"errors"
@@ -6,16 +6,19 @@ import (
 	"github.com/dlshle/gommon/async"
 	"runtime"
 	"sync"
+	"wsdk/WRCommon"
 )
 
+const DefaultServicePoolSize = 2048
+
 type IServicePool interface {
-	Get(id string) *ServiceMessage
-	Start() error
-	Stop() error
-	Add(message *ServiceMessage) bool
+	Get(id string) *WRCommon.ServiceMessage
+	Start()
+	Stop()
+	Add(message *WRCommon.ServiceMessage) bool
 	Remove(id string) bool
 	Has(id string) bool
-	Pull(id string) *ServiceMessage // get and remove
+	Pull(id string) *WRCommon.ServiceMessage // get and remove
 	KillAll() error
 	Cancel(id string) error
 	CancelAll() error
@@ -24,13 +27,13 @@ type IServicePool interface {
 
 type ServicePool struct {
 	pool       *async.AsyncPool
-	executor   IRequestExecutor
-	messageSet map[string]*ServiceMessage
+	executor   WRCommon.IRequestExecutor
+	messageSet map[string]*WRCommon.ServiceMessage
 	lock       *sync.RWMutex
 }
 
-func NewServicePool(executor IRequestExecutor, size int) *ServicePool {
-	return &ServicePool{async.NewAsyncPool("[ServicePool]", size, runtime.NumCPU() * 4), executor, make(map[string]*ServiceMessage), new(sync.RWMutex)}
+func NewServicePool(executor WRCommon.IRequestExecutor, size int) *ServicePool {
+	return &ServicePool{async.NewAsyncPool("[ServicePool]", size, runtime.NumCPU() * 4), executor, make(map[string]*WRCommon.ServiceMessage), new(sync.RWMutex)}
 }
 
 func (p *ServicePool) withWrite(cb func()) {
@@ -39,7 +42,7 @@ func (p *ServicePool) withWrite(cb func()) {
 	cb()
 }
 
-func (p *ServicePool) withAll(operation func(message *ServiceMessage) error) error {
+func (p *ServicePool) withAll(operation func(message *WRCommon.ServiceMessage) error) error {
 	errorMessage := ""
 	hasError := false
 	p.withWrite(func() {
@@ -57,13 +60,21 @@ func (p *ServicePool) withAll(operation func(message *ServiceMessage) error) err
 	return nil
 }
 
+func (p *ServicePool) Start() {
+	p.pool.Start()
+}
+
+func (p *ServicePool) Stop() {
+	p.pool.Stop()
+}
+
 func (p *ServicePool) Has(id string) bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return p.messageSet[id] != nil
 }
 
-func (p *ServicePool) Get(id string) *ServiceMessage {
+func (p *ServicePool) Get(id string) *WRCommon.ServiceMessage {
 	if !p.Has(id) {
 		return nil
 	}
@@ -80,7 +91,7 @@ func (p *ServicePool) Remove(id string) bool {
 	return true
 }
 
-func (p *ServicePool) Add(message *ServiceMessage) bool {
+func (p *ServicePool) Add(message *WRCommon.ServiceMessage) bool {
 	if p.Has(message.Id()) {
 		return false
 	}
@@ -95,7 +106,7 @@ func (p *ServicePool) Add(message *ServiceMessage) bool {
 	return true
 }
 
-func (p *ServicePool) Pull(id string) (msg *ServiceMessage) {
+func (p *ServicePool) Pull(id string) (msg *WRCommon.ServiceMessage) {
 	msg = p.Get(id)
 	if msg == nil {
 		return nil
@@ -105,7 +116,7 @@ func (p *ServicePool) Pull(id string) (msg *ServiceMessage) {
 }
 
 func (p *ServicePool) KillAll() (errMsg error) {
-	return p.withAll(func(message *ServiceMessage) error {
+	return p.withAll(func(message *WRCommon.ServiceMessage) error {
 		return message.Kill()
 	})
 }
@@ -119,7 +130,7 @@ func (p *ServicePool) Cancel(id string) error {
 }
 
 func (p *ServicePool) CancelAll() error {
-	return p.withAll(func(message *ServiceMessage) error {
+	return p.withAll(func(message *WRCommon.ServiceMessage) error {
 		return message.Cancel()
 	})
 }

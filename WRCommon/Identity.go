@@ -1,5 +1,16 @@
 package WRCommon
 
+// Role types
+const (
+	RoleTypeClient = 0
+	RoleTypeServer = 1
+)
+
+const (
+	RoleTypeClientStr = "Client"
+	RoleTypeServerStr = "Server"
+)
+
 // Client types
 const (
 	ClientTypeAnonymous     = 0
@@ -22,7 +33,41 @@ const (
 type WRBaseRole struct {
 	id          string
 	description string
-	cType       int
+	rType		int
+}
+
+type IWRBaseRole interface {
+	Id() string
+	Description() string
+	Type() int
+}
+
+func NewBaseRole(id, description string, rType int) *WRBaseRole {
+	return &WRBaseRole{id, description, rType}
+}
+
+func (c *WRBaseRole) Id() string {
+	return c.id
+}
+
+func (c *WRBaseRole) Description() string {
+	return c.description
+}
+
+func (c *WRBaseRole) Type() int {
+	return c.rType
+}
+
+type IDescribableRole interface {
+	IWRBaseRole
+	Describe() RoleDescriptor
+}
+
+type RoleDescriptor struct {
+	Id string
+	Description string
+	RoleType string
+	ExtraInfo string
 }
 
 type WRClient struct {
@@ -30,20 +75,16 @@ type WRClient struct {
 	*WRBaseRole
 	pScope int // a 16-bit
 	cKey   string
+	cType int
+	descriptor *RoleDescriptor
 }
 
 type IWRClient interface {
-	Id() string
 	Scopes() []int
 	HasScope(int) bool
-	Description() string
 	CKey() string
-	Type() int
-	RequestExecutor() IRequestExecutor
-}
-
-func (c *WRClient) Id() string {
-	return c.id
+	CType() int
+	Describe() RoleDescriptor
 }
 
 func (c *WRClient) Scopes() (scopes []int) {
@@ -58,26 +99,48 @@ func (c *WRClient) HasScope(scope int) bool {
 	return (c.pScope & scope) != 0
 }
 
-func (c *WRClient) Description() string {
-	return c.description
-}
-
 func (c *WRClient) CKey() string {
 	return c.cKey
 }
 
-func (c *WRClient) Type() int {
+func (c *WRClient) CType() int {
 	return c.cType
 }
 
-func (c *WRClient) RequestExecutor() IRequestExecutor {
-	return NewServiceMessageExecutor(c.conn)
-}
-
-func NewAnonymousClient(conn *WRConnection) *WRClient {
-	return NewClient(conn, "", "", ClientTypeAnonymous, "", PRMessage)
+func (c *WRClient) Describe() RoleDescriptor {
+	if c.descriptor == nil {
+		c.descriptor = &RoleDescriptor{c.Id(), c.Description(), RoleTypeClientStr, ""}
+	}
+	return *c.descriptor
 }
 
 func NewClient(conn *WRConnection, id string, description string, cType int, cKey string, pScope int) *WRClient {
-	return &WRClient{conn, &WRBaseRole{id, description, cType}, pScope, cKey}
+	return &WRClient{conn: conn, WRBaseRole: NewBaseRole(id, description, RoleTypeClient), pScope: pScope, cKey: cKey, cType: cType}
+}
+
+type WRServer struct {
+	*WRConnection
+	*WRBaseRole
+	url string
+	descriptor *RoleDescriptor
+}
+
+type IWRServer interface {
+	Url() string
+	Describe() RoleDescriptor
+}
+
+func (s *WRServer) Url() string {
+	return s.url
+}
+
+func (s *WRServer) Describe() RoleDescriptor {
+	if s.descriptor == nil {
+		s.descriptor = &RoleDescriptor{s.Id(), s.Description(), RoleTypeServerStr, s.Url()}
+	}
+	return *s.descriptor
+}
+
+func NewServer(conn *WRConnection, id string, description string, url string) *WRServer {
+	return &WRServer{WRConnection: conn, WRBaseRole: NewBaseRole(id, description, RoleTypeServer), url: url}
 }

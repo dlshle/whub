@@ -1,8 +1,9 @@
-package WRCommon
+package WRelayServer
 
 import (
 	"sync"
 	"time"
+	"wsdk/WRCommon"
 )
 
 // Service access type
@@ -36,10 +37,12 @@ const (
 	ServiceStatusStopped      = 9 // then go back to idle
 )
 
+const DefaultHealthCheckInterval = time.Minute * 30
+
 type Service struct {
 	id                  string
 	description         string
-	owner               IWRClient
+	owner               IWRServerClient
 	serviceUris         []string
 	cTime               time.Time
 	serviceType         int
@@ -47,8 +50,7 @@ type Service struct {
 	executionType       int
 	healthCheckInterval time.Duration
 	status              int
-	requestExecutor     IRequestExecutor
-	healthCheckExecutor IHealthCheckExecutor
+	healthCheckExecutor WRCommon.IHealthCheckExecutor
 	lock                *sync.RWMutex
 	servicePool         IServicePool
 }
@@ -56,7 +58,7 @@ type Service struct {
 type IService interface {
 	Id() string
 	Description() string
-	Owner() IWRClient
+	Owner() IWRServerClient
 	ServiceType() int
 	ServiceUris() []string
 	CreationTime() time.Time
@@ -69,12 +71,32 @@ type IService interface {
 	Stop() bool
 	Status() int
 	HealthCheck() error
-	Request(*Message) *Message // use trackable message to wait for the final state transition(Wait())
+	Request(*WRCommon.Message) *WRCommon.Message // use trackable message to wait for the final state transition(Wait())
 	Cancel(messageId string) error
 	KillAllProcessingJobs() error
 	CancelAllPendingJobs() error
 	OnHealthCheckFails(cb func(IService))
 	OnHealthRestored(cb func(service IService))
+
+	Describe() WRCommon.ServiceDescriptor
+}
+
+func NewService(id string, description string, owner IWRServerClient, serviceUris []string, serviceType int, accessType int, exeType int) IService {
+	return &Service{
+		id,
+		description,
+		owner,
+		serviceUris,
+		time.Now(),
+		serviceType,
+		accessType,
+		exeType,
+		DefaultHealthCheckInterval,
+		ServiceStatusUnregistered,
+		owner.HealthCheckExecutor(),
+		new(sync.RWMutex),
+		NewServicePool(owner.RequestExecutor(), DefaultServicePoolSize),
+	}
 }
 
 func (s *Service) withWrite(cb func()) {
@@ -97,7 +119,7 @@ func (s *Service) Description() string {
 	return s.description
 }
 
-func (s *Service) Owner() IWRClient {
+func (s *Service) Owner() IWRServerClient {
 	return s.owner
 }
 
@@ -156,8 +178,8 @@ func (s *Service) HealthCheck() (err error) {
 	return s.healthCheckExecutor.DoHealthCheck()
 }
 
-func (s *Service) Request(message *Message) *Message {
-	serviceMessage := NewServiceMessage(message)
+func (s *Service) Request(message *WRCommon.Message) *WRCommon.Message {
+	serviceMessage := WRCommon.NewServiceMessage(message)
 	s.servicePool.Add(serviceMessage)
 	if s.ExecutionType() == ServiceExecutionAsync {
 		return nil
@@ -184,4 +206,18 @@ func (s *Service) OnHealthCheckFails(cb func(IService)) {
 
 func (s *Service) OnHealthRestored(cb func(service IService)) {
 	// TODO
+}
+
+func (s *Service) Describe() WRCommon.ServiceDescriptor {
+	return WRCommon.ServiceDescriptor{
+		s.Id(),
+		s.Description(),
+		WRCommon.CurrentIdentity().Describe(),
+		s.Owner(),
+		s.ServiceUris(),
+		s.CreationTime(),
+		s.ServiceType(),
+		s.AccessType(),
+		s.ExecutionType(),
+	}
 }
