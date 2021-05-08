@@ -1,4 +1,4 @@
-package WRCommon
+package Message
 
 import (
 	"errors"
@@ -31,7 +31,7 @@ func (h *SimpleMessageHandler) Deserialize(serialMessage []byte) (msg *Message, 
 		id = (string)(serialMessage[0:to+1])
 	}
 	stageMap[1] = func(from, to int) {
-		msgFrom = (string)(serialMessage[from:to+1])
+		msgFrom = (string)(serialMessage[from: to+1])
 	}
 	stageMap[2] = func(from, to int) {
 		msgTo = (string)(serialMessage[from: to+1])

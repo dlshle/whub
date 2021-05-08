@@ -1,5 +1,7 @@
 package WRCommon
 
+import "wsdk/WRCommon/Message"
+
 type IRequestExecutor interface {
-	Execute(*ServiceMessage)
+	Execute(*Message.ServiceMessage)
 }

@@ -1,5 +1,11 @@
 package WRCommon
 
+import (
+	"wsdk/WRCommon/Connection"
+	"wsdk/WRCommon/Message"
+	"wsdk/WRCommon/Utils"
+)
+
 // Role types
 const (
 	RoleTypeClient = 0
@@ -40,6 +46,7 @@ type IWRBaseRole interface {
 	Id() string
 	Description() string
 	Type() int
+	NewMessage(from string, msgType int, payload []byte) *Message.Message
 }
 
 func NewBaseRole(id, description string, rType int) *WRBaseRole {
@@ -58,6 +65,10 @@ func (c *WRBaseRole) Type() int {
 	return c.rType
 }
 
+func (c *WRBaseRole) NewMessage(to string, msgType int, payload []byte) *Message.Message {
+	return Message.NewMessage(Utils.GenStringId(), c.Id(), to, msgType, payload)
+}
+
 type IDescribableRole interface {
 	IWRBaseRole
 	Describe() RoleDescriptor
@@ -71,7 +82,7 @@ type RoleDescriptor struct {
 }
 
 type WRClient struct {
-	conn *WRConnection
+	conn *Connection.WRConnection
 	*WRBaseRole
 	pScope int // a 16-bit
 	cKey   string
@@ -114,12 +125,12 @@ func (c *WRClient) Describe() RoleDescriptor {
 	return *c.descriptor
 }
 
-func NewClient(conn *WRConnection, id string, description string, cType int, cKey string, pScope int) *WRClient {
+func NewClient(conn *Connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRClient {
 	return &WRClient{conn: conn, WRBaseRole: NewBaseRole(id, description, RoleTypeClient), pScope: pScope, cKey: cKey, cType: cType}
 }
 
 type WRServer struct {
-	*WRConnection
+	*Connection.WRConnection
 	*WRBaseRole
 	url string
 	descriptor *RoleDescriptor
@@ -141,6 +152,6 @@ func (s *WRServer) Describe() RoleDescriptor {
 	return *s.descriptor
 }
 
-func NewServer(conn *WRConnection, id string, description string, url string) *WRServer {
+func NewServer(conn *Connection.WRConnection, id string, description string, url string) *WRServer {
 	return &WRServer{WRConnection: conn, WRBaseRole: NewBaseRole(id, description, RoleTypeServer), url: url}
 }

@@ -1,4 +1,4 @@
-package WRCommon
+package Utils
 
 import (
 	"math/rand"

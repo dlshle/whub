@@ -1,7 +1,7 @@
 package WServer
 
 import (
-	"WSComm/Common"
+	"wsdk/base/Common"
 	"net/http"
 )
 

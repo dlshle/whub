@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 	"wsdk/WRCommon"
+	"wsdk/WRCommon/Message"
 )
 
 // Service access type
@@ -27,19 +28,18 @@ const (
 // Service status
 const (
 	ServiceStatusUnregistered = 0
-	ServiceStatusRegistered   = 1
-	ServiceStatusIdle         = 2
-	ServiceStatusStarting     = 3
-	ServiceStatusRunning      = 4
-	ServiceStatusBlocked      = 5 // when queue is maxed out
-	ServiceStatusDead         = 7 // health check fails
-	ServiceStatusStopping     = 8
-	ServiceStatusStopped      = 9 // then go back to idle
+	ServiceStatusIdle         = 1
+	ServiceStatusStarting     = 2
+	ServiceStatusRunning      = 3
+	ServiceStatusBlocked      = 4 // when queue is maxed out
+	ServiceStatusDead         = 5 // health check fails
+	ServiceStatusStopping     = 6
 )
 
 const DefaultHealthCheckInterval = time.Minute * 30
 
 type Service struct {
+	ctx					WRCommon.IWRContext
 	id                  string
 	description         string
 	owner               IWRServerClient
@@ -53,6 +53,10 @@ type Service struct {
 	healthCheckExecutor WRCommon.IHealthCheckExecutor
 	lock                *sync.RWMutex
 	servicePool         IServicePool
+
+	healthCheckJobId    int64
+	healthCheckErrCallback func(IService)
+	healthCheckRestoreCallback func(IService)
 }
 
 type IService interface {
@@ -71,7 +75,7 @@ type IService interface {
 	Stop() bool
 	Status() int
 	HealthCheck() error
-	Request(*WRCommon.Message) *WRCommon.Message // use trackable message to wait for the final state transition(Wait())
+	Request(*Message.Message) *Message.Message
 	Cancel(messageId string) error
 	KillAllProcessingJobs() error
 	CancelAllPendingJobs() error
@@ -81,21 +85,23 @@ type IService interface {
 	Describe() WRCommon.ServiceDescriptor
 }
 
-func NewService(id string, description string, owner IWRServerClient, serviceUris []string, serviceType int, accessType int, exeType int) IService {
+func NewService(ctx WRCommon.IWRContext, id string, description string, owner IWRServerClient, serviceUris []string, serviceType int, accessType int, exeType int) IService {
 	return &Service{
-		id,
-		description,
-		owner,
-		serviceUris,
-		time.Now(),
-		serviceType,
-		accessType,
-		exeType,
-		DefaultHealthCheckInterval,
-		ServiceStatusUnregistered,
-		owner.HealthCheckExecutor(),
-		new(sync.RWMutex),
-		NewServicePool(owner.RequestExecutor(), DefaultServicePoolSize),
+		ctx: ctx,
+		id: id,
+		description: description,
+		owner: owner,
+		serviceUris: serviceUris,
+		cTime: time.Now(),
+		serviceType: serviceType,
+		accessType: accessType,
+		executionType: exeType,
+		healthCheckInterval: DefaultHealthCheckInterval,
+		status: ServiceStatusUnregistered,
+		healthCheckExecutor: owner.HealthCheckExecutor(),
+		lock: new(sync.RWMutex),
+		servicePool: NewServicePool(owner.RequestExecutor(), MaxServicePoolSize),
+		healthCheckJobId: 0,
 	}
 }
 
@@ -109,6 +115,47 @@ func (s *Service) setStatus(status int) {
 	s.withWrite(func() {
 		s.status = status
 	})
+}
+
+func (s *Service) onHealthCheckFailedInternalHandler() {
+	s.setStatus(ServiceStatusDead)
+	if s.healthCheckErrCallback != nil {
+		s.healthCheckErrCallback(s)
+	}
+}
+
+func (s *Service) onHealthCheckRestoredInternalHandler() {
+	s.setStatus(ServiceStatusRunning)
+	if s.healthCheckRestoreCallback != nil {
+		s.healthCheckRestoreCallback(s)
+	}
+}
+
+func (s *Service) scheduleHealthCheckJob() int64 {
+	onRetry := false
+	s.withWrite(func() {
+		s.healthCheckJobId = s.ctx.TimedJobPool().ScheduleAsyncIntervalJob(func() {
+			err := s.HealthCheck()
+			if err != nil {
+				onRetry = true
+				s.onHealthCheckFailedInternalHandler()
+			} else if onRetry {
+				// if err == nil && onRetry
+				onRetry = false
+				s.onHealthCheckRestoredInternalHandler()
+			}
+		}, s.healthCheckInterval)
+	})
+	return s.healthCheckJobId
+}
+
+func (s *Service) stopHealthCheckJob() {
+	if s.healthCheckJobId != 0 {
+		s.ctx.TimedJobPool().CancelJob(s.healthCheckJobId)
+		s.withWrite(func() {
+			s.healthCheckJobId = 0
+		})
+	}
 }
 
 func (s *Service) Id() string {
@@ -147,24 +194,42 @@ func (s *Service) HealthCheckInterval() time.Duration {
 	return s.healthCheckInterval
 }
 
-func (s *Service) restartHealthCheckJob() {
-	// TODO restart health check job
+func (s *Service) reScheduleHealthCheckJob() {
+	if s.healthCheckJobId == 0 {
+		s.scheduleHealthCheckJob()
+		return
+	}
+	s.stopHealthCheckJob()
+	s.scheduleHealthCheckJob()
 }
 
 func (s *Service) SetHealthCheckInterval(duration time.Duration) {
 	s.withWrite(func() {
 		s.healthCheckInterval = duration
 	})
-	s.restartHealthCheckJob()
+	s.reScheduleHealthCheckJob()
 }
 
 func (s *Service) Start() bool {
-	// TODO start healthCheckJob, open a async pool for messages
+	if s.Status() != ServiceStatusIdle {
+		return false
+	}
+	s.scheduleHealthCheckJob()
+	s.setStatus(ServiceStatusStarting)
+	s.servicePool.Start()
+	s.setStatus(ServiceStatusRunning)
 	return false
 }
 
 func (s *Service) Stop() bool {
-	// TODO stop healthCheckJob, close the async pool
+	if s.Status() > ServiceStatusIdle || s.Status() < ServiceStatusStopping {
+		return false
+	}
+	s.stopHealthCheckJob()
+	s.setStatus(ServiceStatusStopping)
+	s.servicePool.Stop()
+	// after pool is stopped
+	s.setStatus(ServiceStatusIdle)
 	return false
 }
 
@@ -178,8 +243,8 @@ func (s *Service) HealthCheck() (err error) {
 	return s.healthCheckExecutor.DoHealthCheck()
 }
 
-func (s *Service) Request(message *WRCommon.Message) *WRCommon.Message {
-	serviceMessage := WRCommon.NewServiceMessage(message)
+func (s *Service) Request(message *Message.Message) *Message.Message {
+	serviceMessage := Message.NewServiceMessage(message)
 	s.servicePool.Add(serviceMessage)
 	if s.ExecutionType() == ServiceExecutionAsync {
 		return nil
@@ -197,27 +262,31 @@ func (s *Service) KillAllProcessingJobs() error {
 }
 
 func (s *Service) CancelAllPendingJobs() error {
-	return s.CancelAllPendingJobs()
+	return s.servicePool.CancelAll()
 }
 
 func (s *Service) OnHealthCheckFails(cb func(IService)) {
-	// TODO
+	s.withWrite(func() {
+		s.healthCheckErrCallback = cb
+	})
 }
 
 func (s *Service) OnHealthRestored(cb func(service IService)) {
-	// TODO
+	s.withWrite(func() {
+		s.healthCheckRestoreCallback = cb
+	})
 }
 
 func (s *Service) Describe() WRCommon.ServiceDescriptor {
 	return WRCommon.ServiceDescriptor{
-		s.Id(),
-		s.Description(),
-		WRCommon.CurrentIdentity().Describe(),
-		s.Owner(),
-		s.ServiceUris(),
-		s.CreationTime(),
-		s.ServiceType(),
-		s.AccessType(),
-		s.ExecutionType(),
+		Id:            s.Id(),
+		Description:   s.Description(),
+		HostInfo:      s.ctx.Identity().Describe(),
+		Owner:         s.Owner(),
+		ServiceUris:   s.ServiceUris(),
+		CTime:         s.CreationTime(),
+		ServiceType:   s.ServiceType(),
+		AccessType:    s.AccessType(),
+		ExecutionType: s.ExecutionType(),
 	}
 }

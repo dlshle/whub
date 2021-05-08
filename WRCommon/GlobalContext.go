@@ -6,43 +6,31 @@ import (
 	"sync/atomic"
 )
 
-var globalContext IGlobalContext
+var globalContext IWRContext
 
 const (
 	defaultTimedJobPoolSize = 4096
 	defaultMaxListenerCount = 1024
 )
 
-type GlobalContext struct {
+type WRContext struct {
 	identity IDescribableRole
 	timedJobPool *timed.JobPool
 	notificationEmitter notification.INotificationEmitter
 	hasStarted atomic.Value
 }
 
-type IGlobalContext interface {
-	CurrentIdentity() IDescribableRole
+type IWRContext interface {
+	Identity() IDescribableRole
 	TimedJobPool() *timed.JobPool
 	NotificationEmitter() notification.INotificationEmitter
 	HasStarted() bool
 }
 
-func InitializeGlobalContext(identity IDescribableRole, timedJobPoolSize int, maxListenerCount int) {
-	if globalContext == nil {
-		gctx := &GlobalContext{identity, timed.NewJobPool("WRSDK", timedJobPoolSize, false), notification.New(maxListenerCount), atomic.Value{}}
-		// TODO globalContext = gctx
-	}
+func NewWRContext(role IDescribableRole, maxTimedJobs, maxNotificationListeners int) *WRContext {
+	atomicBool := atomic.Value{}
+	atomicBool.Store(false)
+	return &WRContext{role, timed.NewJobPool("WRContext", maxTimedJobs, false), notification.New(maxNotificationListeners), atomicBool}
 }
 
-func validateAndGet(target interface{}, getter func() interface{}) interface{} {
-	if target == nil {
-		return nil
-	}
-	return getter()
-}
-
-func CurrentIdentity() IDescribableRole {
-	return validateAndGet(globalContext, func() interface{} {
-		return globalContext.CurrentIdentity()
-	}).(IDescribableRole)
-}
+// TODO impls

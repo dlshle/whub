@@ -4,11 +4,11 @@ import (
 	"github.com/dlshle/gommon/timed"
 	"time"
 	"wsdk/WRCommon"
-	"wsdk/WServer"
+	WServer2 "wsdk/base/WServer"
 )
 
 type WRelayServer struct {
-	*WServer.WServer
+	*WServer2.WServer
 	*WRCommon.WRBaseRole
 	clients map[string]*WRCommon.WRClient
 	serviceMap map[string]IService // client-id <--> Service when a client is closed, should also kill the service until it's expired(Tdead + Texipre_period)

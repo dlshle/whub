@@ -1,5 +1,11 @@
 package WRCommon
 
+import (
+	"wsdk/WRCommon/Connection"
+	"wsdk/WRCommon/Message"
+	"wsdk/WRCommon/Utils"
+)
+
 type IHealthCheckExecutor interface {
 	DoHealthCheck() error
 }
@@ -7,14 +13,14 @@ type IHealthCheckExecutor interface {
 type DefaultHealthCheckExecutor struct {
 	senderId string
 	receiverId string
-	*WRConnection
+	*Connection.WRConnection
 }
 
-func NewDefaultHealthCheckExecutor(senderId, receiverId string, conn *WRConnection) *DefaultHealthCheckExecutor {
+func NewDefaultHealthCheckExecutor(senderId, receiverId string, conn *Connection.WRConnection) *DefaultHealthCheckExecutor {
 	return &DefaultHealthCheckExecutor{senderId, receiverId, conn}
 }
 
 func (e *DefaultHealthCheckExecutor) DoHealthCheck() (err error) {
-	_, err = e.Request(NewPingMessage(GenStringId(), e.senderId, e.receiverId))
+	_, err = e.Request(Message.NewPingMessage(Utils.GenStringId(), e.senderId, e.receiverId))
 	return
 }
