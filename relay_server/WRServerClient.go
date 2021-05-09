@@ -1,0 +1,42 @@
+package relay_server
+
+import (
+	"wsdk/relay_common"
+	"wsdk/relay_common/connection"
+	"wsdk/relay_common/messages"
+	"wsdk/relay_common/utils"
+)
+
+type WRServerClient struct {
+	*relay_common.WRClient
+	requestExecutor     relay_common.IRequestExecutor
+	healthCheckExecutor relay_common.IHealthCheckExecutor
+}
+
+type IWRServerClient interface {
+	relay_common.IWRClient
+	RequestExecutor() relay_common.IRequestExecutor
+	HealthCheckExecutor() relay_common.IHealthCheckExecutor
+}
+
+func (c *WRServerClient) RequestExecutor() relay_common.IRequestExecutor {
+	return c.requestExecutor
+}
+
+func (c *WRServerClient) HealthCheckExecutor() relay_common.IHealthCheckExecutor {
+	return c.healthCheckExecutor
+}
+
+// since client is to server, so the drafted messages is to the client
+func (c *WRServerClient) NewMessage(from string, msgType int, payload []byte) *messages.Message {
+	return messages.NewMessage(utils.GenStringId(), from, c.Id(), msgType, payload)
+}
+
+func NewAnonymousClient(conn *connection.WRConnection) *WRServerClient {
+	return NewClient(conn, "", "", relay_common.ClientTypeAnonymous, "", relay_common.PRMessage)
+}
+
+func NewClient(conn *connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
+	// TODO relay_common.NewDefaultHealthCheckExecutor is incorrect, we need to specify the correct senderId from context!!!
+	return &WRServerClient{relay_common.NewClient(conn, id, description, cType, cKey, pScope), messages.NewServiceMessageExecutor(conn), relay_common.NewDefaultHealthCheckExecutor(id, id, conn)}
+}
