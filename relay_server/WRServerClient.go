@@ -32,11 +32,10 @@ func (c *WRServerClient) NewMessage(from string, msgType int, payload []byte) *m
 	return messages.NewMessage(utils.GenStringId(), from, c.Id(), msgType, payload)
 }
 
-func NewAnonymousClient(conn *connection.WRConnection) *WRServerClient {
-	return NewClient(conn, "", "", relay_common.ClientTypeAnonymous, "", relay_common.PRMessage)
+func NewAnonymousClient(ctx *relay_common.WRContext, conn *connection.WRConnection) *WRServerClient {
+	return NewClient(ctx, conn, "", "", relay_common.ClientTypeAnonymous, "", relay_common.PRMessage)
 }
 
-func NewClient(conn *connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
-	// TODO relay_common.NewDefaultHealthCheckExecutor is incorrect, we need to specify the correct senderId from context!!!
-	return &WRServerClient{relay_common.NewClient(conn, id, description, cType, cKey, pScope), messages.NewServiceMessageExecutor(conn), relay_common.NewDefaultHealthCheckExecutor(id, id, conn)}
+func NewClient(ctx *relay_common.WRContext, conn *connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
+	return &WRServerClient{relay_common.NewClient(conn, id, description, cType, cKey, pScope), messages.NewServiceMessageExecutor(conn), relay_common.NewDefaultHealthCheckExecutor(ctx.Identity().Id(), id, conn)}
 }

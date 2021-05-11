@@ -97,6 +97,7 @@ type WRClient struct {
 }
 
 type IWRClient interface {
+	IWRBaseRole
 	Scopes() []int
 	HasScope(int) bool
 	CKey() string
@@ -149,6 +150,7 @@ type WRServer struct {
 }
 
 type IWRServer interface {
+	IWRBaseRole
 	Url() string
 	Describe() RoleDescriptor
 }

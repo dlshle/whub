@@ -1,6 +1,7 @@
 package relay_server
 
 import (
+	"fmt"
 	"sync"
 	"time"
 	"wsdk/relay_common"
@@ -71,8 +72,9 @@ type IServerService interface {
 	HealthCheckInterval() time.Duration
 	SetHealthCheckInterval(duration time.Duration)
 
-	Start() bool
-	Stop() bool
+	Register(IWRelayServer) error
+	Start() error
+	Stop() error
 	Status() int
 	HealthCheck() error
 	Request(*messages.Message) *messages.Message
@@ -81,6 +83,8 @@ type IServerService interface {
 	CancelAllPendingJobs() error
 	OnHealthCheckFails(cb func(IServerService))
 	OnHealthRestored(cb func(service IServerService))
+
+	RestoreExternally(reconnectedOwner IWRServerClient) error
 
 	Describe() relay_common.ServiceDescriptor
 }
@@ -126,6 +130,7 @@ func (s *ServerService) onHealthCheckFailedInternalHandler() {
 
 func (s *ServerService) onHealthCheckRestoredInternalHandler() {
 	s.setStatus(ServiceStatusRunning)
+	s.reScheduleHealthCheckJob()
 	if s.healthCheckRestoreCallback != nil {
 		s.healthCheckRestoreCallback(s)
 	}
@@ -210,27 +215,64 @@ func (s *ServerService) SetHealthCheckInterval(duration time.Duration) {
 	s.reScheduleHealthCheckJob()
 }
 
-func (s *ServerService) Start() bool {
+func (s *ServerService) Register(server IWRelayServer) (err error) {
+	if err = server.RegisterService(s); err != nil {
+		return
+	}
+	s.setStatus(ServiceStatusIdle)
+	return
+}
+
+func (s *ServerService) Start() error {
 	if s.Status() != ServiceStatusIdle {
-		return false
+		return NewInvalidServiceStatusTransitionError(s.Id(), s.Status(), ServiceStatusStarting)
 	}
 	s.scheduleHealthCheckJob()
 	s.setStatus(ServiceStatusStarting)
 	s.servicePool.Start()
 	s.setStatus(ServiceStatusRunning)
-	return false
+	return nil
 }
 
-func (s *ServerService) Stop() bool {
+func (s *ServerService) Stop() error {
 	if s.Status() > ServiceStatusIdle || s.Status() < ServiceStatusStopping {
-		return false
+		return NewInvalidServiceStatusTransitionError(s.Id(), s.Status(), ServiceStatusStopping)
 	}
 	s.stopHealthCheckJob()
 	s.setStatus(ServiceStatusStopping)
 	s.servicePool.Stop()
 	// after pool is stopped
 	s.setStatus(ServiceStatusIdle)
-	return false
+	return nil
+}
+
+func (s *ServerService) RestoreExternally(reconnectedOwner IWRServerClient) (err error) {
+	if s.Status() != ServiceStatusDead {
+		err = NewInvalidServiceStatusError(s.Id(), s.Status(), fmt.Sprintf(" status should be %d to be restored externally", ServiceStatusDead))
+		return
+	}
+	if err = s.Stop(); err != nil {
+		return
+	}
+	oldOwner := s.owner
+	oldPool := s.servicePool
+	oldHealthCheckExecutor := s.healthCheckExecutor
+	s.withWrite(func() {
+		s.owner = reconnectedOwner
+		s.servicePool = NewServicePool(reconnectedOwner.RequestExecutor(), s.servicePool.Size())
+		s.healthCheckExecutor = reconnectedOwner.HealthCheckExecutor()
+	})
+	err = s.Start()
+	if err != nil {
+		// fallback to previous status
+		s.withWrite(func() {
+			s.owner = oldOwner
+			s.servicePool = oldPool
+			s.healthCheckExecutor = oldHealthCheckExecutor
+			s.status = ServiceStatusDead
+		})
+	}
+	return err
 }
 
 func (s *ServerService) Status() int {
