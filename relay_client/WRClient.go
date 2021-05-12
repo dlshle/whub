@@ -2,13 +2,14 @@ package relay_client
 
 import (
 	"sync"
-	"wsdk/relay_common/messages"
 	WSClient2 "wsdk/base/wclient"
+	"wsdk/relay_common/messages"
 )
 
+// TODO
 type WRClient struct {
 	c *WSClient2.WClient
-	requestMap map[string][]func() // id -- [listener functions]
+	serviceMap map[string]IClientService // id -- [listener functions]
 	l *sync.RWMutex
 }
 

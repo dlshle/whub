@@ -13,12 +13,6 @@ type WRServerClient struct {
 	healthCheckExecutor relay_common.IHealthCheckExecutor
 }
 
-type IWRServerClient interface {
-	relay_common.IWRClient
-	RequestExecutor() relay_common.IRequestExecutor
-	HealthCheckExecutor() relay_common.IHealthCheckExecutor
-}
-
 func (c *WRServerClient) RequestExecutor() relay_common.IRequestExecutor {
 	return c.requestExecutor
 }

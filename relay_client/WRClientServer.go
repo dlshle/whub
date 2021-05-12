@@ -13,3 +13,5 @@ type IWRClientServer interface {
 	RegisterService()
 	UnregisterService()
 }
+
+// TODO impl

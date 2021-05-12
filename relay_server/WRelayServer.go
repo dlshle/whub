@@ -38,7 +38,12 @@ type IWRelayServer interface {
 	RegisterService(IServerService) error
 	UnregisterService(string) error
 
-	GetClient(clientId string) IWRServerClient
+	HasClient(id string) bool
+	GetClient(clientId string) *WRServerClient
+	HasService(id string) bool
+	GetService(id string) IServerService
+
+	GetServicesByClientId(id string) ([]IServerService, error)
 }
 
 type clientExtraInfoDescriptor struct {
@@ -53,7 +58,33 @@ func (s *WRelayServer) withWrite(cb func()) {
 	cb()
 }
 
-func (s *WRelayServer) GetClient(id string) IWRServerClient {
+func (s *WRelayServer) Start() error {
+	return s.WServer.Start()
+}
+
+func (s *WRelayServer) Stop() (closeError error) {
+	errorMsg := ""
+	hasErr := false
+	// safe close server
+	for _, c := range s.anonymousClient {
+		if err := c.Close(); err != nil {
+			hasErr = true
+			errorMsg += err.Error() + "\n"
+		}
+	}
+	for _, c := range s.clients {
+		if err := c.Close(); err != nil {
+			hasErr = true
+			errorMsg += err.Error() + "\n"
+		}
+	}
+	if hasErr {
+		closeError = NewServerCloseFailError(errorMsg)
+	}
+	return
+}
+
+func (s *WRelayServer) GetClient(id string) *WRServerClient {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return s.clients[id]
@@ -86,7 +117,7 @@ func (s *WRelayServer) getServicesByClientId(id string) []IServerService {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	for _, v := range s.serviceMap {
-		if v.Owner().Id() == id {
+		if v.Provider().Id() == id {
 			services = append(services, v)
 		}
 	}
@@ -124,8 +155,12 @@ func (s *WRelayServer) serviceCountByClientId(id string) int {
 	return len(s.getServicesByClientId(id))
 }
 
+func (s *WRelayServer) RegisterService(service IServerService) error {
+	return s.registerService(service)
+}
+
 func (s *WRelayServer) registerService(service IServerService) error {
-	clientId := service.Owner().Id()
+	clientId := service.Provider().Id()
 	if !s.HasClient(clientId) {
 		return NewNoSuchClientError(clientId)
 	}
@@ -151,6 +186,10 @@ func (s *WRelayServer) registerService(service IServerService) error {
 		s.serviceMap[service.Id()] = service
 	})
 	return nil
+}
+
+func (s *WRelayServer) UnregisterService(serviceId string) error {
+	return s.unregisterService(serviceId)
 }
 
 func (s *WRelayServer) unregisterService(serviceId string) error {
@@ -229,7 +268,6 @@ func (s *WRelayServer) initClientCallbackHandlers(client *WRServerClient) {
 }
 
 func (s *WRelayServer) handleClientConnectionClosed(c *WRServerClient, err error) {
-	// TODO pause services
 	if err == nil {
 		// normal closure
 		// close all services
@@ -248,8 +286,8 @@ func (s *WRelayServer) handleClientConnectionClosed(c *WRServerClient, err error
 }
 
 func (s *WRelayServer) handleClientError(c *WRServerClient, err error) {
-	// TODO log and pause services if necessary
-
+	// log
+	fmt.Printf("Server(%s) error(%s)", c.Id(), err.Error())
 }
 
 func (s *WRelayServer) NewClient(conn *connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
@@ -260,10 +298,10 @@ func (s *WRelayServer) NewAnonymousClient(conn *connection.WRConnection) *WRServ
 	return NewAnonymousClient(s.ctx, conn)
 }
 
-func NewServer(ctx *relay_common.WRContext, id string, description string, port int) *WRelayServer {
+func NewServer(ctx *relay_common.WRContext, port int) *WRelayServer {
 	server := &WRelayServer{
 		ctx: ctx,
-		WServer: wserver.NewWServer(wserver.NewServerConfig(id, "127.0.0.1", port, wserver.DefaultWsConnHandler())),
+		WServer: wserver.NewWServer(wserver.NewServerConfig(ctx.Identity().Id(), "127.0.0.1", port, wserver.DefaultWsConnHandler())),
 		IDescribableRole: ctx.Identity(),
 		anonymousClient: make(map[string]*WRServerClient),
 		clients: make(map[string]*WRServerClient),
@@ -274,11 +312,8 @@ func NewServer(ctx *relay_common.WRContext, id string, description string, port 
 		lock: new(sync.RWMutex),
 	}
 	server.OnClientConnected(server.handleInitialConnection)
-	// TODO
 	/*
-		onClientClosed func(conn *common.WsConnection, err error),
 		onHttpRequest func(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request),
-		onConnectionError func(*common.WsConnection, error)
 	 */
 	return server
 }

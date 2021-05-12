@@ -7,6 +7,8 @@ const (
 	ErrNoSuchService = 1
 	ErrClientInsufficientPermission = 2
 	ErrClientExceededMaxServiceCount = 3
+
+	ErrServerCloseFailed = 4
 )
 
 type ServerError struct {
@@ -41,4 +43,8 @@ func NewNoSuchServiceError(serviceId string) IServerError {
 
 func NewClientExceededMaxServiceCountError(clientId string) IServerError {
 	return NewServerError(ErrClientExceededMaxServiceCount, fmt.Sprintf("client(%s) has exceeded max service count %d", clientId, MaxServicePerClient))
+}
+
+func NewServerCloseFailError(msg string) IServerError {
+	return NewServerError(ErrServerCloseFailed, msg)
 }

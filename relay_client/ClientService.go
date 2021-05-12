@@ -37,3 +37,5 @@ type IClientService interface {
 	OnDisconnected(func(service IClientService))
 	OnConnectionRestored(func(service IClientService))
 }
+
+// TODO impl

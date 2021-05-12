@@ -71,6 +71,10 @@ func (ws *WServer) Start() (err error) {
 	return nil
 }
 
+func (ws *WServer) Stop() (err error) {
+	return ws.listener.Close()
+}
+
 func (ws *WServer) handleNewConnection(conn *websocket.Conn) {
 	c := Common2.NewWsConnection(conn, nil, nil, nil)
 	defer c.Close()
