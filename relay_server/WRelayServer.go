@@ -29,6 +29,7 @@ type WRelayServer struct {
 	serviceExpirePeriod time.Duration
 	scheduleJobPool *timed.JobPool
 	messageHandler messages.IMessageHandler
+	messageDispatcher messages.IMessageDispatcher
 	lock *sync.RWMutex
 }
 
@@ -204,7 +205,14 @@ func (s *WRelayServer) unregisterService(serviceId string) error {
 }
 
 func (s *WRelayServer) handleInitialConnection(conn *common.WsConnection) {
-	rawClient := s.NewAnonymousClient(connection.NewWRConnection(conn, connection.DefaultTimeout, s.messageHandler, s.ctx.NotificationEmitter()))
+	rawConn := connection.NewWRConnection(conn, connection.DefaultTimeout, s.messageHandler, s.ctx.NotificationEmitter())
+	// any message from any connection needs to go through here
+	rawConn.OnAnyMessage(func(message *messages.Message) {
+		if s.messageDispatcher != nil {
+			s.messageDispatcher.Dispatch(message)
+		}
+	})
+	rawClient := s.NewAnonymousClient(rawConn)
 	s.withWrite(func() {
 		s.anonymousClient[conn.Address()] = rawClient
 	})
@@ -319,6 +327,7 @@ func NewServer(ctx *relay_common.WRContext, port int) *WRelayServer {
 }
 
 // TODO
+// when server receives a message, after the message is handled, server needs to dispatch the message with messageDispatcher
 // server *-- services
 // server *-- clients
 // service *-- client

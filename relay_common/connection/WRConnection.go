@@ -17,6 +17,7 @@ type WRConnection struct {
 	requestTimeout      time.Duration
 	messageHandler      messages.IMessageHandler
 	notificationEmitter notification.IWRNotificationEmitter
+	messageCallback		func(*messages.Message)
 }
 
 type IWRConnection interface {
@@ -24,6 +25,7 @@ type IWRConnection interface {
 	Request(*messages.Message) (*messages.Message, error)
 	RequestWithTimeout(*messages.Message, time.Duration) (*messages.Message, error)
 	Send(*messages.Message) error
+	OnAnyMessage(func(message *messages.Message))
 	OnceMessage(string, func(*messages.Message)) (notification.Disposable, error)
 	OnMessage(string, func(*messages.Message)) (notification.Disposable, error)
 	OffMessage(string, func(*messages.Message))
@@ -37,7 +39,7 @@ func NewWRConnection(c *Common.WsConnection, timeout time.Duration, messageHandl
 	} else if timeout > time.Second * 60 {
 		timeout = time.Second * 60
 	}
-	conn := &WRConnection{c, timeout, messageHandler, notifications}
+	conn := &WRConnection{c, timeout, messageHandler, notifications, nil}
 	conn.OnError(func(err error) {
 		conn.WsConnection.Close()
 	})
@@ -45,6 +47,9 @@ func NewWRConnection(c *Common.WsConnection, timeout time.Duration, messageHandl
 	conn.WsConnection.OnMessage(func(stream []byte) {
 		msg, err := conn.messageHandler.Deserialize(stream)
 		if err != nil {
+			if conn.messageCallback != nil {
+				conn.messageCallback(msg)
+			}
 			notifications.Notify(msg.Id(), msg)
 		}
 	})
@@ -103,6 +108,10 @@ func (c *WRConnection) Send(message *messages.Message) error {
 	} else {
 		return e
 	}
+}
+
+func (c *WRConnection) OnAnyMessage(cb func(*messages.Message)) {
+	c.messageCallback = cb
 }
 
 func (c *WRConnection) OnMessage(id string, cb func(*messages.Message)) (notification.Disposable, error) {
