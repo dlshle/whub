@@ -2,11 +2,14 @@ package relay_server
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
 )
+
+// Service Uri should always be /service/serviceId/uri/params
 
 // ServerService access type
 const (
@@ -46,6 +49,7 @@ type IServiceProvider interface {
 }
 
 type ServerService struct {
+	uriPrefix			string
 	ctx                 relay_common.IWRContext
 	id                  string
 	description         string
@@ -84,6 +88,7 @@ type IServerService interface {
 	Status() int
 	HealthCheck() error
 	Request(*messages.Message) *messages.Message
+	SupportsUri(uri string) bool
 	Cancel(messageId string) error
 	KillAllProcessingJobs() error
 	CancelAllPendingJobs() error
@@ -97,6 +102,7 @@ type IServerService interface {
 
 func NewService(ctx relay_common.IWRContext, id string, description string, provider IServiceProvider, serviceUris []string, serviceType int, accessType int, exeType int) IServerService {
 	return &ServerService{
+		uriPrefix: 			 relay_common.ServicePrefix + id,
 		ctx:                 ctx,
 		id:                  id,
 		description:         description,
@@ -222,7 +228,7 @@ func (s *ServerService) SetHealthCheckInterval(duration time.Duration) {
 }
 
 func (s *ServerService) Register(server IWRelayServer) (err error) {
-	if err = server.RegisterService(s); err != nil {
+	if err = server.RegisterService(s.Provider().Id(), s); err != nil {
 		return
 	}
 	s.setStatus(ServiceStatusIdle)
@@ -337,4 +343,17 @@ func (s *ServerService) Describe() relay_common.ServiceDescriptor {
 		AccessType:    s.AccessType(),
 		ExecutionType: s.ExecutionType(),
 	}
+}
+
+func (s *ServerService) SupportsUri(uri string) bool {
+	if !strings.HasPrefix(uri, s.uriPrefix) {
+		return false
+	}
+	actualUri := strings.TrimPrefix(uri, s.uriPrefix)
+	for _, uri := range s.ServiceUris() {
+		if strings.HasPrefix(actualUri, uri) {
+			return true
+		}
+	}
+	return false
 }

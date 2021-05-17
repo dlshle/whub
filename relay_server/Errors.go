@@ -1,6 +1,9 @@
 package relay_server
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 const (
 	ErrNoSuchClient = 0
@@ -9,6 +12,8 @@ const (
 	ErrClientExceededMaxServiceCount = 3
 
 	ErrServerCloseFailed = 4
+
+	ErrInvalidMessage = 5
 )
 
 type ServerError struct {
@@ -19,6 +24,7 @@ type ServerError struct {
 type IServerError interface {
 	Error() string
 	Code() int
+	Json() string
 }
 
 func (e *ServerError) Error() string {
@@ -27,6 +33,14 @@ func (e *ServerError) Error() string {
 
 func (e *ServerError) Code() int {
 	return e.code
+}
+
+func (e *ServerError) Json() string {
+	jsonErr, err := json.Marshal(*e)
+	if err != nil {
+		return fmt.Sprintf("{\"code\":\"%d\", \"message\":\"%s\"}", e.code, e.msg)
+	}
+	return (string)(jsonErr)
 }
 
 func NewServerError(code int, msg string) *ServerError {
@@ -47,4 +61,8 @@ func NewClientExceededMaxServiceCountError(clientId string) IServerError {
 
 func NewServerCloseFailError(msg string) IServerError {
 	return NewServerError(ErrServerCloseFailed, msg)
+}
+
+func NewInvalidMessageError() IServerError {
+	return NewServerError(ErrInvalidMessage, "invalid message, please contact system admin for further information")
 }

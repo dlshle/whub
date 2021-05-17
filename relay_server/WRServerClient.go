@@ -22,12 +22,12 @@ func (c *WRServerClient) HealthCheckExecutor() relay_common.IHealthCheckExecutor
 }
 
 // since client is to server, so the drafted messages is to the client
-func (c *WRServerClient) NewMessage(from string, msgType int, payload []byte) *messages.Message {
-	return messages.NewMessage(utils.GenStringId(), from, c.Id(), msgType, payload)
+func (c *WRServerClient) NewMessage(from string, uri string, msgType int, payload []byte) *messages.Message {
+	return messages.NewMessage(utils.GenStringId(), from, c.Id(), uri, msgType, payload)
 }
 
 func NewAnonymousClient(ctx *relay_common.WRContext, conn *connection.WRConnection) *WRServerClient {
-	return NewClient(ctx, conn, "", "", relay_common.ClientTypeAnonymous, "", relay_common.PRMessage)
+	return NewClient(ctx, conn, "_", "", relay_common.ClientTypeAnonymous, "", relay_common.PRMessage)
 }
 
 func NewClient(ctx *relay_common.WRContext, conn *connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {

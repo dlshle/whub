@@ -2,6 +2,10 @@ package relay_common
 
 import "time"
 
+const (
+	ServicePrefix = "/service"
+)
+
 type ServiceDescriptor struct {
 	Id            string
 	Description   string

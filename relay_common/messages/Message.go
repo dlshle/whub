@@ -29,6 +29,7 @@ type Message struct {
 	id          string
 	from        string // use id or credential here
 	to          string // use id or credential here
+	uri			string
 	messageType int
 	payload     []byte
 }
@@ -38,6 +39,7 @@ type IMessage interface {
 	From() string
 	To() string
 	MessageType() int
+	Uri() string
 	Payload() []byte
 	String() string
 }
@@ -58,6 +60,10 @@ func (t *Message) MessageType() int {
 	return t.messageType
 }
 
+func (t *Message) Uri() string {
+	return t.uri
+}
+
 func (t *Message) Payload() []byte {
 	return t.payload
 }
@@ -67,19 +73,19 @@ func (t *Message) String() string {
 }
 
 
-func NewMessage(id string, from string, to string, messageType int, payload []byte) *Message {
-	return &Message{id, from, to, messageType, payload}
+func NewMessage(id string, from string, to string, uri string, messageType int, payload []byte) *Message {
+	return &Message{id, from, to, uri, messageType, payload}
 }
 
-func NewErrorMessage(id string, from string, to string, errorMessage string) *Message {
-	return &Message{id, from, to, MessageTypeError, ([]byte)(errorMessage)}
+func NewErrorMessage(id string, from string, to string, uri string, errorMessage string) *Message {
+	return &Message{id, from, to, uri, MessageTypeError, ([]byte)(errorMessage)}
 }
 
 func NewPingMessage(id string, from string, to string) *Message {
-	return &Message{id, from, to, MessageTypePing, nil}
+	return &Message{id, from, to, "", MessageTypePing, nil}
 }
 
 func NewPongMessage(id string, from string, to string) *Message {
-	return &Message{id, from, to, MessageTypePong, nil}
+	return &Message{id, from, to, "", MessageTypePong, nil}
 }
 

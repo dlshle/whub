@@ -19,32 +19,26 @@ const (
 	ServiceKillTimeout = time.Minute * 15
 )
 
+// TODO use client manager to manage connected clients
 type WRelayServer struct {
 	ctx *relay_common.WRContext
 	*wserver.WServer
 	relay_common.IDescribableRole
 	anonymousClient map[string]*WRServerClient // raw clients or pure anony clients
 	clients map[string]*WRServerClient
-	serviceMap map[string]IServerService // serviceId <--> ServerService when a client is closed, should also kill the service until it's expired(Tdead + Texipre_period)
-	serviceExpirePeriod time.Duration
+	IServiceManager
 	scheduleJobPool *timed.JobPool
-	messageHandler messages.IMessageHandler
+	messageParser messages.IMessageParser
 	messageDispatcher messages.IMessageDispatcher
 	lock *sync.RWMutex
 }
 
 type IWRelayServer interface {
+	IServiceManager
 	Start() error
 	Stop() error
-	RegisterService(IServerService) error
-	UnregisterService(string) error
-
 	HasClient(id string) bool
 	GetClient(clientId string) *WRServerClient
-	HasService(id string) bool
-	GetService(id string) IServerService
-
-	GetServicesByClientId(id string) ([]IServerService, error)
 }
 
 type clientExtraInfoDescriptor struct {
@@ -67,6 +61,7 @@ func (s *WRelayServer) Stop() (closeError error) {
 	errorMsg := ""
 	hasErr := false
 	// safe close server
+	errorMsg += s.UnregisterAllServices().Error()
 	for _, c := range s.anonymousClient {
 		if err := c.Close(); err != nil {
 			hasErr = true
@@ -95,16 +90,6 @@ func (s *WRelayServer) HasClient(id string) bool {
 	return s.GetClient(id) != nil
 }
 
-func (s *WRelayServer) GetService(id string) IServerService {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	return s.serviceMap[id]
-}
-
-func (s *WRelayServer) HasService(id string) bool {
-	return s.GetService(id) != nil
-}
-
 func (s *WRelayServer) cancelTimedJob(jobId int64) bool {
 	return s.scheduleJobPool.CancelJob(jobId)
 }
@@ -113,99 +98,23 @@ func (s *WRelayServer) scheduleTimeoutJob(job func()) int64 {
 	return s.scheduleJobPool.ScheduleAsyncTimeoutJob(job, ServiceKillTimeout)
 }
 
-func (s *WRelayServer) getServicesByClientId(id string) []IServerService {
-	services := make([]IServerService, 0, MaxServicePerClient)
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	for _, v := range s.serviceMap {
-		if v.Provider().Id() == id {
-			services = append(services, v)
-		}
-	}
-	return services
-}
-
-func (s *WRelayServer) withServicesFromClientId(clientId string, cb func([]IServerService)) error {
-	services, err := s.GetServicesByClientId(clientId)
-	if err != nil {
-		return err
-	}
-	cb(services)
-	return nil
-}
-
-func (s *WRelayServer) unregisterAllServicesFromClientId(clientId string) error {
-	return s.withServicesFromClientId(clientId, func(services []IServerService) {
-		for i, _ := range services {
-			if services[i] != nil {
-				s.unregisterService(services[i].Id())
-			}
-		}
-	})
-}
-
-// nil -> no such client, [] -> no service
 func (s *WRelayServer) GetServicesByClientId(id string) ([]IServerService, error) {
 	if !s.HasClient(id) {
 		return nil, NewNoSuchClientError(id)
 	}
-	return s.getServicesByClientId(id), nil
-}
-
-func (s *WRelayServer) serviceCountByClientId(id string) int {
-	return len(s.getServicesByClientId(id))
+	return s.IServiceManager.GetServicesByClientId(id), nil
 }
 
 func (s *WRelayServer) RegisterService(service IServerService) error {
-	return s.registerService(service)
-}
-
-func (s *WRelayServer) registerService(service IServerService) error {
 	clientId := service.Provider().Id()
 	if !s.HasClient(clientId) {
 		return NewNoSuchClientError(clientId)
 	}
-	if s.serviceCountByClientId(clientId) >= MaxServicePerClient {
-		return NewClientExceededMaxServiceCountError(clientId)
-	}
-	var serviceDeadTimeoutJobId int64 = -1
-	s.withWrite(func() {
-		service.OnHealthCheckFails(func(service IServerService) {
-			// log
-			service.KillAllProcessingJobs()
-			// schedule timeout job to really kill the service if it's been dead for X duration
-			serviceDeadTimeoutJobId = s.scheduleTimeoutJob(func() {
-				s.unregisterService(service.Id())
-			})
-		})
-		service.OnHealthRestored(func(service IServerService) {
-			// log
-			if serviceDeadTimeoutJobId > -1 {
-				s.cancelTimedJob(serviceDeadTimeoutJobId)
-			}
-		})
-		s.serviceMap[service.Id()] = service
-	})
-	return nil
-}
-
-func (s *WRelayServer) UnregisterService(serviceId string) error {
-	return s.unregisterService(serviceId)
-}
-
-func (s *WRelayServer) unregisterService(serviceId string) error {
-	if !s.HasService(serviceId) {
-		return NewNoSuchServiceError(serviceId)
-	}
-	s.withWrite(func() {
-		s.serviceMap[serviceId].Stop()
-		delete(s.serviceMap, serviceId)
-	})
-	return nil
+	return s.IServiceManager.RegisterService(clientId, service)
 }
 
 func (s *WRelayServer) handleInitialConnection(conn *common.WsConnection) {
-	rawConn := connection.NewWRConnection(conn, connection.DefaultTimeout, s.messageHandler, s.ctx.NotificationEmitter())
+	rawConn := connection.NewWRConnection(conn, connection.DefaultTimeout, s.messageParser, s.ctx.NotificationEmitter())
 	// any message from any connection needs to go through here
 	rawConn.OnAnyMessage(func(message *messages.Message) {
 		if s.messageDispatcher != nil {
@@ -216,7 +125,7 @@ func (s *WRelayServer) handleInitialConnection(conn *common.WsConnection) {
 	s.withWrite(func() {
 		s.anonymousClient[conn.Address()] = rawClient
 	})
-	resp, err := rawClient.Request(rawClient.NewMessage(s.Id(), messages.MessageTypeServerDescriptor, ([]byte)(s.Describe().String())))
+	resp, err := rawClient.Request(rawClient.NewMessage(s.Id(), "", messages.MessageTypeServerDescriptor, ([]byte)(s.Describe().String())))
 	// try to handle anonymous client upgrade
 	if err == nil && resp.MessageType() == messages.MessageTypeClientDescriptor {
 		var clientDescriptor relay_common.RoleDescriptor
@@ -243,7 +152,7 @@ func (s *WRelayServer) handleInitialConnection(conn *common.WsConnection) {
 }
 
 func (s *WRelayServer) tryToRestoreDeadServicesFromReconnectedClient(clientId string) (err error) {
-	s.withServicesFromClientId(clientId, func(services []IServerService) {
+	s.WithServicesFromClientId(clientId, func(services []IServerService) {
 		client := s.GetClient(clientId)
 		if client == nil {
 			err = NewNoSuchClientError(clientId)
@@ -279,7 +188,7 @@ func (s *WRelayServer) handleClientConnectionClosed(c *WRServerClient, err error
 	if err == nil {
 		// normal closure
 		// close all services
-		s.unregisterAllServicesFromClientId(c.Id())
+		s.UnregisterAllServicesFromClientId(c.Id())
 		// remove client from connection
 		s.withWrite(func() {
 			delete(s.clients, c.Id())
@@ -313,10 +222,9 @@ func NewServer(ctx *relay_common.WRContext, port int) *WRelayServer {
 		IDescribableRole: ctx.Identity(),
 		anonymousClient: make(map[string]*WRServerClient),
 		clients: make(map[string]*WRServerClient),
-		serviceMap: make(map[string]IServerService),
-		serviceExpirePeriod: time.Second,
+		IServiceManager: NewServiceManager(ctx, time.Second),
 		scheduleJobPool: ctx.TimedJobPool(),
-		messageHandler: messages.NewSimpleMessageHandler(),
+		messageParser: messages.NewSimpleMessageParser(),
 		lock: new(sync.RWMutex),
 	}
 	server.OnClientConnected(server.handleInitialConnection)
@@ -343,3 +251,4 @@ func New(id string, description string, ip string, port int) *relay_server {
 
 }
 */
+
