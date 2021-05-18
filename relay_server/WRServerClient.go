@@ -22,7 +22,7 @@ func (c *WRServerClient) HealthCheckExecutor() relay_common.IHealthCheckExecutor
 }
 
 // since client is to server, so the drafted messages is to the client
-func (c *WRServerClient) NewMessage(from string, uri string, msgType int, payload []byte) *messages.Message {
+func (c *WRServerClient) DraftMessage(from string, uri string, msgType int, payload []byte) *messages.Message {
 	return messages.NewMessage(utils.GenStringId(), from, c.Id(), uri, msgType, payload)
 }
 

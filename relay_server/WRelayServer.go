@@ -19,13 +19,13 @@ const (
 	ServiceKillTimeout = time.Minute * 15
 )
 
-// TODO use client manager to manage connected clients
 type WRelayServer struct {
 	ctx *relay_common.WRContext
 	*wserver.WServer
 	relay_common.IDescribableRole
 	anonymousClient map[string]*WRServerClient // raw clients or pure anony clients
-	clients map[string]*WRServerClient
+	// clients map[string]*WRServerClient
+	IClientManager
 	IServiceManager
 	scheduleJobPool *timed.JobPool
 	messageParser messages.IMessageParser
@@ -35,10 +35,9 @@ type WRelayServer struct {
 
 type IWRelayServer interface {
 	IServiceManager
+	IClientManager
 	Start() error
 	Stop() error
-	HasClient(id string) bool
-	GetClient(clientId string) *WRServerClient
 }
 
 type clientExtraInfoDescriptor struct {
@@ -62,13 +61,8 @@ func (s *WRelayServer) Stop() (closeError error) {
 	hasErr := false
 	// safe close server
 	errorMsg += s.UnregisterAllServices().Error()
+	errorMsg += s.DisconnectAllClients().Error()
 	for _, c := range s.anonymousClient {
-		if err := c.Close(); err != nil {
-			hasErr = true
-			errorMsg += err.Error() + "\n"
-		}
-	}
-	for _, c := range s.clients {
 		if err := c.Close(); err != nil {
 			hasErr = true
 			errorMsg += err.Error() + "\n"
@@ -78,16 +72,6 @@ func (s *WRelayServer) Stop() (closeError error) {
 		closeError = NewServerCloseFailError(errorMsg)
 	}
 	return
-}
-
-func (s *WRelayServer) GetClient(id string) *WRServerClient {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-	return s.clients[id]
-}
-
-func (s *WRelayServer) HasClient(id string) bool {
-	return s.GetClient(id) != nil
 }
 
 func (s *WRelayServer) cancelTimedJob(jobId int64) bool {
@@ -125,7 +109,7 @@ func (s *WRelayServer) handleInitialConnection(conn *common.WsConnection) {
 	s.withWrite(func() {
 		s.anonymousClient[conn.Address()] = rawClient
 	})
-	resp, err := rawClient.Request(rawClient.NewMessage(s.Id(), "", messages.MessageTypeServerDescriptor, ([]byte)(s.Describe().String())))
+	resp, err := rawClient.Request(rawClient.DraftMessage(s.Id(), "", messages.MessageTypeServerDescriptor, ([]byte)(s.Describe().String())))
 	// try to handle anonymous client upgrade
 	if err == nil && resp.MessageType() == messages.MessageTypeClientDescriptor {
 		var clientDescriptor relay_common.RoleDescriptor
@@ -141,10 +125,10 @@ func (s *WRelayServer) handleInitialConnection(conn *common.WsConnection) {
 		if err == nil {
 			s.withWrite(func() {
 				delete(s.anonymousClient, conn.Address())
-				client := s.NewClient(rawClient.WRConnection, clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.cType, clientExtraInfo.cKey, clientExtraInfo.pScope)
-				s.clients[clientDescriptor.Id] = client
-				s.initClientCallbackHandlers(client)
 			})
+			client := s.NewClient(rawClient.WRConnection, clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.cType, clientExtraInfo.cKey, clientExtraInfo.pScope)
+			s.AddClient(client)
+			s.initClientCallbackHandlers(client)
 			err = s.tryToRestoreDeadServicesFromReconnectedClient(clientDescriptor.Id)
 			// log err
 		}
@@ -190,15 +174,11 @@ func (s *WRelayServer) handleClientConnectionClosed(c *WRServerClient, err error
 		// close all services
 		s.UnregisterAllServicesFromClientId(c.Id())
 		// remove client from connection
-		s.withWrite(func() {
-			delete(s.clients, c.Id())
-		})
+		s.DisconnectClient(c.Id())
 	} else {
 		// unexpected closure
 		// service should kill all jobs and transit to DeadMode automatically
-		s.withWrite(func() {
-			delete(s.clients, c.Id())
-		})
+		s.DisconnectClient(c.Id())
 	}
 }
 
@@ -221,7 +201,8 @@ func NewServer(ctx *relay_common.WRContext, port int) *WRelayServer {
 		WServer: wserver.NewWServer(wserver.NewServerConfig(ctx.Identity().Id(), "127.0.0.1", port, wserver.DefaultWsConnHandler())),
 		IDescribableRole: ctx.Identity(),
 		anonymousClient: make(map[string]*WRServerClient),
-		clients: make(map[string]*WRServerClient),
+		// clients: make(map[string]*WRServerClient),
+		IClientManager: NewClientManager(),
 		IServiceManager: NewServiceManager(ctx, time.Second),
 		scheduleJobPool: ctx.TimedJobPool(),
 		messageParser: messages.NewSimpleMessageParser(),

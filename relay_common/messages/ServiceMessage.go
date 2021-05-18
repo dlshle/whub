@@ -161,16 +161,16 @@ func NewServiceMessageExecutor(c *connection.WRConnection) *ServiceMessageExecut
 func (e *ServiceMessageExecutor) Execute(message *ServiceMessage) {
 	// check if messages is processable
 	if unProcessableServiceMessageMap[message.Status()] {
-		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), "request has been cancelled or target server is dead"))
+		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), message.Uri(), "request has been cancelled or target server is dead"))
 		return
 	}
 	message.setStatus(ServiceMessageStatusProcessing)
 	response, err := e.conn.Request(message.Message)
 	if message.Status() == ServiceMessageStatusDead {
 		// last check on if messages is killed
-		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), "request has been cancelled or target server is dead"))
+		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), message.Uri(), "request has been cancelled or target server is dead"))
 	} else if err != nil {
-		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), err.Error()))
+		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), message.Uri(), err.Error()))
 	} else {
 		message.resolve(response)
 	}

@@ -68,6 +68,9 @@ type ServerService struct {
 	healthCheckJobId    int64
 	healthCheckErrCallback func(IServerService)
 	healthCheckRestoreCallback func(IServerService)
+
+	onStartedCallback func(IServerService)
+	onStoppedCallback func(IServerService)
 }
 
 type IServerService interface {
@@ -84,6 +87,8 @@ type IServerService interface {
 
 	Register(IWRelayServer) error
 	Start() error
+	OnStarted(func(IServerService))
+	OnStopped(func(IServerService))
 	Stop() error
 	Status() int
 	HealthCheck() error
@@ -243,6 +248,9 @@ func (s *ServerService) Start() error {
 	s.setStatus(ServiceStatusStarting)
 	s.servicePool.Start()
 	s.setStatus(ServiceStatusRunning)
+	if s.onStartedCallback != nil {
+		s.onStartedCallback(s)
+	}
 	return nil
 }
 
@@ -255,7 +263,18 @@ func (s *ServerService) Stop() error {
 	s.servicePool.Stop()
 	// after pool is stopped
 	s.setStatus(ServiceStatusIdle)
+	if s.onStoppedCallback != nil {
+		s.onStoppedCallback(s)
+	}
 	return nil
+}
+
+func(s *ServerService) OnStarted(callback func(service IServerService)) {
+	s.onStartedCallback = callback
+}
+
+func(s *ServerService) OnStopped(callback func(service IServerService)) {
+	s.onStoppedCallback = callback
 }
 
 func (s *ServerService) RestoreExternally(reconnectedOwner *WRServerClient) (err error) {

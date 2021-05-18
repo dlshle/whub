@@ -21,8 +21,13 @@ const (
 	MessageTypeJSON           = 5
 	MessageTypeError          = 6
 
-	MessageTypeServerDescriptor = 7
-	MessageTypeClientDescriptor = 8
+	MessageTypeServerNotification = 11
+	MessageTypeServerServiceNotification = 12
+	MessageTypeClientNotification = 21
+	MessageTypeClientServiceNotification = 22
+
+	MessageTypeServerDescriptor = 100
+	MessageTypeClientDescriptor = 200
 )
 
 type Message struct {

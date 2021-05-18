@@ -10,6 +10,7 @@ import (
 
 const (
 	HandlerPriorityServiceMessage = 2
+	HandlerPriorityClientMessage  = 3
 	HandlerPriorityInvalidMessage = 99 // always put this on the last
 )
 

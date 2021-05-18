@@ -47,7 +47,7 @@ type IWRBaseRole interface {
 	Id() string
 	Description() string
 	Type() int
-	NewMessage(to string, uri string, msgType int, payload []byte) *messages.Message
+	DraftMessage(from string, to string, uri string, msgType int, payload []byte) *messages.Message
 }
 
 func NewBaseRole(id, description string, rType int) *WRBaseRole {
@@ -66,8 +66,8 @@ func (c *WRBaseRole) Type() int {
 	return c.rType
 }
 
-func (c *WRBaseRole) NewMessage(to string, uri string, msgType int, payload []byte) *messages.Message {
-	return messages.NewMessage(utils.GenStringId(), c.Id(), to, uri, msgType, payload)
+func (c *WRBaseRole) DraftMessage(from string, to string, uri string, msgType int, payload []byte) *messages.Message {
+	return messages.NewMessage(utils.GenStringId(), from, to, uri, msgType, payload)
 }
 
 type IDescribableRole interface {
