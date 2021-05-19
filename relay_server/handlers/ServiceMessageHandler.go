@@ -5,6 +5,7 @@ import (
 	"strings"
 	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/service"
 	"wsdk/relay_server"
 )
 
@@ -19,7 +20,7 @@ func (h *ServiceMessageHandler) NewServiceMessageHandler(ctx *relay_common.WRCon
 }
 
 func (h *ServiceMessageHandler) Handle(message *messages.Message, next messages.NextMessageHandler) (*messages.Message, error) {
-	if !strings.HasPrefix(message.Uri(), relay_common.ServicePrefix) {
+	if !strings.HasPrefix(message.Uri(), service.ServicePrefix) {
 		return next(message)
 		// return nil, errors.New(relay_server.NewInvalidServiceMessageUriError(message.Uri()).Json())
 	}

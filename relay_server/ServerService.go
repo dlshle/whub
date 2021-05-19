@@ -7,6 +7,7 @@ import (
 	"time"
 	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/service"
 )
 
 // Service Uri should always be /service/serviceId/uri/params
@@ -27,17 +28,6 @@ const (
 // ServerService type
 const (
 	ServiceTypeRelay = 0
-)
-
-// ServerService status
-const (
-	ServiceStatusUnregistered = 0
-	ServiceStatusIdle         = 1
-	ServiceStatusStarting     = 2
-	ServiceStatusRunning      = 3
-	ServiceStatusBlocked      = 4 // when queue is maxed out
-	ServiceStatusDead         = 5 // health check fails
-	ServiceStatusStopping     = 6
 )
 
 const DefaultHealthCheckInterval = time.Minute * 30
@@ -63,7 +53,7 @@ type ServerService struct {
 	status              int
 	healthCheckExecutor relay_common.IHealthCheckExecutor
 	lock                *sync.RWMutex
-	servicePool         IServicePool
+	servicePool         service.IServicePool
 
 	healthCheckJobId    int64
 	healthCheckErrCallback func(IServerService)
@@ -74,40 +64,26 @@ type ServerService struct {
 }
 
 type IServerService interface {
-	Id() string
-	Description() string
+	service.IBaseService
 	Provider() IServiceProvider
-	ServiceType() int
-	ServiceUris() []string
-	CreationTime() time.Time
-	AccessType() int
-	ExecutionType() int
 	HealthCheckInterval() time.Duration
 	SetHealthCheckInterval(duration time.Duration)
 
 	Register(IWRelayServer) error
-	Start() error
 	OnStarted(func(IServerService))
 	OnStopped(func(IServerService))
-	Stop() error
-	Status() int
 	HealthCheck() error
 	Request(*messages.Message) *messages.Message
-	SupportsUri(uri string) bool
-	Cancel(messageId string) error
-	KillAllProcessingJobs() error
-	CancelAllPendingJobs() error
+
 	OnHealthCheckFails(cb func(IServerService))
 	OnHealthRestored(cb func(service IServerService))
 
 	RestoreExternally(reconnectedOwner *WRServerClient) error
-
-	Describe() relay_common.ServiceDescriptor
 }
 
 func NewService(ctx relay_common.IWRContext, id string, description string, provider IServiceProvider, serviceUris []string, serviceType int, accessType int, exeType int) IServerService {
 	return &ServerService{
-		uriPrefix: 			 relay_common.ServicePrefix + id,
+		uriPrefix:           service.ServicePrefix + id,
 		ctx:                 ctx,
 		id:                  id,
 		description:         description,
@@ -118,10 +94,10 @@ func NewService(ctx relay_common.IWRContext, id string, description string, prov
 		accessType:          accessType,
 		executionType:       exeType,
 		healthCheckInterval: DefaultHealthCheckInterval,
-		status:              ServiceStatusUnregistered,
+		status:              service.ServiceStatusUnregistered,
 		healthCheckExecutor: provider.HealthCheckExecutor(),
 		lock:                new(sync.RWMutex),
-		servicePool:         NewServicePool(provider.RequestExecutor(), MaxServicePoolSize),
+		servicePool:         service.NewServicePool(provider.RequestExecutor(), service.MaxServicePoolSize),
 		healthCheckJobId:    0,
 	}
 }
@@ -139,14 +115,14 @@ func (s *ServerService) setStatus(status int) {
 }
 
 func (s *ServerService) onHealthCheckFailedInternalHandler() {
-	s.setStatus(ServiceStatusDead)
+	s.setStatus(service.ServiceStatusDead)
 	if s.healthCheckErrCallback != nil {
 		s.healthCheckErrCallback(s)
 	}
 }
 
 func (s *ServerService) onHealthCheckRestoredInternalHandler() {
-	s.setStatus(ServiceStatusRunning)
+	s.setStatus(service.ServiceStatusRunning)
 	s.reScheduleHealthCheckJob()
 	if s.healthCheckRestoreCallback != nil {
 		s.healthCheckRestoreCallback(s)
@@ -212,6 +188,10 @@ func (s *ServerService) ExecutionType() int {
 	return s.executionType
 }
 
+func (s *ServerService) CTime() time.Time {
+	return s.cTime
+}
+
 func (s *ServerService) HealthCheckInterval() time.Duration {
 	return s.healthCheckInterval
 }
@@ -236,18 +216,18 @@ func (s *ServerService) Register(server IWRelayServer) (err error) {
 	if err = server.RegisterService(s.Provider().Id(), s); err != nil {
 		return
 	}
-	s.setStatus(ServiceStatusIdle)
+	s.setStatus(service.ServiceStatusIdle)
 	return
 }
 
 func (s *ServerService) Start() error {
-	if s.Status() != ServiceStatusIdle {
-		return NewInvalidServiceStatusTransitionError(s.Id(), s.Status(), ServiceStatusStarting)
+	if s.Status() != service.ServiceStatusIdle {
+		return NewInvalidServiceStatusTransitionError(s.Id(), s.Status(), service.ServiceStatusStarting)
 	}
 	s.scheduleHealthCheckJob()
-	s.setStatus(ServiceStatusStarting)
+	s.setStatus(service.ServiceStatusStarting)
 	s.servicePool.Start()
-	s.setStatus(ServiceStatusRunning)
+	s.setStatus(service.ServiceStatusRunning)
 	if s.onStartedCallback != nil {
 		s.onStartedCallback(s)
 	}
@@ -255,14 +235,14 @@ func (s *ServerService) Start() error {
 }
 
 func (s *ServerService) Stop() error {
-	if s.Status() > ServiceStatusIdle || s.Status() < ServiceStatusStopping {
-		return NewInvalidServiceStatusTransitionError(s.Id(), s.Status(), ServiceStatusStopping)
+	if !(s.Status() > service.ServiceStatusIdle || s.Status() < service.ServiceStatusStopping) {
+		return NewInvalidServiceStatusTransitionError(s.Id(), s.Status(), service.ServiceStatusStopping)
 	}
 	s.stopHealthCheckJob()
-	s.setStatus(ServiceStatusStopping)
+	s.setStatus(service.ServiceStatusStopping)
 	s.servicePool.Stop()
 	// after pool is stopped
-	s.setStatus(ServiceStatusIdle)
+	s.setStatus(service.ServiceStatusIdle)
 	if s.onStoppedCallback != nil {
 		s.onStoppedCallback(s)
 	}
@@ -278,8 +258,8 @@ func(s *ServerService) OnStopped(callback func(service IServerService)) {
 }
 
 func (s *ServerService) RestoreExternally(reconnectedOwner *WRServerClient) (err error) {
-	if s.Status() != ServiceStatusDead {
-		err = NewInvalidServiceStatusError(s.Id(), s.Status(), fmt.Sprintf(" status should be %d to be restored externally", ServiceStatusDead))
+	if s.Status() != service.ServiceStatusDead {
+		err = NewInvalidServiceStatusError(s.Id(), s.Status(), fmt.Sprintf(" status should be %d to be restored externally", service.ServiceStatusDead))
 		return
 	}
 	if err = s.Stop(); err != nil {
@@ -290,7 +270,7 @@ func (s *ServerService) RestoreExternally(reconnectedOwner *WRServerClient) (err
 	oldHealthCheckExecutor := s.healthCheckExecutor
 	s.withWrite(func() {
 		s.provider = reconnectedOwner
-		s.servicePool = NewServicePool(reconnectedOwner.RequestExecutor(), s.servicePool.Size())
+		s.servicePool = service.NewServicePool(reconnectedOwner.RequestExecutor(), s.servicePool.Size())
 		s.healthCheckExecutor = reconnectedOwner.HealthCheckExecutor()
 	})
 	err = s.Start()
@@ -300,7 +280,7 @@ func (s *ServerService) RestoreExternally(reconnectedOwner *WRServerClient) (err
 			s.provider = oldOwner
 			s.servicePool = oldPool
 			s.healthCheckExecutor = oldHealthCheckExecutor
-			s.status = ServiceStatusDead
+			s.status = service.ServiceStatusDead
 		})
 	}
 	return err
@@ -350,8 +330,8 @@ func (s *ServerService) OnHealthRestored(cb func(service IServerService)) {
 	})
 }
 
-func (s *ServerService) Describe() relay_common.ServiceDescriptor {
-	return relay_common.ServiceDescriptor{
+func (s *ServerService) Describe() service.ServiceDescriptor {
+	return service.ServiceDescriptor{
 		Id:            s.Id(),
 		Description:   s.Description(),
 		HostInfo:      s.ctx.Identity().Describe(),
@@ -361,6 +341,7 @@ func (s *ServerService) Describe() relay_common.ServiceDescriptor {
 		ServiceType:   s.ServiceType(),
 		AccessType:    s.AccessType(),
 		ExecutionType: s.ExecutionType(),
+		Status: 	   s.Status(),
 	}
 }
 
@@ -375,4 +356,12 @@ func (s *ServerService) SupportsUri(uri string) bool {
 		}
 	}
 	return false
+}
+
+func (s *ServerService) FullServiceUris() []string {
+	fullUris := make([]string, len(s.serviceUris))
+	for i, uri := range s.ServiceUris() {
+		fullUris[i] = s.uriPrefix + uri
+	}
+	return fullUris
 }

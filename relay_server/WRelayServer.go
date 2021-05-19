@@ -109,7 +109,7 @@ func (s *WRelayServer) handleInitialConnection(conn *common.WsConnection) {
 	s.withWrite(func() {
 		s.anonymousClient[conn.Address()] = rawClient
 	})
-	resp, err := rawClient.Request(rawClient.DraftMessage(s.Id(), "", messages.MessageTypeServerDescriptor, ([]byte)(s.Describe().String())))
+	resp, err := rawClient.Request(rawClient.NewMessage(s.Id(), "", messages.MessageTypeServerDescriptor, ([]byte)(s.Describe().String())))
 	// try to handle anonymous client upgrade
 	if err == nil && resp.MessageType() == messages.MessageTypeClientDescriptor {
 		var clientDescriptor relay_common.RoleDescriptor

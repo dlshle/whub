@@ -1,15 +1,18 @@
 package relay_client
 
-import "wsdk/relay_common"
+import (
+	"wsdk/relay_common"
+	"wsdk/relay_common/service"
+)
 
 type WRClientServer struct {
 	*relay_common.WRServer
-	services []*relay_common.ServiceDescriptor
+	services []*service.ServiceDescriptor
 }
 
 type IWRClientServer interface {
 	// server will decide what services to be returned
-	Services() []*relay_common.ServiceDescriptor
+	Services() []*service.ServiceDescriptor
 	RegisterService()
 	UnregisterService()
 }

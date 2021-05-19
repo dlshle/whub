@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 	"wsdk/relay_common"
+	"wsdk/relay_common/service"
 )
 
 type ServiceManager struct {
@@ -157,7 +158,7 @@ func (s *ServiceManager) unregisterService(serviceId string) error {
 }
 
 func (s *ServiceManager) MatchServiceByUri(uri string) IServerService {
-	if !strings.HasPrefix(uri, relay_common.ServicePrefix) {
+	if !strings.HasPrefix(uri, service.ServicePrefix) {
 		return nil
 	}
 	s.lock.RLock()
