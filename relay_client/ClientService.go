@@ -20,7 +20,7 @@ type ClientService struct {
 	uriPrefix string
 	description string
 	serviceUris []string
-	requestHandlers map[string]messages.SimpleMessageHandler
+	requestHandlers map[string]messages.MessageHandlerFunc
 	hostInfo *relay_common.RoleDescriptor
 	serviceType int
 	accessType int
@@ -38,14 +38,21 @@ type ClientService struct {
 }
 
 // TODO NewFunc
+func NewClientService(ctx *relay_common.WRContext, id string, server *relay_common.WRServer) *ClientService {
+	return &ClientService{
+		ctx: ctx,
+		serviceCenterClient: service.NewServiceCenterClient(ctx, server),
+		servicePool: service.NewServicePool(),
+	}
+}
 
 type IClientService interface {
 	service.IBaseService
 	UpdateDescription(string) error
 	Handle(*messages.Message) error
 	HostInfo() relay_common.RoleDescriptor
-	RegisterMicroService(shortUri string, handler messages.SimpleMessageHandler) error // should update service descriptor to the host
-	UnregisterMicroService(shortUri string) error // should update service descriptor to the host
+	RegisterMicroService(shortUri string, handler messages.MessageHandlerFunc) error // should update service descriptor to the host
+	UnregisterMicroService(shortUri string) error                                    // should update service descriptor to the host
 	NotifyHostForUpdate() error
 	NewMessage(to string, uri string, msgType int, payload []byte) *messages.Message
 
@@ -153,7 +160,7 @@ func (s *ClientService) Handle(message *messages.Message) error {
 	return nil
 }
 
-func (s *ClientService) RegisterMicroService(shortUri string, handler messages.SimpleMessageHandler) error {
+func (s *ClientService) RegisterMicroService(shortUri string, handler messages.MessageHandlerFunc) error {
 	s.withWrite(func() {
 		s.serviceUris = append(s.serviceUris, shortUri)
 		s.requestHandlers[shortUri] = handler
@@ -311,6 +318,3 @@ func (s *ClientService) KillAllProcessingJobs() error {
 func (s *ClientService) CancelAllPendingJobs() error {
 	return s.servicePool.CancelAll()
 }
-
-
-// TODO impl

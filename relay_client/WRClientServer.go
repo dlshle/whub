@@ -7,7 +7,6 @@ import (
 
 type WRClientServer struct {
 	*relay_common.WRServer
-	services []*service.ServiceDescriptor
 }
 
 type IWRClientServer interface {
