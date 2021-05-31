@@ -2,10 +2,10 @@ package connection
 
 import (
 	"errors"
-	"github.com/dlshle/gommon/async"
-	"github.com/dlshle/gommon/timed"
 	"time"
 	Common "wsdk/base/common"
+	"wsdk/gommon/async"
+	"wsdk/gommon/timed"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/notification"
 )
@@ -15,9 +15,9 @@ const DefaultTimeout = time.Second * 30
 type WRConnection struct {
 	*Common.WsConnection
 	requestTimeout      time.Duration
-	messageParser      messages.IMessageParser
+	messageParser       messages.IMessageParser
 	notificationEmitter notification.IWRNotificationEmitter
-	messageCallback		func(*messages.Message)
+	messageCallback     func(*messages.Message)
 }
 
 type IWRConnection interface {
@@ -34,9 +34,9 @@ type IWRConnection interface {
 }
 
 func NewWRConnection(c *Common.WsConnection, timeout time.Duration, messageParser messages.IMessageParser, notifications notification.IWRNotificationEmitter) *WRConnection {
-	if timeout < time.Second * 15 {
+	if timeout < time.Second*15 {
 		timeout = time.Second * 15
-	} else if timeout > time.Second * 60 {
+	} else if timeout > time.Second*60 {
 		timeout = time.Second * 60
 	}
 	conn := &WRConnection{c, timeout, messageParser, notifications, nil}
@@ -68,7 +68,7 @@ func (c *WRConnection) AsyncRequest(message *messages.Message) (barrier *async.S
 	c.notificationEmitter.Once(message.Id(), func(msg *messages.Message) {
 		timed.Cancel(timeoutEvent)
 		if msg == nil {
-			barrier.OpenWith(messages.NewErrorMessage(message.Id(), message.From(), message.To(), message.Uri(), "invalid(nil) response for request " + message.Id()))
+			barrier.OpenWith(messages.NewErrorMessage(message.Id(), message.From(), message.To(), message.Uri(), "invalid(nil) response for request "+message.Id()))
 		} else {
 			barrier.OpenWith(msg)
 		}
@@ -98,7 +98,7 @@ func (c *WRConnection) RequestWithTimeout(message *messages.Message, timeout tim
 		}
 		close(waiter)
 	})
-	<- waiter
+	<-waiter
 	return
 }
 

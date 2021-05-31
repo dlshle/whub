@@ -2,8 +2,8 @@ package messages
 
 import (
 	"errors"
-	"github.com/dlshle/gommon/async"
 	"sync"
+	"wsdk/gommon/async"
 	"wsdk/relay_common/connection"
 )
 
@@ -80,7 +80,6 @@ func (t *ServiceMessage) setStatus(status int) {
 	}
 }
 
-
 func (t *ServiceMessage) Status() int {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -151,7 +150,7 @@ func (t *ServiceMessage) Response() *Message {
 }
 
 type ServiceMessageExecutor struct {
-	conn           *connection.WRConnection
+	conn *connection.WRConnection
 }
 
 func NewServiceMessageExecutor(c *connection.WRConnection) *ServiceMessageExecutor {

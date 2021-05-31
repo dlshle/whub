@@ -3,9 +3,9 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/dlshle/gommon/async"
 	"runtime"
 	"sync"
+	"wsdk/gommon/async"
 	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/utils"
@@ -37,7 +37,7 @@ type ServicePool struct {
 }
 
 func NewServicePool(executor relay_common.IRequestExecutor, size int) *ServicePool {
-	return &ServicePool{async.NewAsyncPool("[ServicePool]", utils.GetIntInRange(MinServicePoolSize, MaxServicePoolSize, size), runtime.NumCPU() * 4), executor, make(map[string]*messages.ServiceMessage), new(sync.RWMutex)}
+	return &ServicePool{async.NewAsyncPool("[ServicePool]", utils.GetIntInRange(MinServicePoolSize, MaxServicePoolSize, size), runtime.NumCPU()*4), executor, make(map[string]*messages.ServiceMessage), new(sync.RWMutex)}
 }
 
 func (p *ServicePool) withWrite(cb func()) {

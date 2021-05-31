@@ -40,6 +40,10 @@ func ProcessWithError(processors []func() error) (err error) {
 	return
 }
 
+func ProcessWithErrors(funcs ...func() error) error {
+	return ProcessWithError(funcs)
+}
+
 func GetStringBitLen(str string) uint8 {
 	if len(str) == 0 {
 		return 0

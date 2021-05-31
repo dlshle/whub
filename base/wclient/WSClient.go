@@ -2,18 +2,18 @@ package WSClient
 
 import (
 	"errors"
-	"github.com/dlshle/gommon/logger"
 	"github.com/gorilla/websocket"
 	"os"
 	Common2 "wsdk/base/common"
+	"wsdk/gommon/logger"
 )
 
 type WClientConnectionHandler struct {
-	onMessage func([]byte)
+	onMessage               func([]byte)
 	onConnectionEstablished func(*Common2.WsConnection)
-	onConnectionFailed func(error)
-	onDisconnected func(error)
-	onError func(error)
+	onConnectionFailed      func(error)
+	onDisconnected          func(error)
+	onError                 func(error)
 }
 
 func (c *WClientConnectionHandler) OnMessage(msg []byte) {
@@ -64,7 +64,7 @@ func NewWClientConfig(serverUrl string, onMessage func([]byte), onConnectionEsta
 
 type WClient struct {
 	serverUrl string
-	handler *WClientConnectionHandler
+	handler   *WClientConnectionHandler
 	logger    *logger.SimpleLogger
 	conn      *Common2.WsConnection
 }
@@ -74,7 +74,7 @@ func New(config *WClientConfig) *WClient {
 }
 
 func NewClient(serverUrl string) *WClient {
-	return New(NewWClientConfig(serverUrl, nil, nil, nil,nil,nil))
+	return New(NewWClientConfig(serverUrl, nil, nil, nil, nil, nil))
 }
 
 type IWClient interface {

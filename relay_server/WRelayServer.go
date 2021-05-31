@@ -3,11 +3,11 @@ package relay_server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dlshle/gommon/timed"
 	"sync"
 	"time"
 	"wsdk/base/common"
 	"wsdk/base/wserver"
+	"wsdk/gommon/timed"
 	"wsdk/relay_common"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
@@ -16,7 +16,7 @@ import (
 
 const (
 	MaxServicePerClient = 5
-	ServiceKillTimeout = time.Minute * 15
+	ServiceKillTimeout  = time.Minute * 15
 )
 
 type WRelayServer struct {
@@ -27,10 +27,10 @@ type WRelayServer struct {
 	// clients map[string]*WRServerClient
 	IClientManager
 	IServiceManager
-	scheduleJobPool *timed.JobPool
-	messageParser messages.IMessageParser
+	scheduleJobPool   *timed.JobPool
+	messageParser     messages.IMessageParser
 	messageDispatcher messages.IMessageDispatcher
-	lock *sync.RWMutex
+	lock              *sync.RWMutex
 }
 
 type IWRelayServer interface {
@@ -42,8 +42,8 @@ type IWRelayServer interface {
 
 type clientExtraInfoDescriptor struct {
 	pScope int
-	cKey string
-	cType int
+	cKey   string
+	cType  int
 }
 
 func (s *WRelayServer) withWrite(cb func()) {
@@ -114,7 +114,7 @@ func (s *WRelayServer) handleInitialConnection(conn *common.WsConnection) {
 	if err == nil && resp.MessageType() == messages.MessageTypeClientDescriptor {
 		var clientDescriptor relay_common.RoleDescriptor
 		var clientExtraInfo clientExtraInfoDescriptor
-		err = utils.ProcessWithError([]func()error{
+		err = utils.ProcessWithError([]func() error{
 			func() error {
 				return json.Unmarshal(resp.Payload(), &clientDescriptor)
 			},
@@ -197,21 +197,21 @@ func (s *WRelayServer) NewAnonymousClient(conn *connection.WRConnection) *WRServ
 
 func NewServer(ctx *relay_common.WRContext, port int) *WRelayServer {
 	server := &WRelayServer{
-		ctx: ctx,
-		WServer: wserver.NewWServer(wserver.NewServerConfig(ctx.Identity().Id(), "127.0.0.1", port, wserver.DefaultWsConnHandler())),
+		ctx:              ctx,
+		WServer:          wserver.NewWServer(wserver.NewServerConfig(ctx.Identity().Id(), "127.0.0.1", port, wserver.DefaultWsConnHandler())),
 		IDescribableRole: ctx.Identity(),
-		anonymousClient: make(map[string]*WRServerClient),
+		anonymousClient:  make(map[string]*WRServerClient),
 		// clients: make(map[string]*WRServerClient),
-		IClientManager: NewClientManager(),
+		IClientManager:  NewClientManager(),
 		IServiceManager: NewServiceManager(ctx, time.Second),
 		scheduleJobPool: ctx.TimedJobPool(),
-		messageParser: messages.NewSimpleMessageParser(),
-		lock: new(sync.RWMutex),
+		messageParser:   messages.NewSimpleMessageParser(),
+		lock:            new(sync.RWMutex),
 	}
 	server.OnClientConnected(server.handleInitialConnection)
 	/*
 		onHttpRequest func(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request),
-	 */
+	*/
 	return server
 }
 
@@ -232,4 +232,3 @@ func New(id string, description string, ip string, port int) *relay_server {
 
 }
 */
-

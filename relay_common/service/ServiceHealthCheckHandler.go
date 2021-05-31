@@ -1,8 +1,8 @@
 package service
 
 import (
-	"github.com/dlshle/gommon/timed"
 	"time"
+	"wsdk/gommon/timed"
 )
 
 const (
@@ -11,22 +11,22 @@ const (
 )
 
 type ServiceHealthCheckHandler struct {
-	timedJobPool *timed.JobPool
-	healthCheckJobId int64
-	onHealthCheckFailedCallback func()
+	timedJobPool                  *timed.JobPool
+	healthCheckJobId              int64
+	onHealthCheckFailedCallback   func()
 	onHealthCheckRestoredCallback func()
-	healthCheckExecutor func() error
-	healthCheckInterval time.Duration
+	healthCheckExecutor           func() error
+	healthCheckInterval           time.Duration
 }
 
 func NewServiceHealthCheckHandler(pool *timed.JobPool, interval time.Duration, executor func() error, onFailed func(), onRestored func()) *ServiceHealthCheckHandler {
 	return &ServiceHealthCheckHandler{
-		timedJobPool: pool,
-		healthCheckJobId: -1,
-		onHealthCheckFailedCallback: onFailed,
+		timedJobPool:                  pool,
+		healthCheckJobId:              -1,
+		onHealthCheckFailedCallback:   onFailed,
 		onHealthCheckRestoredCallback: onRestored,
-		healthCheckExecutor: executor,
-		healthCheckInterval: interval,
+		healthCheckExecutor:           executor,
+		healthCheckInterval:           interval,
 	}
 }
 
@@ -47,7 +47,7 @@ func (h *ServiceHealthCheckHandler) StartHealthCheck() {
 		err := h.healthCheckExecutor()
 		if err != nil {
 			onRetry = true
-			if h.onHealthCheckFailedCallback != nil{
+			if h.onHealthCheckFailedCallback != nil {
 				h.onHealthCheckFailedCallback()
 			}
 		} else if onRetry {

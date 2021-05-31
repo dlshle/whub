@@ -2,19 +2,19 @@ package relay_server
 
 import (
 	"errors"
-	"github.com/dlshle/gommon/timed"
 	"strings"
 	"sync"
 	"time"
+	"wsdk/gommon/timed"
 	"wsdk/relay_common"
 	"wsdk/relay_common/service"
 )
 
 type ServiceManager struct {
-	serviceMap map[string]IServerService
+	serviceMap          map[string]IServerService
 	serviceExpirePeriod time.Duration
-	scheduleJobPool *timed.JobPool
-	lock *sync.RWMutex
+	scheduleJobPool     *timed.JobPool
+	lock                *sync.RWMutex
 }
 
 type IServiceManager interface {
@@ -33,10 +33,10 @@ type IServiceManager interface {
 
 func NewServiceManager(ctx *relay_common.WRContext, serviceExpirePeriod time.Duration) IServiceManager {
 	return &ServiceManager{
-		serviceMap: make(map[string]IServerService),
+		serviceMap:          make(map[string]IServerService),
 		serviceExpirePeriod: serviceExpirePeriod,
-		scheduleJobPool: ctx.TimedJobPool(),
-		lock: new(sync.RWMutex),
+		scheduleJobPool:     ctx.TimedJobPool(),
+		lock:                new(sync.RWMutex),
 	}
 }
 
@@ -170,4 +170,3 @@ func (s *ServiceManager) MatchServiceByUri(uri string) IServerService {
 	}
 	return nil
 }
-

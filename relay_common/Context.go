@@ -1,8 +1,8 @@
 package relay_common
 
 import (
-	"github.com/dlshle/gommon/timed"
 	"sync/atomic"
+	"wsdk/gommon/timed"
 	"wsdk/relay_common/notification"
 )
 
@@ -14,10 +14,10 @@ const (
 )
 
 type WRContext struct {
-	identity IDescribableRole
-	timedJobPool *timed.JobPool
+	identity            IDescribableRole
+	timedJobPool        *timed.JobPool
 	notificationEmitter notification.IWRNotificationEmitter
-	hasStarted atomic.Value
+	hasStarted          atomic.Value
 }
 
 type IWRContext interface {

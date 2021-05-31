@@ -7,8 +7,8 @@ import (
 	"os"
 	Common2 "wsdk/base/common"
 
-	"github.com/dlshle/gommon/logger"
 	"github.com/gorilla/websocket"
+	"wsdk/gommon/logger"
 )
 
 type WServer struct {

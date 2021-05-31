@@ -2,8 +2,8 @@ package service
 
 import (
 	"time"
+	"wsdk/gommon/json"
 	"wsdk/relay_common"
-	"wsdk/relay_common/utils"
 )
 
 const (
@@ -16,9 +16,9 @@ const (
 
 // ServerServiceCenter Micro-services
 const (
-	ServiceCenterRegisterService = ServerServiceCenterUri + "/register"     // payload = service descriptor
+	ServiceCenterRegisterService   = ServerServiceCenterUri + "/register"   // payload = service descriptor
 	ServiceCenterUnregisterService = ServerServiceCenterUri + "/unregister" // payload = service descriptor
-	ServiceCenterUpdateService = ServerServiceCenterUri + "/update"         // payload = service descriptor
+	ServiceCenterUpdateService     = ServerServiceCenterUri + "/update"     // payload = service descriptor
 )
 
 type ServiceDescriptor struct {
@@ -35,12 +35,12 @@ type ServiceDescriptor struct {
 }
 
 func (sd ServiceDescriptor) String() string {
-	return utils.NewJsonBuilder().
+	return json.NewJsonBuilder().
 		Put("id", sd.Id).
 		Put("description", sd.Description).
 		Put("hostInfo", sd.HostInfo.String()).
 		Put("provider", sd.Provider.String()).
-		Put("serviceUris", utils.BracketStrings(sd.ServiceUris)).
+		Put("serviceUris", json.BracketStrings(sd.ServiceUris)).
 		Put("cTime", sd.CTime.String()).
 		Put("serviceType", (string)(sd.ServiceType)).
 		Put("accessType", (string)(sd.AccessType)).
