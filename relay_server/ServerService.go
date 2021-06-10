@@ -39,7 +39,7 @@ type IServiceProvider interface {
 }
 
 type ServerService struct {
-	uriPrefix			string
+	uriPrefix           string
 	ctx                 relay_common.IWRContext
 	id                  string
 	description         string
@@ -55,8 +55,8 @@ type ServerService struct {
 	lock                *sync.RWMutex
 	servicePool         service.IServicePool
 
-	healthCheckJobId    int64
-	healthCheckErrCallback func(IServerService)
+	healthCheckJobId           int64
+	healthCheckErrCallback     func(IServerService)
 	healthCheckRestoreCallback func(IServerService)
 
 	onStartedCallback func(IServerService)
@@ -249,11 +249,11 @@ func (s *ServerService) Stop() error {
 	return nil
 }
 
-func(s *ServerService) OnStarted(callback func(service IServerService)) {
+func (s *ServerService) OnStarted(callback func(service IServerService)) {
 	s.onStartedCallback = callback
 }
 
-func(s *ServerService) OnStopped(callback func(service IServerService)) {
+func (s *ServerService) OnStopped(callback func(service IServerService)) {
 	s.onStoppedCallback = callback
 }
 
@@ -297,12 +297,12 @@ func (s *ServerService) HealthCheck() (err error) {
 }
 
 func (s *ServerService) Request(message *messages.Message) *messages.Message {
-	serviceMessage := messages.NewServiceMessage(message)
-	s.servicePool.Add(serviceMessage)
+	ServiceRequest := messages.NewServiceRequest(message)
+	s.servicePool.Add(ServiceRequest)
 	if s.ExecutionType() == ServiceExecutionAsync {
 		return nil
 	} else {
-		return serviceMessage.Response()
+		return ServiceRequest.Response()
 	}
 }
 
@@ -341,7 +341,7 @@ func (s *ServerService) Describe() service.ServiceDescriptor {
 		ServiceType:   s.ServiceType(),
 		AccessType:    s.AccessType(),
 		ExecutionType: s.ExecutionType(),
-		Status: 	   s.Status(),
+		Status:        s.Status(),
 	}
 }
 

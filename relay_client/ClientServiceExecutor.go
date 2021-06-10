@@ -9,6 +9,6 @@ type ClientServiceExecutor struct {
 	mManager service.IMicroServiceManager
 }
 
-func (e *ClientServiceExecutor) Execute(*messages.ServiceMessage) {
+func (e *ClientServiceExecutor) Execute(*messages.ServiceRequest) {
 
 }

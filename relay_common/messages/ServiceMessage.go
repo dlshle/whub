@@ -8,34 +8,34 @@ import (
 )
 
 func init() {
-	initServiceMessage()
+	initServiceRequest()
 }
 
 const (
-	ServiceMessageStatusQueued     = 0
-	ServiceMessageStatusProcessing = 1
-	ServiceMessageStatusDead       = 2 // when health check failed
-	ServiceMessageStatusFinished   = 3
-	ServiceMessageStatusCancelled  = 4
+	ServiceRequestStatusQueued     = 0
+	ServiceRequestStatusProcessing = 1
+	ServiceRequestStatusDead       = 2 // when health check failed
+	ServiceRequestStatusFinished   = 3
+	ServiceRequestStatusCancelled  = 4
 )
 
-var unProcessableServiceMessageMap map[int]bool
+var unProcessableServiceRequestMap map[int]bool
 var statusCodeStringMap map[int]string
 
-func initServiceMessage() {
+func initServiceRequest() {
 	statusCodeStringMap = make(map[int]string)
-	statusCodeStringMap[ServiceMessageStatusQueued] = "queued"
-	statusCodeStringMap[ServiceMessageStatusProcessing] = "processing"
-	statusCodeStringMap[ServiceMessageStatusDead] = "dead"
-	statusCodeStringMap[ServiceMessageStatusFinished] = "finished"
-	statusCodeStringMap[ServiceMessageStatusCancelled] = "cancelled"
+	statusCodeStringMap[ServiceRequestStatusQueued] = "queued"
+	statusCodeStringMap[ServiceRequestStatusProcessing] = "processing"
+	statusCodeStringMap[ServiceRequestStatusDead] = "dead"
+	statusCodeStringMap[ServiceRequestStatusFinished] = "finished"
+	statusCodeStringMap[ServiceRequestStatusCancelled] = "cancelled"
 
-	unProcessableServiceMessageMap = make(map[int]bool)
-	unProcessableServiceMessageMap[ServiceMessageStatusDead] = true
-	unProcessableServiceMessageMap[ServiceMessageStatusCancelled] = true
+	unProcessableServiceRequestMap = make(map[int]bool)
+	unProcessableServiceRequestMap[ServiceRequestStatusDead] = true
+	unProcessableServiceRequestMap[ServiceRequestStatusCancelled] = true
 }
 
-type ServiceMessage struct {
+type ServiceRequest struct {
 	barrier *async.StatefulBarrier
 	status  int
 	lock    *sync.RWMutex
@@ -43,11 +43,11 @@ type ServiceMessage struct {
 	onStatusChangeCallback func(int)
 }
 
-func NewServiceMessage(m *Message) *ServiceMessage {
-	return &ServiceMessage{async.NewStatefulBarrier(), ServiceMessageStatusQueued, new(sync.RWMutex), m, nil}
+func NewServiceRequest(m *Message) *ServiceRequest {
+	return &ServiceRequest{async.NewStatefulBarrier(), ServiceRequestStatusQueued, new(sync.RWMutex), m, nil}
 }
 
-type IServiceMessage interface {
+type IServiceRequest interface {
 	Id() string
 	Status() int
 	Kill() error
@@ -61,14 +61,14 @@ type IServiceMessage interface {
 	Response() *Message
 }
 
-func (t *ServiceMessage) withWrite(cb func()) {
+func (t *ServiceRequest) withWrite(cb func()) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	cb()
 }
 
-func (t *ServiceMessage) setStatus(status int) {
-	if t.Status() == ServiceMessageStatusFinished {
+func (t *ServiceRequest) setStatus(status int) {
+	if t.Status() == ServiceRequestStatusFinished {
 		// can not set status of a finished service messages
 		return
 	}
@@ -80,92 +80,92 @@ func (t *ServiceMessage) setStatus(status int) {
 	}
 }
 
-func (t *ServiceMessage) Status() int {
+func (t *ServiceRequest) Status() int {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 	return t.status
 }
 
-func (t *ServiceMessage) Kill() error {
+func (t *ServiceRequest) Kill() error {
 	if t.Status() > 1 {
-		return errors.New("unable to kill a " + statusCodeStringMap[t.Status()] + " ServiceMessage")
+		return errors.New("unable to kill a " + statusCodeStringMap[t.Status()] + " ServiceRequest")
 	}
 	t.withWrite(func() {
-		t.status = ServiceMessageStatusDead
+		t.status = ServiceRequestStatusDead
 		t.barrier.OpenWith(nil)
 	})
 	return nil
 }
 
-func (t *ServiceMessage) Cancel() error {
+func (t *ServiceRequest) Cancel() error {
 	if t.Status() > 1 {
-		return errors.New("unable to cancel a " + statusCodeStringMap[t.Status()] + " ServiceMessage")
+		return errors.New("unable to cancel a " + statusCodeStringMap[t.Status()] + " ServiceRequest")
 	}
 	t.withWrite(func() {
-		t.status = ServiceMessageStatusCancelled
+		t.status = ServiceRequestStatusCancelled
 		t.barrier.OpenWith(nil)
 	})
 	return nil
 }
 
-func (t *ServiceMessage) resolve(m *Message) error {
-	if t.Status() != ServiceMessageStatusProcessing {
-		return errors.New("can not resolve a non-processing ServiceMessage")
+func (t *ServiceRequest) resolve(m *Message) error {
+	if t.Status() != ServiceRequestStatusProcessing {
+		return errors.New("can not resolve a non-processing ServiceRequest")
 	}
 	t.withWrite(func() {
-		t.status = ServiceMessageStatusFinished
+		t.status = ServiceRequestStatusFinished
 		t.barrier.OpenWith(m)
 	})
 	return nil
 }
 
-func (t *ServiceMessage) IsDead() bool {
-	return t.Status() == ServiceMessageStatusDead
+func (t *ServiceRequest) IsDead() bool {
+	return t.Status() == ServiceRequestStatusDead
 }
 
-func (t *ServiceMessage) IsCancelled() bool {
-	return t.Status() == ServiceMessageStatusCancelled
+func (t *ServiceRequest) IsCancelled() bool {
+	return t.Status() == ServiceRequestStatusCancelled
 }
 
-func (t *ServiceMessage) IsFinished() bool {
-	return t.Status() == ServiceMessageStatusFinished
+func (t *ServiceRequest) IsFinished() bool {
+	return t.Status() == ServiceRequestStatusFinished
 }
 
-func (t *ServiceMessage) OnStatusChange(cb func(int)) {
+func (t *ServiceRequest) OnStatusChange(cb func(int)) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 	t.onStatusChangeCallback = cb
 }
 
-func (t *ServiceMessage) Wait() error {
-	if t.Status() != ServiceMessageStatusProcessing {
-		return errors.New("can not wait for a non-processing ServiceMessage")
+func (t *ServiceRequest) Wait() error {
+	if t.Status() != ServiceRequestStatusProcessing {
+		return errors.New("can not wait for a non-processing ServiceRequest")
 	}
 	t.barrier.Wait()
 	return nil
 }
 
-func (t *ServiceMessage) Response() *Message {
+func (t *ServiceRequest) Response() *Message {
 	return t.barrier.Get().(*Message)
 }
 
-type ServiceMessageExecutor struct {
+type ServiceRequestExecutor struct {
 	conn *connection.WRConnection
 }
 
-func NewServiceMessageExecutor(c *connection.WRConnection) *ServiceMessageExecutor {
-	return &ServiceMessageExecutor{c}
+func NewServiceRequestExecutor(c *connection.WRConnection) *ServiceRequestExecutor {
+	return &ServiceRequestExecutor{c}
 }
 
-func (e *ServiceMessageExecutor) Execute(message *ServiceMessage) {
+func (e *ServiceRequestExecutor) Execute(message *ServiceRequest) {
 	// check if messages is processable
-	if unProcessableServiceMessageMap[message.Status()] {
+	if unProcessableServiceRequestMap[message.Status()] {
 		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), message.Uri(), "request has been cancelled or target server is dead"))
 		return
 	}
-	message.setStatus(ServiceMessageStatusProcessing)
+	message.setStatus(ServiceRequestStatusProcessing)
 	response, err := e.conn.Request(message.Message)
-	if message.Status() == ServiceMessageStatusDead {
+	if message.Status() == ServiceRequestStatusDead {
 		// last check on if messages is killed
 		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), message.Uri(), "request has been cancelled or target server is dead"))
 	} else if err != nil {

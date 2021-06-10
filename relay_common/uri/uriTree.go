@@ -215,6 +215,11 @@ func (n *uriNode) getHandler(pathWithoutQueryParams string, queryParams map[stri
 	return
 }
 
+// dfs on uriTree and find all const paths, remove and return them
+func (n *uriNode) compact() {
+
+}
+
 type UriTree struct {
 	root         *uriNode
 	constPathMap map[string]func(queryParams map[string]string) error // initially nil, when a new path has no : or *, it will be registered

@@ -35,5 +35,5 @@ func NewAnonymousClient(ctx *relay_common.WRContext, conn *connection.WRConnecti
 }
 
 func NewClient(ctx *relay_common.WRContext, conn *connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
-	return &WRServerClient{relay_common.NewClient(conn, id, description, cType, cKey, pScope), messages.NewServiceMessageExecutor(conn), relay_common.NewDefaultHealthCheckExecutor(ctx.Identity().Id(), id, conn)}
+	return &WRServerClient{relay_common.NewClient(conn, id, description, cType, cKey, pScope), messages.NewServiceRequestExecutor(conn), relay_common.NewDefaultHealthCheckExecutor(ctx.Identity().Id(), id, conn)}
 }

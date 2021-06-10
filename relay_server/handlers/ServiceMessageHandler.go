@@ -9,20 +9,20 @@ import (
 	"wsdk/relay_server"
 )
 
-// ServiceMessageHandler
-type ServiceMessageHandler struct {
-	ctx *relay_common.WRContext
+// ServiceRequestHandler
+type ServiceRequestHandler struct {
+	ctx            *relay_common.WRContext
 	serviceManager relay_server.IServiceManager
 }
 
-func (h *ServiceMessageHandler) NewServiceMessageHandler(ctx *relay_common.WRContext, manager relay_server.IServiceManager) relay_server.IServerMessageHandler {
-	return &ServiceMessageHandler{ctx, manager}
+func (h *ServiceRequestHandler) NewServiceRequestHandler(ctx *relay_common.WRContext, manager relay_server.IServiceManager) relay_server.IServerMessageHandler {
+	return &ServiceRequestHandler{ctx, manager}
 }
 
-func (h *ServiceMessageHandler) Handle(message *messages.Message, next messages.NextMessageHandler) (*messages.Message, error) {
+func (h *ServiceRequestHandler) Handle(message *messages.Message, next messages.NextMessageHandler) (*messages.Message, error) {
 	if !strings.HasPrefix(message.Uri(), service.ServicePrefix) {
 		return next(message)
-		// return nil, errors.New(relay_server.NewInvalidServiceMessageUriError(message.Uri()).Json())
+		// return nil, errors.New(relay_server.NewInvalidServiceRequestUriError(message.Uri()).Json())
 	}
 	service := h.serviceManager.MatchServiceByUri(message.Uri())
 	if service == nil {
@@ -31,6 +31,6 @@ func (h *ServiceMessageHandler) Handle(message *messages.Message, next messages.
 	return service.Request(message), nil
 }
 
-func (h *ServiceMessageHandler) Priority() int {
-	return relay_server.HandlerPriorityServiceMessage
+func (h *ServiceRequestHandler) Priority() int {
+	return relay_server.HandlerPriorityServiceRequest
 }

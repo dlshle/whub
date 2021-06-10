@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	HandlerPriorityServiceMessage = 2
+	HandlerPriorityServiceRequest = 2
 	HandlerPriorityClientMessage  = 3
 	HandlerPriorityInvalidMessage = 99 // always put this on the last
 )
@@ -21,7 +21,7 @@ type IServerMessageHandler interface {
 
 type ServerMessageHandlerManager struct {
 	handlers []IServerMessageHandler
-	lock *sync.RWMutex
+	lock     *sync.RWMutex
 }
 
 type IServerMessageHandlerManager interface {
@@ -60,16 +60,16 @@ func (m *ServerMessageHandlerManager) composeHandlers() messages.HandlerFunction
 		index := -1
 		makeNextHandlerFn := func(i int) (*messages.Message, error) {
 			/*
-			  if (i <= index) return Promise.reject(new Error('next() called multiple times'))
-			  index = i
-			  let handler = middleware[i]
-			  if (i === middleware.length) handler = next
-			  if (!handler) return Promise.resolve()
-			  try {
-				return Promise.resolve(handler(context, dispatch.bind(null, i + 1)));
-			  } catch (err) {
-				return Promise.reject(err)
-			  }
+				  if (i <= index) return Promise.reject(new Error('next() called multiple times'))
+				  index = i
+				  let handler = middleware[i]
+				  if (i === middleware.length) handler = next
+				  if (!handler) return Promise.resolve()
+				  try {
+					return Promise.resolve(handler(context, dispatch.bind(null, i + 1)));
+				  } catch (err) {
+					return Promise.reject(err)
+				  }
 			*/
 			if i <= index {
 				return nil, errors.New("next() called many times")
@@ -103,9 +103,8 @@ func (m *ServerMessageHandlerManager) RegisterHandler(handler IServerMessageHand
 }
 
 func (m *ServerMessageHandlerManager) UnregisterHandler(handler IServerMessageHandler) {
- // TODO bin search find pos and remove
+	// TODO bin search find pos and remove
 }
-
 
 type InvalidMessageHandler struct {
 	ctx *relay_common.WRContext
@@ -118,4 +117,3 @@ func (h *InvalidMessageHandler) Handle(message *messages.Message) *messages.Mess
 func (h *InvalidMessageHandler) Priority() int {
 	return HandlerPriorityInvalidMessage
 }
-
