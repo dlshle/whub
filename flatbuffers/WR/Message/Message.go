@@ -70,13 +70,16 @@ func (rcv *Message) MutateMessageType(n int32) bool {
 	return rcv._tab.MutateInt32Slot(12, n)
 }
 
-func (rcv *Message) Payload(j int) int8 {
+func (rcv *Message) Payload() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	l := rcv.PayloadLength()
 	if o != 0 {
 		a := rcv._tab.Vector(o)
-		return rcv._tab.GetInt8(a + flatbuffers.UOffsetT(j*1))
+		from := a + flatbuffers.UOffsetT(0)
+		to := from + flatbuffers.UOffsetT(l)
+		return rcv._tab.Bytes[from:to]
 	}
-	return 0
+	return nil
 }
 
 func (rcv *Message) PayloadLength() int {

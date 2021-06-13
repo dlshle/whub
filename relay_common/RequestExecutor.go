@@ -1,7 +1,9 @@
 package relay_common
 
-import "wsdk/relay_common/messages"
+import (
+	"wsdk/relay_common/service"
+)
 
 type IRequestExecutor interface {
-	Execute(*messages.ServiceRequest)
+	Execute(*service.ServiceRequest)
 }

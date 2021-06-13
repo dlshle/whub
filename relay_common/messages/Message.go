@@ -21,9 +21,9 @@ const (
 	MessageTypeJSON           = 5
 	MessageTypeError          = 6
 
-	MessageTypeServerNotification = 11
+	MessageTypeServerNotification        = 11
 	MessageTypeServerServiceNotification = 12
-	MessageTypeClientNotification = 21
+	MessageTypeClientNotification        = 21
 	MessageTypeClientServiceNotification = 22
 
 	MessageTypeServerDescriptor = 100
@@ -34,7 +34,7 @@ type Message struct {
 	id          string
 	from        string // use id or credential here
 	to          string // use id or credential here
-	uri			string
+	uri         string
 	messageType int
 	payload     []byte
 }
@@ -77,6 +77,9 @@ func (t *Message) String() string {
 	return fmt.Sprintf("{from: \"%s\", to: \"%s\", messageType: %d, payload: %s}", t.from, t.to, t.messageType, t.payload)
 }
 
+func (t *Message) Equals(m *Message) bool {
+	return t.Id() == m.Id() && t.From() == m.From() && t.To() == m.To() && t.Uri() == m.Uri() && t.MessageType() == m.MessageType() && (string)(t.payload) == (string)(m.payload)
+}
 
 func NewMessage(id string, from string, to string, uri string, messageType int, payload []byte) *Message {
 	return &Message{id, from, to, uri, messageType, payload}
@@ -93,4 +96,3 @@ func NewPingMessage(id string, from string, to string) *Message {
 func NewPongMessage(id string, from string, to string) *Message {
 	return &Message{id, from, to, "", MessageTypePong, nil}
 }
-

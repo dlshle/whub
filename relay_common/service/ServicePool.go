@@ -7,7 +7,6 @@ import (
 	"sync"
 	"wsdk/gommon/async"
 	"wsdk/relay_common"
-	"wsdk/relay_common/messages"
 	"wsdk/relay_common/utils"
 )
 
@@ -17,10 +16,10 @@ const (
 )
 
 type IServicePool interface {
-	Get(id string) *messages.ServiceRequest
+	Get(id string) *ServiceRequest
 	Start()
 	Stop()
-	Add(message *messages.ServiceRequest) bool
+	Add(message *ServiceRequest) bool
 	Remove(id string) bool
 	Has(id string) bool
 	KillAll() error
@@ -32,12 +31,12 @@ type IServicePool interface {
 type ServicePool struct {
 	pool       *async.AsyncPool
 	executor   relay_common.IRequestExecutor
-	messageSet map[string]*messages.ServiceRequest
+	messageSet map[string]*ServiceRequest
 	lock       *sync.RWMutex
 }
 
 func NewServicePool(executor relay_common.IRequestExecutor, size int) *ServicePool {
-	return &ServicePool{async.NewAsyncPool("[ServicePool]", utils.GetIntInRange(MinServicePoolSize, MaxServicePoolSize, size), runtime.NumCPU()*4), executor, make(map[string]*messages.ServiceRequest), new(sync.RWMutex)}
+	return &ServicePool{async.NewAsyncPool("[ServicePool]", utils.GetIntInRange(MinServicePoolSize, MaxServicePoolSize, size), runtime.NumCPU()*4), executor, make(map[string]*ServiceRequest), new(sync.RWMutex)}
 }
 
 func (p *ServicePool) withWrite(cb func()) {
@@ -46,7 +45,7 @@ func (p *ServicePool) withWrite(cb func()) {
 	cb()
 }
 
-func (p *ServicePool) withAll(operation func(message *messages.ServiceRequest) error) error {
+func (p *ServicePool) withAll(operation func(message *ServiceRequest) error) error {
 	errorMessage := ""
 	hasError := false
 	p.withWrite(func() {
@@ -78,7 +77,7 @@ func (p *ServicePool) Has(id string) bool {
 	return p.messageSet[id] != nil
 }
 
-func (p *ServicePool) Get(id string) *messages.ServiceRequest {
+func (p *ServicePool) Get(id string) *ServiceRequest {
 	if !p.Has(id) {
 		return nil
 	}
@@ -95,7 +94,7 @@ func (p *ServicePool) Remove(id string) bool {
 	return true
 }
 
-func (p *ServicePool) Add(message *messages.ServiceRequest) bool {
+func (p *ServicePool) Add(message *ServiceRequest) bool {
 	if p.Has(message.Id()) {
 		return false
 	}
@@ -111,7 +110,7 @@ func (p *ServicePool) Add(message *messages.ServiceRequest) bool {
 }
 
 func (p *ServicePool) KillAll() (errMsg error) {
-	return p.withAll(func(message *messages.ServiceRequest) error {
+	return p.withAll(func(message *ServiceRequest) error {
 		return message.Kill()
 	})
 }
@@ -125,7 +124,7 @@ func (p *ServicePool) Cancel(id string) error {
 }
 
 func (p *ServicePool) CancelAll() error {
-	return p.withAll(func(message *messages.ServiceRequest) error {
+	return p.withAll(func(message *ServiceRequest) error {
 		return message.Cancel()
 	})
 }

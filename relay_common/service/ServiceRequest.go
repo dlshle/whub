@@ -1,10 +1,11 @@
-package messages
+package service
 
 import (
 	"errors"
 	"sync"
 	"wsdk/gommon/async"
 	"wsdk/relay_common/connection"
+	"wsdk/relay_common/messages"
 )
 
 func init() {
@@ -39,11 +40,11 @@ type ServiceRequest struct {
 	barrier *async.StatefulBarrier
 	status  int
 	lock    *sync.RWMutex
-	*Message
+	*messages.Message
 	onStatusChangeCallback func(int)
 }
 
-func NewServiceRequest(m *Message) *ServiceRequest {
+func NewServiceRequest(m *messages.Message) *ServiceRequest {
 	return &ServiceRequest{async.NewStatefulBarrier(), ServiceRequestStatusQueued, new(sync.RWMutex), m, nil}
 }
 
@@ -56,9 +57,9 @@ type IServiceRequest interface {
 	IsCancelled() bool
 	IsFinished() bool
 	OnStatusChange(func(int))
-	resolve(*Message) error
+	resolve(*messages.Message) error
 	Wait() error // wait for the state to transit to final (dead/finished/cancelled)
-	Response() *Message
+	Response() *messages.Message
 }
 
 func (t *ServiceRequest) withWrite(cb func()) {
@@ -108,7 +109,7 @@ func (t *ServiceRequest) Cancel() error {
 	return nil
 }
 
-func (t *ServiceRequest) resolve(m *Message) error {
+func (t *ServiceRequest) resolve(m *messages.Message) error {
 	if t.Status() != ServiceRequestStatusProcessing {
 		return errors.New("can not resolve a non-processing ServiceRequest")
 	}
@@ -145,8 +146,8 @@ func (t *ServiceRequest) Wait() error {
 	return nil
 }
 
-func (t *ServiceRequest) Response() *Message {
-	return t.barrier.Get().(*Message)
+func (t *ServiceRequest) Response() *messages.Message {
+	return t.barrier.Get().(*messages.Message)
 }
 
 type ServiceRequestExecutor struct {
@@ -157,20 +158,20 @@ func NewServiceRequestExecutor(c *connection.WRConnection) *ServiceRequestExecut
 	return &ServiceRequestExecutor{c}
 }
 
-func (e *ServiceRequestExecutor) Execute(message *ServiceRequest) {
+func (e *ServiceRequestExecutor) Execute(request *ServiceRequest) {
 	// check if messages is processable
-	if unProcessableServiceRequestMap[message.Status()] {
-		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), message.Uri(), "request has been cancelled or target server is dead"))
+	if unProcessableServiceRequestMap[request.Status()] {
+		request.resolve(messages.NewErrorMessage(request.Id(), request.From(), request.From(), request.Uri(), "request has been cancelled or target server is dead"))
 		return
 	}
-	message.setStatus(ServiceRequestStatusProcessing)
-	response, err := e.conn.Request(message.Message)
-	if message.Status() == ServiceRequestStatusDead {
+	request.setStatus(ServiceRequestStatusProcessing)
+	response, err := e.conn.Request(request.Message)
+	if request.Status() == ServiceRequestStatusDead {
 		// last check on if messages is killed
-		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), message.Uri(), "request has been cancelled or target server is dead"))
+		request.resolve(messages.NewErrorMessage(request.Id(), request.From(), request.From(), request.Uri(), "request has been cancelled or target server is dead"))
 	} else if err != nil {
-		message.resolve(NewErrorMessage(message.Id(), message.From(), message.From(), message.Uri(), err.Error()))
+		request.resolve(messages.NewErrorMessage(request.Id(), request.From(), request.From(), request.Uri(), err.Error()))
 	} else {
-		message.resolve(response)
+		request.resolve(response)
 	}
 }

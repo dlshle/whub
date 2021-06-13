@@ -70,4 +70,38 @@ func TestNewUriTree(test *testing.T) {
 	if e == nil {
 		test.Error("should report error on incorrect query param format ?t&&")
 	}
+
+	size := t.Size()
+
+	e = t.Remove(p0)
+	if e != nil {
+		test.Errorf("should successfully remove the path w/o any err. err: %s", e.Error())
+	}
+	if t.Size() != size-1 {
+		test.Error("size did not decrement after removing a path")
+	}
+
+	t = NewUriTree()
+	t.Add(p0, handler, false)
+	t.Add(p1, handler, false)
+	// size == 2
+	for i := 0; i < 14; i++ {
+		t.Add((string)('a'+i), handler, false)
+	}
+	for k, _ := range t.constPathMap {
+		test.Logf("constKey: %s\n", k)
+	}
+	if t.Size() != 16 {
+		test.Error("Size not match")
+	}
+	if t.unCompactedLeaves.Size() != 0 {
+		test.Error("compact was not conducted after adding 16 paths")
+	}
+	if len(t.constPathMap) != 14 {
+		test.Error("const paths were not compacted")
+	}
+	e = t.FindAndHandle("a?fuck=true")
+	if e != nil {
+		test.Error("could not conduct query with a?fuck=true")
+	}
 }

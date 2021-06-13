@@ -4,8 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"wsdk/gommon/data_structures"
 	"wsdk/relay_common/utils"
 )
+
+const DefaultCompactSize = 16
 
 func parseQueryParams(queryParamString string) (pMap map[string]string, err error) {
 	//xx=1&&yy=2...
@@ -164,7 +167,6 @@ func (n *uriNode) remove() {
 			}
 		}
 		n.parent = nil
-		n.handler = nil
 	}
 }
 
@@ -215,22 +217,66 @@ func (n *uriNode) getHandler(pathWithoutQueryParams string, queryParams map[stri
 	return
 }
 
-// dfs on uriTree and find all const paths, remove and return them
-func (n *uriNode) compact() {
-
+func (n *uriNode) path() (path string, isConst bool) {
+	curr := n
+	isConst = true
+	for curr != nil {
+		if n.t != nTypeC {
+			isConst = false
+		}
+		if curr.param != "" {
+			if curr != n {
+				path = curr.param + "/" + path
+			} else {
+				path = curr.param
+			}
+		} else if curr.parent != nil {
+			for k, v := range n.parent.constChildren {
+				if v == n {
+					if curr != n {
+						path = k + "/" + path
+					} else {
+						path = k
+					}
+				}
+			}
+		}
+		curr = curr.parent
+	}
+	return
 }
 
 type UriTree struct {
-	root         *uriNode
-	constPathMap map[string]func(queryParams map[string]string) error // initially nil, when a new path has no : or *, it will be registered
-	uriContext   UriContext
+	root              *uriNode
+	constPathMap      map[string]func(queryParams map[string]string) error // initially nil, when a new path has no : or *, it will be registered
+	unCompactedLeaves *data_structures.LinkedList
+	uriContext        UriContext
+	size              int
 }
 
 func NewUriTree() *UriTree {
 	return &UriTree{
-		root:         &uriNode{parent: nil},
-		constPathMap: make(map[string]func(map[string]string) error),
-		uriContext:   UriContext{params: make(map[string]bool)},
+		root:              &uriNode{parent: nil},
+		constPathMap:      make(map[string]func(map[string]string) error),
+		unCompactedLeaves: data_structures.NewLinkedList(false),
+		uriContext:        UriContext{params: make(map[string]bool)},
+	}
+}
+
+func (t *UriTree) Size() int {
+	return t.size
+}
+
+func (t *UriTree) compact() {
+	for t.unCompactedLeaves.Size() > 0 {
+		node := t.unCompactedLeaves.Pop().(*uriNode)
+		path, isConst := node.path()
+		if isConst {
+			node.remove()
+			t.constPathMap[path] = func(queryParams map[string]string) error {
+				return node.handler(make(map[string]string), queryParams)
+			}
+		}
 	}
 }
 
@@ -243,11 +289,11 @@ func (t *UriTree) FindAndHandle(path string) error {
 	if err != nil {
 		return err
 	}
-	if t.constPathMap[path] != nil {
+	if t.constPathMap[remaining] != nil {
 		if err != nil {
 			return err
 		}
-		return t.constPathMap[path](qp)
+		return t.constPathMap[remaining](qp)
 	}
 	h, e := t.root.getHandler(remaining, qp)
 	if h == nil || e != nil {
@@ -257,6 +303,26 @@ func (t *UriTree) FindAndHandle(path string) error {
 }
 
 func (t *UriTree) Add(path string, handler func(map[string]string, map[string]string) error, override bool) error {
-	_, err := t.root.addPath(t.uriContext, path, handler, override)
+	node, err := t.root.addPath(t.uriContext, path, handler, override)
+	t.unCompactedLeaves.Append(node)
+	if t.unCompactedLeaves.Size() >= DefaultCompactSize {
+		t.compact()
+	}
+	t.size++
 	return err
+}
+
+func (t *UriTree) Remove(path string) error {
+	if t.constPathMap[path] != nil {
+		delete(t.constPathMap, path)
+		t.size--
+		return nil
+	}
+	node, _, err := t.root.findWithoutQueryParams(path)
+	if err != nil {
+		return err
+	}
+	node.remove()
+	t.size--
+	return nil
 }

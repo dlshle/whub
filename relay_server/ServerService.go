@@ -297,7 +297,7 @@ func (s *ServerService) HealthCheck() (err error) {
 }
 
 func (s *ServerService) Request(message *messages.Message) *messages.Message {
-	ServiceRequest := messages.NewServiceRequest(message)
+	ServiceRequest := service.NewServiceRequest(message)
 	s.servicePool.Add(ServiceRequest)
 	if s.ExecutionType() == ServiceExecutionAsync {
 		return nil
