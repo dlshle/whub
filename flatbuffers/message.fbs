@@ -1,0 +1,12 @@
+namespace WR.Message;
+
+table Message {
+  id: string;
+  from: string;
+  to: string;
+  uri: string;
+  messageType: int;
+  payload: [byte];
+}
+
+root_type Message;
