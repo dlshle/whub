@@ -6,6 +6,16 @@ import (
 	"wsdk/relay_common"
 )
 
+/*
+ * Service can be provided by both client and server.
+ * A server service is a collection of local/remote(to client) requests identified by a set of service uris.
+ * A client service is a collection of function calls identified by a set of service uris.
+ * Client service anatomy:
+ *  Service { handlers[path]handler }
+ * Usual Service Flow:
+ *  ClientX -request-> Server -request-> serverServiceHandler -request-> Client -request-> clientServiceHandler -response-> Server -response-> ClientX
+ */
+
 const (
 	ServicePrefix = "/service"
 )

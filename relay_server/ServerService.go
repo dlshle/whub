@@ -32,18 +32,19 @@ const (
 
 const DefaultHealthCheckInterval = time.Minute * 30
 
-type IServiceProvider interface {
+type IServiceHost interface {
 	relay_common.IDescribableRole
 	RequestExecutor() relay_common.IRequestExecutor
 	HealthCheckExecutor() relay_common.IHealthCheckExecutor
 }
 
+// TODO use service manager to mange services
 type ServerService struct {
 	uriPrefix           string
 	ctx                 relay_common.IWRContext
 	id                  string
 	description         string
-	provider            IServiceProvider
+	host                IServiceHost
 	serviceUris         []string
 	cTime               time.Time
 	serviceType         int
@@ -65,7 +66,7 @@ type ServerService struct {
 
 type IServerService interface {
 	service.IBaseService
-	Provider() IServiceProvider
+	Provider() IServiceHost
 	HealthCheckInterval() time.Duration
 	SetHealthCheckInterval(duration time.Duration)
 
@@ -81,13 +82,13 @@ type IServerService interface {
 	RestoreExternally(reconnectedOwner *WRServerClient) error
 }
 
-func NewService(ctx relay_common.IWRContext, id string, description string, provider IServiceProvider, serviceUris []string, serviceType int, accessType int, exeType int) IServerService {
+func NewService(ctx relay_common.IWRContext, id string, description string, host IServiceHost, serviceUris []string, serviceType int, accessType int, exeType int) IServerService {
 	return &ServerService{
 		uriPrefix:           service.ServicePrefix + id,
 		ctx:                 ctx,
 		id:                  id,
 		description:         description,
-		provider:            provider,
+		host:                host,
 		serviceUris:         serviceUris,
 		cTime:               time.Now(),
 		serviceType:         serviceType,
@@ -95,9 +96,9 @@ func NewService(ctx relay_common.IWRContext, id string, description string, prov
 		executionType:       exeType,
 		healthCheckInterval: DefaultHealthCheckInterval,
 		status:              service.ServiceStatusUnregistered,
-		healthCheckExecutor: provider.HealthCheckExecutor(),
+		healthCheckExecutor: host.HealthCheckExecutor(),
 		lock:                new(sync.RWMutex),
-		servicePool:         service.NewServicePool(provider.RequestExecutor(), service.MaxServicePoolSize),
+		servicePool:         service.NewServicePool(host.RequestExecutor(), service.MaxServicePoolSize),
 		healthCheckJobId:    0,
 	}
 }
@@ -164,8 +165,8 @@ func (s *ServerService) Description() string {
 	return s.description
 }
 
-func (s *ServerService) Provider() IServiceProvider {
-	return s.provider
+func (s *ServerService) Provider() IServiceHost {
+	return s.host
 }
 
 func (s *ServerService) ServiceType() int {
@@ -265,11 +266,11 @@ func (s *ServerService) RestoreExternally(reconnectedOwner *WRServerClient) (err
 	if err = s.Stop(); err != nil {
 		return
 	}
-	oldOwner := s.provider
+	oldOwner := s.host
 	oldPool := s.servicePool
 	oldHealthCheckExecutor := s.healthCheckExecutor
 	s.withWrite(func() {
-		s.provider = reconnectedOwner
+		s.host = reconnectedOwner
 		s.servicePool = service.NewServicePool(reconnectedOwner.RequestExecutor(), s.servicePool.Size())
 		s.healthCheckExecutor = reconnectedOwner.HealthCheckExecutor()
 	})
@@ -277,7 +278,7 @@ func (s *ServerService) RestoreExternally(reconnectedOwner *WRServerClient) (err
 	if err != nil {
 		// fallback to previous status
 		s.withWrite(func() {
-			s.provider = oldOwner
+			s.host = oldOwner
 			s.servicePool = oldPool
 			s.healthCheckExecutor = oldHealthCheckExecutor
 			s.status = service.ServiceStatusDead

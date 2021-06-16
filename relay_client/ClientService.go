@@ -16,22 +16,22 @@ type ClientService struct {
 	serviceCenterClient service.IServiceCenterClient
 	servicePool         service.IServicePool
 
-	id string
-	uriPrefix string
-	description string
-	serviceUris []string
+	id              string
+	uriPrefix       string
+	description     string
+	serviceUris     []string
 	requestHandlers map[string]messages.MessageHandlerFunc
-	hostInfo *relay_common.RoleDescriptor
-	serviceType int
-	accessType int
-	executionType int
-	descriptor *service.ServiceDescriptor
-	cTime time.Time
+	hostInfo        *relay_common.RoleDescriptor
+	serviceType     int
+	accessType      int
+	executionType   int
+	descriptor      *service.ServiceDescriptor
+	cTime           time.Time
 
-	status int
+	status             int
 	healthCheckHandler *service.ServiceHealthCheckHandler
 
-	onHealthCheckFailsCallback func(service IClientService)
+	onHealthCheckFailsCallback    func(service IClientService)
 	onHealthCheckRestoredCallback func(service IClientService)
 
 	lock *sync.RWMutex
@@ -40,9 +40,9 @@ type ClientService struct {
 // TODO NewFunc
 func NewClientService(ctx *relay_common.WRContext, id string, server *relay_common.WRServer) *ClientService {
 	return &ClientService{
-		ctx: ctx,
+		ctx:                 ctx,
 		serviceCenterClient: service.NewServiceCenterClient(ctx, server),
-		servicePool: service.NewServicePool(),
+		// servicePool: service.NewServicePool(),
 	}
 }
 
@@ -200,16 +200,16 @@ func (s *ClientService) NewMessage(to string, uri string, msgType int, payload [
 
 func (s *ClientService) Describe() service.ServiceDescriptor {
 	return service.ServiceDescriptor{
-		Id: s.Id(),
-		Description: s.Description(),
-		HostInfo: s.HostInfo(),
-		Provider: s.ctx.Identity().Describe(),
-		ServiceUris: s.ServiceUris(),
-		CTime: s.CTime(),
-		ServiceType: s.ServiceType(),
-		AccessType: s.AccessType(),
+		Id:            s.Id(),
+		Description:   s.Description(),
+		HostInfo:      s.HostInfo(),
+		Provider:      s.ctx.Identity().Describe(),
+		ServiceUris:   s.ServiceUris(),
+		CTime:         s.CTime(),
+		ServiceType:   s.ServiceType(),
+		AccessType:    s.AccessType(),
 		ExecutionType: s.ExecutionType(),
-		Status: s.Status(),
+		Status:        s.Status(),
 	}
 }
 

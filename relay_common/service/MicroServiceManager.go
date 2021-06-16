@@ -5,9 +5,10 @@ import (
 	"wsdk/relay_common/messages"
 )
 
+// MicroService is a service function
 type MicroServiceManager struct {
 	serviceHandlers map[string]messages.MessageHandlerFunc
-	lock *sync.RWMutex
+	lock            *sync.RWMutex
 }
 
 type IMicroServiceManager interface {
@@ -20,7 +21,7 @@ type IMicroServiceManager interface {
 func NewMicroServiceManager() IMicroServiceManager {
 	return &MicroServiceManager{
 		serviceHandlers: make(map[string]messages.MessageHandlerFunc),
-		lock: new(sync.RWMutex),
+		lock:            new(sync.RWMutex),
 	}
 }
 

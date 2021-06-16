@@ -4,17 +4,15 @@ import (
 	"errors"
 	"strings"
 	"sync"
-	"time"
 	"wsdk/gommon/timed"
 	"wsdk/relay_common"
 	"wsdk/relay_common/service"
 )
 
 type ServiceManager struct {
-	serviceMap          map[string]IServerService
-	serviceExpirePeriod time.Duration
-	scheduleJobPool     *timed.JobPool
-	lock                *sync.RWMutex
+	serviceMap      map[string]IServerService
+	scheduleJobPool *timed.JobPool
+	lock            *sync.RWMutex
 }
 
 type IServiceManager interface {
@@ -31,12 +29,11 @@ type IServiceManager interface {
 	MatchServiceByUri(uri string) IServerService
 }
 
-func NewServiceManager(ctx *relay_common.WRContext, serviceExpirePeriod time.Duration) IServiceManager {
+func NewServiceManager(ctx *relay_common.WRContext) IServiceManager {
 	return &ServiceManager{
-		serviceMap:          make(map[string]IServerService),
-		serviceExpirePeriod: serviceExpirePeriod,
-		scheduleJobPool:     ctx.TimedJobPool(),
-		lock:                new(sync.RWMutex),
+		serviceMap:      make(map[string]IServerService),
+		scheduleJobPool: ctx.TimedJobPool(),
+		lock:            new(sync.RWMutex),
 	}
 }
 

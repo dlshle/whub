@@ -326,3 +326,25 @@ func (t *UriTree) Remove(path string) error {
 	t.size--
 	return nil
 }
+
+func (t *UriTree) SupportsUri(path string) bool {
+	if path == "" {
+		return false
+	}
+	paramStr, remaining := splitQueryParams(path)
+	qp, err := parseQueryParams(paramStr)
+	if err != nil {
+		return false
+	}
+	if t.constPathMap[remaining] != nil {
+		if err != nil {
+			return false
+		}
+		return true
+	}
+	h, e := t.root.getHandler(remaining, qp)
+	if h == nil || e != nil {
+		return false
+	}
+	return true
+}

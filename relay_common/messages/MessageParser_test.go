@@ -5,7 +5,6 @@ import (
 	"wsdk/gommon/test_utils"
 )
 
-// TODO
 func TestFBMessageParser(t *testing.T) {
 	p := NewFBMessageParser()
 	tg := test_utils.NewTestGroup("StreamMessageParser", "")
