@@ -2,30 +2,30 @@ package wserver
 
 import (
 	"net/http"
-	"wsdk/base/common"
+	"wsdk/base/connection"
 )
 
 type IWsConnectionHandler interface {
-	OnClientConnected(*common.WsConnection)
-	OnClientClosed(*common.WsConnection, error)
+	OnClientConnected(*connection.WsConnection)
+	OnClientClosed(*connection.WsConnection, error)
 	OnHttpRequest(upgradeFunc func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request)
-	OnConnectionError(*common.WsConnection, error)
+	OnConnectionError(*connection.WsConnection, error)
 }
 
 type WsConnectionHandler struct {
-	onClientConnected func(conn *common.WsConnection)
-	onClientClosed    func(conn *common.WsConnection, err error)
+	onClientConnected func(conn *connection.WsConnection)
+	onClientClosed    func(conn *connection.WsConnection, err error)
 	onHttpRequest     func(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request)
-	onConnectionError func(*common.WsConnection, error)
+	onConnectionError func(*connection.WsConnection, error)
 }
 
-func (h *WsConnectionHandler) OnClientConnected(conn *common.WsConnection) {
+func (h *WsConnectionHandler) OnClientConnected(conn *connection.WsConnection) {
 	if h.onClientConnected != nil {
 		h.onClientConnected(conn)
 	}
 }
 
-func (h *WsConnectionHandler) OnClientClosed(conn *common.WsConnection, err error) {
+func (h *WsConnectionHandler) OnClientClosed(conn *connection.WsConnection, err error) {
 	if h.onClientClosed != nil {
 		h.onClientClosed(conn, err)
 	}
@@ -37,13 +37,13 @@ func (h *WsConnectionHandler) OnHttpRequest(u func(w http.ResponseWriter, r *htt
 	}
 }
 
-func (h *WsConnectionHandler) OnConnectionError(conn *common.WsConnection, err error) {
+func (h *WsConnectionHandler) OnConnectionError(conn *connection.WsConnection, err error) {
 	if h.onConnectionError != nil {
 		h.onConnectionError(conn, err)
 	}
 }
 
-func NewWsConnHandler(onClientConnected func(conn *common.WsConnection), onClientClosed func(conn *common.WsConnection, err error), onHttpRequest func(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request), onConnectionError func(*common.WsConnection, error)) *WsConnectionHandler {
+func NewWsConnHandler(onClientConnected func(conn *connection.WsConnection), onClientClosed func(conn *connection.WsConnection, err error), onHttpRequest func(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request), onConnectionError func(*connection.WsConnection, error)) *WsConnectionHandler {
 	if onHttpRequest == nil {
 		onHttpRequest = DefaultHTTPRequestHandler
 	}

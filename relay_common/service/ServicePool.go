@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
-	"wsdk/gommon/async"
+	"wsdk/common/async"
 	"wsdk/relay_common"
 	"wsdk/relay_common/utils"
 )

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
-	"wsdk/gommon/timed"
+	"wsdk/common/timed"
 	"wsdk/relay_common"
 	"wsdk/relay_common/service"
 )

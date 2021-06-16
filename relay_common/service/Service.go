@@ -2,7 +2,7 @@ package service
 
 import (
 	"time"
-	"wsdk/gommon/json"
+	"wsdk/common/json"
 	"wsdk/relay_common"
 )
 

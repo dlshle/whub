@@ -2,7 +2,7 @@ package service
 
 import (
 	"time"
-	"wsdk/gommon/timed"
+	"wsdk/common/timed"
 )
 
 const (

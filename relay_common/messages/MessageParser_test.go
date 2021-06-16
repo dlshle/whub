@@ -2,7 +2,7 @@ package messages
 
 import (
 	"testing"
-	"wsdk/gommon/test_utils"
+	"wsdk/common/test_utils"
 )
 
 func TestFBMessageParser(t *testing.T) {

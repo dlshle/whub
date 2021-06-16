@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	"wsdk/base/common"
+	"wsdk/base/connection"
 	"wsdk/base/wserver"
-	"wsdk/gommon/timed"
+	"wsdk/common/timed"
 	"wsdk/relay_common"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
@@ -97,7 +97,7 @@ func (s *WRelayServer) RegisterService(service IServerService) error {
 	return s.IServiceManager.RegisterService(clientId, service)
 }
 
-func (s *WRelayServer) handleInitialConnection(conn *common.WsConnection) {
+func (s *WRelayServer) handleInitialConnection(conn *connection.WsConnection) {
 	rawConn := connection.NewWRConnection(conn, connection.DefaultTimeout, s.messageParser, s.ctx.NotificationEmitter())
 	// any message from any connection needs to go through here
 	rawConn.OnAnyMessage(func(message *messages.Message) {
@@ -154,7 +154,7 @@ func (s *WRelayServer) tryToRestoreDeadServicesFromReconnectedClient(clientId st
 }
 
 // client connection close handler is defined in the upgrade part ^^
-func (s *WRelayServer) handleAnonymousConnectionClosed(c *common.WsConnection, err error) {
+func (s *WRelayServer) handleAnonymousConnectionClosed(c *connection.WsConnection, err error) {
 	conn := s.anonymousClient[c.Address()]
 	fmt.Println(conn, " closed")
 }

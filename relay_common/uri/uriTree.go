@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"wsdk/gommon/data_structures"
+	"wsdk/common/data_structures"
 	"wsdk/relay_common/utils"
 )
 

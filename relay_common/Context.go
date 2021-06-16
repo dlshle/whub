@@ -2,7 +2,7 @@ package relay_common
 
 import (
 	"sync/atomic"
-	"wsdk/gommon/timed"
+	"wsdk/common/timed"
 	"wsdk/relay_common/notification"
 )
 

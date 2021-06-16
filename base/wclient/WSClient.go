@@ -4,8 +4,8 @@ import (
 	"errors"
 	"github.com/gorilla/websocket"
 	"os"
-	Common2 "wsdk/base/common"
-	"wsdk/gommon/logger"
+	Common2 "wsdk/base/connection"
+	"wsdk/common/logger"
 )
 
 type WClientConnectionHandler struct {

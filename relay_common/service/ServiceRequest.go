@@ -3,7 +3,7 @@ package service
 import (
 	"errors"
 	"sync"
-	"wsdk/gommon/async"
+	"wsdk/common/async"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 )

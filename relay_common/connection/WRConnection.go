@@ -3,9 +3,9 @@ package connection
 import (
 	"errors"
 	"time"
-	Common "wsdk/base/common"
-	"wsdk/gommon/async"
-	"wsdk/gommon/timed"
+	Common "wsdk/base/connection"
+	"wsdk/common/async"
+	"wsdk/common/timed"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/notification"
 )

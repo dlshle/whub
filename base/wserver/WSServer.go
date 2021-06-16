@@ -5,10 +5,10 @@ import (
 	"net"
 	"net/http"
 	"os"
-	Common2 "wsdk/base/common"
+	Common2 "wsdk/base/connection"
 
 	"github.com/gorilla/websocket"
-	"wsdk/gommon/logger"
+	"wsdk/common/logger"
 )
 
 type WServer struct {

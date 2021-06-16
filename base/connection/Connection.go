@@ -1,4 +1,4 @@
-package common
+package connection
 
 import (
 	"errors"
@@ -89,7 +89,7 @@ func (c *WsConnection) Close() (err error) {
 		c.onClose(err)
 	}
 	c.setState(StateDisconnected)
-	<- c.closeChannel
+	<-c.closeChannel
 	return err
 }
 
@@ -117,7 +117,7 @@ func (c *WsConnection) StopListening() {
 		return
 	}
 	c.setState(StateStopping)
-	<- c.closeChannel
+	<-c.closeChannel
 }
 
 func (c *WsConnection) Read() ([]byte, error) {
