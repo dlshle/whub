@@ -7,9 +7,12 @@ import (
 	"wsdk/common/timed"
 	"wsdk/relay_common"
 	"wsdk/relay_common/service"
+	"wsdk/relay_common/uri"
 )
 
+// TODO use TrieTree[string, service] to index services
 type ServiceManager struct {
+	trieTree        *uri.TrieTree
 	serviceMap      map[string]IServerService
 	scheduleJobPool *timed.JobPool
 	lock            *sync.RWMutex
@@ -31,6 +34,7 @@ type IServiceManager interface {
 
 func NewServiceManager(ctx *relay_common.WRContext) IServiceManager {
 	return &ServiceManager{
+		trieTree:        uri.NewTrieTree(),
 		serviceMap:      make(map[string]IServerService),
 		scheduleJobPool: ctx.TimedJobPool(),
 		lock:            new(sync.RWMutex),
@@ -107,23 +111,33 @@ func (s *ServiceManager) registerService(clientId string, service IServerService
 	if s.serviceCountByClientId(clientId) >= MaxServicePerClient {
 		return NewClientExceededMaxServiceCountError(clientId)
 	}
-	var serviceDeadTimeoutJobId int64 = -1
+	// var serviceDeadTimeoutJobId int64 = -1
 	s.withWrite(func() {
-		service.OnHealthCheckFails(func(service IServerService) {
-			// log
-			service.KillAllProcessingJobs()
-			// schedule timeout job to really kill the service if it's been dead for X duration
-			serviceDeadTimeoutJobId = s.scheduleTimeoutJob(func() {
-				s.unregisterService(service.Id())
+		/*
+			service.OnHealthCheckFails(func(service IServerService) {
+				// log
+				service.KillAllProcessingJobs()
+				// schedule timeout job to really kill the service if it's been dead for X duration
+				serviceDeadTimeoutJobId = s.scheduleTimeoutJob(func() {
+					s.unregisterService(service.Id())
+				})
 			})
-		})
-		service.OnHealthRestored(func(service IServerService) {
-			// log
-			if serviceDeadTimeoutJobId > -1 {
-				s.cancelTimedJob(serviceDeadTimeoutJobId)
+			service.OnHealthRestored(func(service IServerService) {
+				// log
+				if serviceDeadTimeoutJobId > -1 {
+					s.cancelTimedJob(serviceDeadTimeoutJobId)
+				}
+			})
+		*/
+		s.serviceMap[service.Id()] = service
+		for _, uri := range service.FullServiceUris() {
+			s.trieTree.Add(uri, service, false)
+		}
+		service.OnStopped(func(service IServerService) {
+			for _, uri := range service.FullServiceUris() {
+				s.trieTree.Remove(uri)
 			}
 		})
-		s.serviceMap[service.Id()] = service
 	})
 	return nil
 }
@@ -160,10 +174,9 @@ func (s *ServiceManager) MatchServiceByUri(uri string) IServerService {
 	}
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-	for _, v := range s.serviceMap {
-		if v.SupportsUri(uri) {
-			return v
-		}
+	service, _ := s.trieTree.FindAndGet(uri)
+	if service == nil {
+		return nil
 	}
-	return nil
+	return service.(IServerService)
 }

@@ -63,7 +63,7 @@ type uriNode struct {
 	paramChild    *uriNode            // :param
 	constChildren map[string]*uriNode // const
 	param         string
-	handler       func(pathParams map[string]string, queryParams map[string]string) error
+	handler       func(pathParams map[string]string, queryParams map[string]string, data interface{}) error
 	t             uint8
 }
 
@@ -96,7 +96,7 @@ func (n *uriNode) addConst(subPath string) *uriNode {
 	return node
 }
 
-func (n *uriNode) addPath(ctx UriContext, path string, handler func(map[string]string, map[string]string) error, override bool) (node *uriNode, err error) {
+func (n *uriNode) addPath(ctx UriContext, path string, handler func(map[string]string, map[string]string, interface{}) error, override bool) (node *uriNode, err error) {
 	if len(path) == 0 {
 		return
 	}
@@ -139,7 +139,7 @@ func (n *uriNode) addPath(ctx UriContext, path string, handler func(map[string]s
 		}
 	}
 	if node.handler != nil && !override {
-		err = errors.New(fmt.Sprintf("path %s has already been taken, please use AddPath(path, handler, true) to override current handler", path))
+		err = errors.New(fmt.Sprintf("path %s has already been taken, please use AddPath(path, value, true) to override current value", path))
 	} else {
 		node.handler = handler
 	}
@@ -204,7 +204,7 @@ func (n *uriNode) findWithoutQueryParams(path string) (node *uriNode, params map
 	return
 }
 
-func (n *uriNode) getHandler(pathWithoutQueryParams string, queryParams map[string]string) (handler func() error, err error) {
+func (n *uriNode) getHandler(pathWithoutQueryParams string, queryParams map[string]string) (handler func(interface{}) error, err error) {
 	if len(pathWithoutQueryParams) == 0 {
 		return nil, errors.New("no pathWithoutQueryParams find")
 	}
@@ -213,7 +213,7 @@ func (n *uriNode) getHandler(pathWithoutQueryParams string, queryParams map[stri
 		return nil, err
 	}
 	node, params, err := n.findWithoutQueryParams(pathWithoutQueryParams)
-	handler = func() error { return node.handler(params, queryParams) }
+	handler = func(data interface{}) error { return node.handler(params, queryParams, data) }
 	return
 }
 
@@ -248,7 +248,7 @@ func (n *uriNode) path() (path string, isConst bool) {
 
 type UriTree struct {
 	root              *uriNode
-	constPathMap      map[string]func(queryParams map[string]string) error // initially nil, when a new path has no : or *, it will be registered
+	constPathMap      map[string]func(queryParams map[string]string, data interface{}) error // initially nil, when a new path has no : or *, it will be registered
 	unCompactedLeaves *data_structures.LinkedList
 	uriContext        UriContext
 	size              int
@@ -257,7 +257,7 @@ type UriTree struct {
 func NewUriTree() *UriTree {
 	return &UriTree{
 		root:              &uriNode{parent: nil},
-		constPathMap:      make(map[string]func(map[string]string) error),
+		constPathMap:      make(map[string]func(map[string]string, interface{}) error),
 		unCompactedLeaves: data_structures.NewLinkedList(false),
 		uriContext:        UriContext{params: make(map[string]bool)},
 	}
@@ -273,14 +273,14 @@ func (t *UriTree) compact() {
 		path, isConst := node.path()
 		if isConst {
 			node.remove()
-			t.constPathMap[path] = func(queryParams map[string]string) error {
-				return node.handler(make(map[string]string), queryParams)
+			t.constPathMap[path] = func(queryParams map[string]string, data interface{}) error {
+				return node.handler(make(map[string]string), queryParams, data)
 			}
 		}
 	}
 }
 
-func (t *UriTree) FindAndHandle(path string) error {
+func (t *UriTree) FindAndHandle(path string, data interface{}) error {
 	if path == "" {
 		return errors.New("empty path")
 	}
@@ -293,16 +293,16 @@ func (t *UriTree) FindAndHandle(path string) error {
 		if err != nil {
 			return err
 		}
-		return t.constPathMap[remaining](qp)
+		return t.constPathMap[remaining](qp, data)
 	}
 	h, e := t.root.getHandler(remaining, qp)
 	if h == nil || e != nil {
 		return e
 	}
-	return h()
+	return h(data)
 }
 
-func (t *UriTree) Add(path string, handler func(map[string]string, map[string]string) error, override bool) error {
+func (t *UriTree) Add(path string, handler func(map[string]string, map[string]string, interface{}) error, override bool) error {
 	node, err := t.root.addPath(t.uriContext, path, handler, override)
 	t.unCompactedLeaves.Append(node)
 	if t.unCompactedLeaves.Size() >= DefaultCompactSize {

@@ -81,8 +81,6 @@ type IBaseService interface {
 	AccessType() int
 	ExecutionType() int
 
-	HealthCheck() error
-
 	Start() error
 	Stop() error
 	Status() int

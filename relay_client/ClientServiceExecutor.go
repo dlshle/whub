@@ -5,7 +5,7 @@ import (
 )
 
 type ClientServiceExecutor struct {
-	mManager service.IMicroServiceManager
+	mManager service.IServiceHandler
 }
 
 func (e *ClientServiceExecutor) Execute(*service.ServiceRequest) {

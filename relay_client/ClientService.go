@@ -58,6 +58,7 @@ type IClientService interface {
 
 	Register() error
 
+	HealthCheck() error
 	OnHealthCheckFails(cb func(service IClientService))
 	OnHealthRestored(cb func(service IClientService))
 }

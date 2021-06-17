@@ -21,6 +21,9 @@ const (
 	MessageTypeJSON           = 5
 	MessageTypeError          = 6
 
+	MessageTypeServiceRequest  = 101
+	MessageTypeServiceResponse = 102
+
 	MessageTypeServerNotification        = 11
 	MessageTypeServerServiceNotification = 12
 	MessageTypeClientNotification        = 21

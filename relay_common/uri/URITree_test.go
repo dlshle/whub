@@ -11,8 +11,8 @@ func TestNewUriTree(test *testing.T) {
 	p1 := "a/:p1/b/*any"
 	pc0 := "x/y/z"
 	pReplicate := "a/:p1"
-	handler := func(params map[string]string, qp map[string]string) error {
-		fmt.Println("handler exec with ", params, qp)
+	handler := func(params map[string]string, qp map[string]string, data interface{}) error {
+		fmt.Println("value exec with ", params, qp, data)
 		return nil
 	}
 	e := t.Add(p0, handler, false)
@@ -41,32 +41,32 @@ func TestNewUriTree(test *testing.T) {
 		fmt.Println(e.Error(), " PASS")
 	}
 
-	e = t.FindAndHandle("a/b/~/c/~")
-	e = t.FindAndHandle("a/b/~/c/~?q0=0&q1=1")
-	e = t.FindAndHandle(pc0 + "?q=1,2,3&p=4,5,6")
+	e = t.FindAndHandle("a/b/~/c/~", nil)
+	e = t.FindAndHandle("a/b/~/c/~?q0=0&q1=1", nil)
+	e = t.FindAndHandle(pc0+"?q=1,2,3&p=4,5,6", nil)
 
 	// incorrect query param formats
-	e = t.FindAndHandle(pc0 + "?t&&")
+	e = t.FindAndHandle(pc0+"?t&&", nil)
 	if e == nil {
 		test.Error("should report error on incorrect query param format ?t&&")
 	}
 
-	e = t.FindAndHandle(pc0 + "?t&??&")
+	e = t.FindAndHandle(pc0+"?t&??&", nil)
 	if e == nil {
 		test.Error("should report error on incorrect query param format ?t&&")
 	}
 
-	e = t.FindAndHandle(pc0 + "?t==2")
+	e = t.FindAndHandle(pc0+"?t==2", nil)
 	if e == nil {
 		test.Error("should report error on incorrect query param format ?t&&")
 	}
 
-	e = t.FindAndHandle(pc0 + "?t=2=3")
+	e = t.FindAndHandle(pc0+"?t=2=3", nil)
 	if e == nil {
 		test.Error("should report error on incorrect query param format ?t&&")
 	}
 
-	e = t.FindAndHandle(pc0 + "?t=2?")
+	e = t.FindAndHandle(pc0+"?t=2?", nil)
 	if e == nil {
 		test.Error("should report error on incorrect query param format ?t&&")
 	}
@@ -100,7 +100,7 @@ func TestNewUriTree(test *testing.T) {
 	if len(t.constPathMap) != 14 {
 		test.Error("const paths were not compacted")
 	}
-	e = t.FindAndHandle("a?fuck=true")
+	e = t.FindAndHandle("a?fuck=true", nil)
 	if e != nil {
 		test.Error("could not conduct query with a?fuck=true")
 	}
