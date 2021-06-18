@@ -13,7 +13,7 @@ import (
  * Client service anatomy:
  *  Service { handlers[path]handler }
  * Usual Service Flow:
- *  ClientX -request-> Server -request-> serverServiceHandler -request-> Client -request-> clientServiceHandler -response-> Server -response-> ClientX
+ *  ClientX -request-> Server -request-> servicePool -request-> serverRequestExecutor -request-> Client -request-> servicePool -request-> clientRequestExecutor -request-> clientServiceHandler -response-> Server -response-> ClientX
  */
 
 const (
@@ -69,6 +69,8 @@ const (
 	ServiceStatusDead         = 5 // health check fails
 	ServiceStatusStopping     = 6
 )
+
+type RequestHandler func(request *ServiceRequest, pathParams map[string]string, queryParams map[string]string) error
 
 type IBaseService interface {
 	Id() string

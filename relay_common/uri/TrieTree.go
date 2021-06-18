@@ -8,6 +8,12 @@ import (
 	"wsdk/relay_common/utils"
 )
 
+type MatchContext struct {
+	QueryParams map[string]string
+	PathParams  map[string]string
+	Value       interface{}
+}
+
 func tParseQueryParams(queryParamString string) (pMap map[string]string, err error) {
 	//xx=1&&yy=2...
 	pMap = make(map[string]string)
@@ -65,7 +71,7 @@ func (n *trieNode) addParam(param string) (*trieNode, error) {
 	if n.paramChild != nil {
 		return nil, errors.New("no duplicated param child for single node")
 	}
-	n.paramChild = &trieNode{parent: n, param: param, t: nTypeP}
+	n.paramChild = &trieNode{parent: n, param: param, t: tnTypeP}
 	return n.paramChild, nil
 }
 
@@ -73,7 +79,7 @@ func (n *trieNode) addWildcard(param string) (*trieNode, error) {
 	if n.wildcardChild != nil {
 		return nil, errors.New("no duplicate wildcard child for single node")
 	}
-	n.wildcardChild = &trieNode{parent: n, param: param, t: nTypeW}
+	n.wildcardChild = &trieNode{parent: n, param: param, t: tnTypeW}
 	return n.wildcardChild, nil
 }
 
@@ -84,7 +90,7 @@ func (n *trieNode) addConst(subPath string) *trieNode {
 	var node *trieNode
 	node = n.constChildren[subPath]
 	if node == nil {
-		node = &trieNode{parent: n, t: nTypeC}
+		node = &trieNode{parent: n, t: tnTypeC}
 		n.constChildren[subPath] = node
 	}
 	return node
@@ -133,7 +139,7 @@ func (n *trieNode) addPath(ctx UriContext, path string, value interface{}, overr
 		}
 	}
 	if node.value != nil && !override {
-		err = errors.New(fmt.Sprintf("path %s has already been taken, please use AddPath(path, value, true) to override current value", path))
+		err = errors.New(fmt.Sprintf("path %s has already been taken, please use AddPath(path, Value, true) to override current Value", path))
 	} else {
 		node.value = value
 	}
@@ -149,11 +155,11 @@ func (n *trieNode) remove() {
 	} else {
 		// safe to remove, remove current node from its parent
 		switch n.t {
-		case nTypeP:
+		case tnTypeP:
 			n.parent.paramChild = nil
-		case nTypeW:
+		case tnTypeW:
 			n.parent.wildcardChild = nil
-		case nTypeC:
+		case tnTypeC:
 			for k, v := range n.parent.constChildren {
 				if v == n {
 					n.parent.constChildren[k] = nil
@@ -164,9 +170,24 @@ func (n *trieNode) remove() {
 	}
 }
 
-func (n *trieNode) findWithoutQueryParams(path string) (node *trieNode, err error) {
+// clean from up to bottom
+func (n *trieNode) clean() {
+	if n.paramChild != nil {
+		n.paramChild.clean()
+	}
+	if n.wildcardChild != nil {
+		n.wildcardChild.clean()
+	}
+	for k, c := range n.constChildren {
+		c.clean()
+		delete(n.constChildren, k)
+	}
+	n.value = nil
+}
+
+func (n *trieNode) findByPath(path string) (node *trieNode) {
 	if len(path) == 0 {
-		return nil, errors.New("no path find")
+		return nil
 	}
 	curr := n
 	remaining := path
@@ -182,6 +203,36 @@ func (n *trieNode) findWithoutQueryParams(path string) (node *trieNode, err erro
 		} else if curr.paramChild != nil {
 			curr = curr.paramChild
 		} else {
+			curr = nil
+			break
+		}
+	}
+	if curr != nil {
+		node = curr
+	}
+	return
+}
+
+func (n *trieNode) match(path string, ctx *MatchContext) (node *trieNode, err error) {
+	if len(path) == 0 {
+		return nil, errors.New("no path find")
+	}
+	curr := n
+	remaining := path
+	for len(remaining) > 0 {
+		var subPath string
+		subPath, remaining = tSplitRemaining(remaining)
+		// need to match constChildren first so that one subPath can be either const or param
+		if curr.constChildren[subPath] != nil {
+			curr = curr.constChildren[subPath]
+		} else if curr.wildcardChild != nil {
+			curr = curr.paramChild
+			ctx.PathParams[curr.param] = subPath
+			break
+		} else if curr.paramChild != nil {
+			curr = curr.paramChild
+			ctx.PathParams[curr.param] = subPath
+		} else {
 			err = errors.New(fmt.Sprintf("mismatch subpath %s from %s- not routing found", subPath, path))
 			curr = nil
 			break
@@ -195,15 +246,13 @@ func (n *trieNode) findWithoutQueryParams(path string) (node *trieNode, err erro
 	return
 }
 
-func (n *trieNode) getValue(pathWithoutQueryParams string) (value interface{}, err error) {
+func (n *trieNode) matchByPath(pathWithoutQueryParams string, ctx *MatchContext) (c *MatchContext, err error) {
 	if len(pathWithoutQueryParams) == 0 {
 		return nil, errors.New("no pathWithoutQueryParams find")
 	}
-	if err != nil {
-		return nil, err
-	}
-	node, err := n.findWithoutQueryParams(pathWithoutQueryParams)
-	value = node.value
+	node, err := n.match(pathWithoutQueryParams, ctx)
+	ctx.Value = node.value
+	c = ctx
 	return
 }
 
@@ -211,7 +260,7 @@ func (n *trieNode) path() (path string, isConst bool) {
 	curr := n
 	isConst = true
 	for curr != nil {
-		if n.t != nTypeC {
+		if n.t != tnTypeC {
 			isConst = false
 		}
 		if curr.param != "" {
@@ -268,12 +317,12 @@ func (t *TrieTree) compact() {
 	}
 }
 
-func (t *TrieTree) FindAndGet(path string) (interface{}, error) {
+func (t *TrieTree) Match(path string) (*MatchContext, error) {
 	if path == "" {
 		return nil, errors.New("empty path")
 	}
 	paramStr, remaining := tSplitQueryParams(path)
-	_, err := tParseQueryParams(paramStr)
+	queryParams, err := tParseQueryParams(paramStr)
 	if err != nil {
 		return nil, err
 	}
@@ -281,13 +330,19 @@ func (t *TrieTree) FindAndGet(path string) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		return t.constPathMap[remaining], nil
+		return &MatchContext{
+			QueryParams: queryParams,
+			Value:       t.constPathMap[remaining],
+		}, nil
 	}
-	v, e := t.root.getValue(remaining)
-	if v == nil || e != nil {
+	c, e := t.root.matchByPath(remaining, &MatchContext{
+		PathParams:  make(map[string]string),
+		QueryParams: queryParams,
+	})
+	if c == nil || e != nil {
 		return nil, e
 	}
-	return v, nil
+	return c, nil
 }
 
 func (t *TrieTree) Add(path string, value interface{}, override bool) error {
@@ -300,19 +355,19 @@ func (t *TrieTree) Add(path string, value interface{}, override bool) error {
 	return err
 }
 
-func (t *TrieTree) Remove(path string) error {
+func (t *TrieTree) Remove(path string) bool {
 	if t.constPathMap[path] != nil {
 		delete(t.constPathMap, path)
 		t.size--
-		return nil
+		return true
 	}
-	node, err := t.root.findWithoutQueryParams(path)
-	if err != nil {
-		return err
+	node := t.root.findByPath(path)
+	if node == nil {
+		return false
 	}
 	node.remove()
 	t.size--
-	return nil
+	return true
 }
 
 func (t *TrieTree) SupportsUri(path string) bool {
@@ -330,9 +385,16 @@ func (t *TrieTree) SupportsUri(path string) bool {
 		}
 		return true
 	}
-	h, e := t.root.getValue(remaining)
-	if h == nil || e != nil {
+	n := t.root.findByPath(remaining)
+	if n == nil {
 		return false
 	}
 	return true
+}
+
+func (t *TrieTree) RemoveAll() {
+	for k, _ := range t.constPathMap {
+		delete(t.constPathMap, k)
+	}
+	t.root.clean()
 }

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"sync"
 	"wsdk/common/async"
-	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 )
 
@@ -20,7 +19,7 @@ const (
 	ServiceRequestStatusCancelled  = 4
 )
 
-var unProcessableServiceRequestMap map[int]bool
+var UnProcessableServiceRequestMap map[int]bool
 var statusCodeStringMap map[int]string
 
 func initServiceRequest() {
@@ -31,9 +30,9 @@ func initServiceRequest() {
 	statusCodeStringMap[ServiceRequestStatusFinished] = "finished"
 	statusCodeStringMap[ServiceRequestStatusCancelled] = "cancelled"
 
-	unProcessableServiceRequestMap = make(map[int]bool)
-	unProcessableServiceRequestMap[ServiceRequestStatusDead] = true
-	unProcessableServiceRequestMap[ServiceRequestStatusCancelled] = true
+	UnProcessableServiceRequestMap = make(map[int]bool)
+	UnProcessableServiceRequestMap[ServiceRequestStatusDead] = true
+	UnProcessableServiceRequestMap[ServiceRequestStatusCancelled] = true
 }
 
 type ServiceRequest struct {
@@ -57,9 +56,10 @@ type IServiceRequest interface {
 	IsCancelled() bool
 	IsFinished() bool
 	OnStatusChange(func(int))
-	resolve(*messages.Message) error
+	Resolve(*messages.Message) error
 	Wait() error // wait for the state to transit to final (dead/finished/cancelled)
 	Response() *messages.Message
+	TransitStatus(int)
 }
 
 func (t *ServiceRequest) withWrite(cb func()) {
@@ -109,9 +109,9 @@ func (t *ServiceRequest) Cancel() error {
 	return nil
 }
 
-func (t *ServiceRequest) resolve(m *messages.Message) error {
+func (t *ServiceRequest) Resolve(m *messages.Message) error {
 	if t.Status() != ServiceRequestStatusProcessing {
-		return errors.New("can not resolve a non-processing ServiceRequest")
+		return errors.New("can not Resolve a non-processing ServiceRequest")
 	}
 	t.withWrite(func() {
 		t.status = ServiceRequestStatusFinished
@@ -150,28 +150,6 @@ func (t *ServiceRequest) Response() *messages.Message {
 	return t.barrier.Get().(*messages.Message)
 }
 
-type ServiceRequestExecutor struct {
-	conn *connection.WRConnection
-}
-
-func NewServiceRequestExecutor(c *connection.WRConnection) *ServiceRequestExecutor {
-	return &ServiceRequestExecutor{c}
-}
-
-func (e *ServiceRequestExecutor) Execute(request *ServiceRequest) {
-	// check if messages is processable
-	if unProcessableServiceRequestMap[request.Status()] {
-		request.resolve(messages.NewErrorMessage(request.Id(), request.From(), request.From(), request.Uri(), "request has been cancelled or target server is dead"))
-		return
-	}
-	request.setStatus(ServiceRequestStatusProcessing)
-	response, err := e.conn.Request(request.Message)
-	if request.Status() == ServiceRequestStatusDead {
-		// last check on if messages is killed
-		request.resolve(messages.NewErrorMessage(request.Id(), request.From(), request.From(), request.Uri(), "request has been cancelled or target server is dead"))
-	} else if err != nil {
-		request.resolve(messages.NewErrorMessage(request.Id(), request.From(), request.From(), request.Uri(), err.Error()))
-	} else {
-		request.resolve(response)
-	}
+func (t *ServiceRequest) TransitStatus(status int) {
+	t.setStatus(status)
 }

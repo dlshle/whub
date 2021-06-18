@@ -9,9 +9,10 @@ import (
 	"wsdk/base/wserver"
 	"wsdk/common/timed"
 	"wsdk/relay_common"
-	"wsdk/relay_common/connection"
+	rconnection "wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/utils"
+	"wsdk/relay_server/service"
 )
 
 const (
@@ -24,9 +25,8 @@ type WRelayServer struct {
 	*wserver.WServer
 	relay_common.IDescribableRole
 	anonymousClient map[string]*WRServerClient // raw clients or pure anony clients
-	// clients map[string]*WRServerClient
 	IClientManager
-	IServiceManager
+	service.IServiceManager
 	scheduleJobPool   *timed.JobPool
 	messageParser     messages.IMessageParser
 	messageDispatcher messages.IMessageDispatcher
@@ -34,7 +34,7 @@ type WRelayServer struct {
 }
 
 type IWRelayServer interface {
-	IServiceManager
+	service.IServiceManager
 	IClientManager
 	Start() error
 	Stop() error
@@ -82,14 +82,14 @@ func (s *WRelayServer) scheduleTimeoutJob(job func()) int64 {
 	return s.scheduleJobPool.ScheduleAsyncTimeoutJob(job, ServiceKillTimeout)
 }
 
-func (s *WRelayServer) GetServicesByClientId(id string) ([]IServerService, error) {
+func (s *WRelayServer) GetServicesByClientId(id string) ([]service.IServerService, error) {
 	if !s.HasClient(id) {
 		return nil, NewNoSuchClientError(id)
 	}
 	return s.IServiceManager.GetServicesByClientId(id), nil
 }
 
-func (s *WRelayServer) RegisterService(service IServerService) error {
+func (s *WRelayServer) RegisterService(service service.IServerService) error {
 	clientId := service.Provider().Id()
 	if !s.HasClient(clientId) {
 		return NewNoSuchClientError(clientId)
@@ -98,7 +98,7 @@ func (s *WRelayServer) RegisterService(service IServerService) error {
 }
 
 func (s *WRelayServer) handleInitialConnection(conn *connection.WsConnection) {
-	rawConn := connection.NewWRConnection(conn, connection.DefaultTimeout, s.messageParser, s.ctx.NotificationEmitter())
+	rawConn := rconnection.NewWRConnection(conn, rconnection.DefaultTimeout, s.messageParser, s.ctx.NotificationEmitter())
 	// any message from any connection needs to go through here
 	rawConn.OnAnyMessage(func(message *messages.Message) {
 		if s.messageDispatcher != nil {
@@ -136,7 +136,7 @@ func (s *WRelayServer) handleInitialConnection(conn *connection.WsConnection) {
 }
 
 func (s *WRelayServer) tryToRestoreDeadServicesFromReconnectedClient(clientId string) (err error) {
-	s.WithServicesFromClientId(clientId, func(services []IServerService) {
+	s.WithServicesFromClientId(clientId, func(services []service.IServerService) {
 		client := s.GetClient(clientId)
 		if client == nil {
 			err = NewNoSuchClientError(clientId)
@@ -177,8 +177,13 @@ func (s *WRelayServer) handleClientConnectionClosed(c *WRServerClient, err error
 		s.DisconnectClient(c.Id())
 	} else {
 		// unexpected closure
-		// service should kill all jobs and transit to DeadMode automatically
+		// service should kill all jobs and transit to DeadMode
 		s.DisconnectClient(c.Id())
+		s.WithServicesFromClientId(c.Id(), func(services []service.IServerService) {
+			for i := range services {
+				services[i].Kill()
+			}
+		})
 	}
 }
 
@@ -187,11 +192,11 @@ func (s *WRelayServer) handleClientError(c *WRServerClient, err error) {
 	fmt.Printf("Server(%s) error(%s)", c.Id(), err.Error())
 }
 
-func (s *WRelayServer) NewClient(conn *connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
+func (s *WRelayServer) NewClient(conn *rconnection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
 	return NewClient(s.ctx, conn, id, description, cType, cKey, pScope)
 }
 
-func (s *WRelayServer) NewAnonymousClient(conn *connection.WRConnection) *WRServerClient {
+func (s *WRelayServer) NewAnonymousClient(conn *rconnection.WRConnection) *WRServerClient {
 	return NewAnonymousClient(s.ctx, conn)
 }
 
@@ -203,7 +208,7 @@ func NewServer(ctx *relay_common.WRContext, port int) *WRelayServer {
 		anonymousClient:  make(map[string]*WRServerClient),
 		// clients: make(map[string]*WRServerClient),
 		IClientManager:  NewClientManager(),
-		IServiceManager: NewServiceManager(ctx, time.Second),
+		IServiceManager: service.NewServiceManager(ctx),
 		scheduleJobPool: ctx.TimedJobPool(),
 		messageParser:   messages.NewSimpleMessageParser(),
 		lock:            new(sync.RWMutex),

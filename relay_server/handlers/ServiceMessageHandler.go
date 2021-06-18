@@ -7,15 +7,16 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server"
+	service2 "wsdk/relay_server/service"
 )
 
 // ServiceRequestHandler
 type ServiceRequestHandler struct {
 	ctx            *relay_common.WRContext
-	serviceManager relay_server.IServiceManager
+	serviceManager service2.IServiceManager
 }
 
-func (h *ServiceRequestHandler) NewServiceRequestHandler(ctx *relay_common.WRContext, manager relay_server.IServiceManager) relay_server.IServerMessageHandler {
+func (h *ServiceRequestHandler) NewServiceRequestHandler(ctx *relay_common.WRContext, manager service2.IServiceManager) relay_server.IServerMessageHandler {
 	return &ServiceRequestHandler{ctx, manager}
 }
 
@@ -26,7 +27,7 @@ func (h *ServiceRequestHandler) Handle(message *messages.Message, next messages.
 	}
 	service := h.serviceManager.MatchServiceByUri(message.Uri())
 	if service == nil {
-		return nil, errors.New(relay_server.NewCanNotFindServiceError(message.Uri()).Json())
+		return nil, errors.New(service2.NewCanNotFindServiceError(message.Uri()).Json())
 	}
 	return service.Request(message), nil
 }

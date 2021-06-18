@@ -12,7 +12,7 @@ func TestNewUriTree(test *testing.T) {
 	pc0 := "x/y/z"
 	pReplicate := "a/:p1"
 	handler := func(params map[string]string, qp map[string]string, data interface{}) error {
-		fmt.Println("value exec with ", params, qp, data)
+		fmt.Println("Value exec with ", params, qp, data)
 		return nil
 	}
 	e := t.Add(p0, handler, false)

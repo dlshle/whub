@@ -1,4 +1,4 @@
-package relay_server
+package service
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
+	"wsdk/relay_server"
 )
 
 // Service Uri should always be /service/serviceId/uri/params
@@ -38,7 +39,6 @@ type IServiceProvider interface {
 	HealthCheckExecutor() relay_common.IHealthCheckExecutor
 }
 
-// TODO use service manager to mange services
 type ServerService struct {
 	uriPrefix     string
 	ctx           relay_common.IWRContext
@@ -70,7 +70,7 @@ type IServerService interface {
 	// HealthCheckInterval() time.Duration
 	// SetHealthCheckInterval(duration time.Duration)
 
-	Register(IWRelayServer) error
+	Register(relay_server.IWRelayServer) error
 	OnStarted(func(IServerService))
 	OnStopped(func(IServerService))
 	// HealthCheck() error
@@ -78,13 +78,14 @@ type IServerService interface {
 
 	// OnHealthCheckFails(cb func(IServerService))
 	// OnHealthRestored(cb func(service IServerService))
+	Kill() error
 
-	RestoreExternally(reconnectedOwner *WRServerClient) error
+	RestoreExternally(reconnectedOwner *relay_server.WRServerClient) error
 }
 
 func NewService(ctx relay_common.IWRContext, id string, description string, provider IServiceProvider, serviceUris []string, serviceType int, accessType int, exeType int) IServerService {
 	return &ServerService{
-		uriPrefix:     service.ServicePrefix + id,
+		uriPrefix:     fmt.Sprintf("%s/%s", service.ServicePrefix, id),
 		ctx:           ctx,
 		id:            id,
 		description:   description,
@@ -217,7 +218,8 @@ func (s *ServerService) SetHealthCheckInterval(duration time.Duration) {
 }
 */
 
-func (s *ServerService) Register(server IWRelayServer) (err error) {
+// register the service to a server
+func (s *ServerService) Register(server relay_server.IWRelayServer) (err error) {
 	if err = server.RegisterService(s.Provider().Id(), s); err != nil {
 		return
 	}
@@ -262,7 +264,7 @@ func (s *ServerService) OnStopped(callback func(service IServerService)) {
 	s.onStoppedCallback = callback
 }
 
-func (s *ServerService) RestoreExternally(reconnectedOwner *WRServerClient) (err error) {
+func (s *ServerService) RestoreExternally(reconnectedOwner *relay_server.WRServerClient) (err error) {
 	if s.Status() != service.ServiceStatusDead {
 		err = NewInvalidServiceStatusError(s.Id(), s.Status(), fmt.Sprintf(" status should be %d to be restored externally", service.ServiceStatusDead))
 		return
@@ -304,7 +306,9 @@ func (s *ServerService) HealthCheck() (err error) {
 */
 
 func (s *ServerService) Request(message *messages.Message) *messages.Message {
-	serviceRequest := service.NewServiceRequest(message)
+	// when request is relayed to the client, it needs to use shortUri
+	shortUri := strings.TrimPrefix(message.Uri(), s.uriPrefix+"/")
+	serviceRequest := service.NewServiceRequest(message.CUri(shortUri))
 	s.servicePool.Add(serviceRequest)
 	if s.ExecutionType() == ServiceExecutionAsync {
 		return nil
@@ -373,4 +377,9 @@ func (s *ServerService) FullServiceUris() []string {
 		fullUris[i] = s.uriPrefix + uri
 	}
 	return fullUris
+}
+
+func (s *ServerService) Kill() error {
+	s.setStatus(service.ServiceStatusDead)
+	return s.KillAllProcessingJobs()
 }

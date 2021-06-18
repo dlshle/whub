@@ -16,17 +16,18 @@ type ClientService struct {
 	serviceCenterClient service.IServiceCenterClient
 	servicePool         service.IServicePool
 
-	id              string
-	uriPrefix       string
-	description     string
-	serviceUris     []string
-	requestHandlers map[string]messages.MessageHandlerFunc
-	hostInfo        *relay_common.RoleDescriptor
-	serviceType     int
-	accessType      int
-	executionType   int
-	descriptor      *service.ServiceDescriptor
-	cTime           time.Time
+	id          string
+	uriPrefix   string
+	description string
+	serviceUris []string
+	// requestHandlers map[string]messages.MessageHandlerFunc
+	handler       service.IServiceHandler
+	hostInfo      *relay_common.RoleDescriptor
+	serviceType   int
+	accessType    int
+	executionType int
+	descriptor    *service.ServiceDescriptor
+	cTime         time.Time
 
 	status             int
 	healthCheckHandler *service.ServiceHealthCheckHandler
@@ -39,10 +40,13 @@ type ClientService struct {
 
 // TODO NewFunc
 func NewClientService(ctx *relay_common.WRContext, id string, server *relay_common.WRServer) *ClientService {
+	handler := service.NewServiceHandler()
 	return &ClientService{
+		id:                  id,
 		ctx:                 ctx,
 		serviceCenterClient: service.NewServiceCenterClient(ctx, server),
-		// servicePool: service.NewServicePool(),
+		handler:             handler,
+		servicePool:         service.NewServicePool(NewClientServiceExecutor(ctx, handler), service.MaxServicePoolSize/2),
 	}
 }
 
@@ -51,8 +55,8 @@ type IClientService interface {
 	UpdateDescription(string) error
 	Handle(*messages.Message) error
 	HostInfo() relay_common.RoleDescriptor
-	RegisterMicroService(shortUri string, handler messages.MessageHandlerFunc) error // should update service descriptor to the host
-	UnregisterMicroService(shortUri string) error                                    // should update service descriptor to the host
+	RegisterRoute(shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
+	UnregisterRoute(shortUri string) error                               // should update service descriptor to the host
 	NotifyHostForUpdate() error
 	NewMessage(to string, uri string, msgType int, payload []byte) *messages.Message
 
@@ -144,32 +148,19 @@ func (s *ClientService) matchUri(uri string) (string, error) {
 }
 
 func (s *ClientService) Handle(message *messages.Message) error {
-	matchedUri, err := s.matchUri(message.Uri())
-	if err != nil {
-		// if no matched uri
-		err = s.serviceCenterClient.Response(messages.NewErrorMessage(message.Id(), s.ctx.Identity().Id(), s.HostInfo().Id, message.Uri(), err.Error()))
-		return err
-	} else {
-		// if has matched uri, try to handle it
-		msg, err := s.requestHandlers[matchedUri](message)
-		if err != nil {
-			return err
-		} else if msg != nil && msg.MessageType() == messages.MessageTypeError {
-			return errors.New((string)(msg.Payload()))
-		}
-	}
-	return nil
+	request := service.NewServiceRequest(message)
+	return s.handler.Handle(request)
 }
 
-func (s *ClientService) RegisterMicroService(shortUri string, handler messages.MessageHandlerFunc) error {
+func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHandler) error {
 	s.withWrite(func() {
 		s.serviceUris = append(s.serviceUris, shortUri)
-		s.requestHandlers[shortUri] = handler
+		s.handler.Register(shortUri, handler)
 	})
 	return s.NotifyHostForUpdate()
 }
 
-func (s *ClientService) UnregisterMicroService(shortUri string) error {
+func (s *ClientService) UnregisterRoute(shortUri string) error {
 	uriIndex := -1
 	for i, uri := range s.ServiceUris() {
 		if uri == shortUri {
@@ -183,7 +174,7 @@ func (s *ClientService) UnregisterMicroService(shortUri string) error {
 		l := len(s.serviceUris)
 		s.serviceUris[l-1], s.serviceUris[uriIndex] = s.serviceUris[uriIndex], s.serviceUris[l-1]
 		s.serviceUris = s.serviceUris[:l-1]
-		delete(s.requestHandlers, shortUri)
+		s.handler.Unregister(shortUri)
 	})
 	return s.NotifyHostForUpdate()
 }

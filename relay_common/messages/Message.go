@@ -80,8 +80,36 @@ func (t *Message) String() string {
 	return fmt.Sprintf("{from: \"%s\", to: \"%s\", messageType: %d, payload: %s}", t.from, t.to, t.messageType, t.payload)
 }
 
+func (t *Message) CFrom(from string) *Message {
+	m := t.Copy()
+	m.from = from
+	return m
+}
+
+func (t *Message) CTo(to string) *Message {
+	m := t.Copy()
+	m.to = to
+	return m
+}
+
+func (t *Message) CUri(uri string) *Message {
+	m := t.Copy()
+	m.uri = uri
+	return m
+}
+
+func (t *Message) CType(mType int) *Message {
+	m := t.Copy()
+	m.messageType = mType
+	return m
+}
+
 func (t *Message) Equals(m *Message) bool {
 	return t.Id() == m.Id() && t.From() == m.From() && t.To() == m.To() && t.Uri() == m.Uri() && t.MessageType() == m.MessageType() && (string)(t.payload) == (string)(m.payload)
+}
+
+func (t *Message) Copy() *Message {
+	return NewMessage(t.id, t.from, t.to, t.uri, t.messageType, t.payload)
 }
 
 func NewMessage(id string, from string, to string, uri string, messageType int, payload []byte) *Message {

@@ -139,7 +139,7 @@ func (n *uriNode) addPath(ctx UriContext, path string, handler func(map[string]s
 		}
 	}
 	if node.handler != nil && !override {
-		err = errors.New(fmt.Sprintf("path %s has already been taken, please use AddPath(path, value, true) to override current value", path))
+		err = errors.New(fmt.Sprintf("path %s has already been taken, please use AddPath(path, Value, true) to override current Value", path))
 	} else {
 		node.handler = handler
 	}

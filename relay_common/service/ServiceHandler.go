@@ -7,7 +7,6 @@ import (
 
 // ServiceHandler handles service requests
 type ServiceHandler struct {
-	// TODO trieTree is not good enough, we need something that takes a callback that takes queryParams and pathParams and then execute
 	trieTree *uri.TrieTree
 	lock     *sync.RWMutex
 }
@@ -16,7 +15,7 @@ type IServiceHandler interface {
 	SupportsUri(uri string) bool
 	Register(uri string, handler RequestHandler) bool
 	Unregister(uri string) bool
-	GetHandler(uri string) RequestHandler
+	Handle(request *ServiceRequest) error
 }
 
 func NewServiceHandler() IServiceHandler {
@@ -51,20 +50,18 @@ func (m *ServiceHandler) Register(internalUri string, handler RequestHandler) bo
 func (m *ServiceHandler) Unregister(internalUri string) bool {
 	success := true
 	m.withWrite(func() {
-		err := m.trieTree.Remove(internalUri)
-		if err != nil {
-			success = false
-		}
+		success = m.trieTree.Remove(internalUri)
 	})
 	return success
 }
 
-func (m *ServiceHandler) GetHandler(internalUri string) RequestHandler {
+func (m *ServiceHandler) Handle(request *ServiceRequest) error {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	handler, err := m.trieTree.FindAndGet(internalUri)
+	matchContext, err := m.trieTree.Match(request.Uri())
 	if err != nil {
+		// only possible error is no routing found
 		return nil
 	}
-	return handler.(RequestHandler)
+	return matchContext.Value.(RequestHandler)(request, matchContext.PathParams, matchContext.QueryParams)
 }
