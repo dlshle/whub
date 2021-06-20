@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	DefaultHealthCheckInterval = time.Minute * 5
 	MinimalHealthCheckInterval = time.Second * 5
 	MaximumHealthCheckInterval = time.Minute * 15
 )

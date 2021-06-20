@@ -50,8 +50,16 @@ func (rcv *Message) To() []byte {
 	return nil
 }
 
-func (rcv *Message) MessageType() int32 {
+func (rcv *Message) Uri() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
+func (rcv *Message) MessageType() int32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
@@ -59,28 +67,19 @@ func (rcv *Message) MessageType() int32 {
 }
 
 func (rcv *Message) MutateMessageType(n int32) bool {
-	return rcv._tab.MutateInt32Slot(10, n)
+	return rcv._tab.MutateInt32Slot(12, n)
 }
 
-func (rcv *Message) Timestamp() int64 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
-	if o != 0 {
-		return rcv._tab.GetInt64(o + rcv._tab.Pos)
-	}
-	return 0
-}
-
-func (rcv *Message) MutateTimestamp(n int64) bool {
-	return rcv._tab.MutateInt64Slot(12, n)
-}
-
-func (rcv *Message) Payload(j int) int8 {
+func (rcv *Message) Payload() []byte {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	l := rcv.PayloadLength()
 	if o != 0 {
 		a := rcv._tab.Vector(o)
-		return rcv._tab.GetInt8(a + flatbuffers.UOffsetT(j*1))
+		from := a + flatbuffers.UOffsetT(0)
+		to := from + flatbuffers.UOffsetT(l)
+		return rcv._tab.Bytes[from:to]
 	}
-	return 0
+	return nil
 }
 
 func (rcv *Message) PayloadLength() int {
@@ -112,11 +111,11 @@ func MessageAddFrom(builder *flatbuffers.Builder, from flatbuffers.UOffsetT) {
 func MessageAddTo(builder *flatbuffers.Builder, to flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(to), 0)
 }
-func MessageAddMessageType(builder *flatbuffers.Builder, messageType int32) {
-	builder.PrependInt32Slot(3, messageType, 0)
+func MessageAddUri(builder *flatbuffers.Builder, uri flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(uri), 0)
 }
-func MessageAddTimestamp(builder *flatbuffers.Builder, timestamp int64) {
-	builder.PrependInt64Slot(4, timestamp, 0)
+func MessageAddMessageType(builder *flatbuffers.Builder, messageType int32) {
+	builder.PrependInt32Slot(4, messageType, 0)
 }
 func MessageAddPayload(builder *flatbuffers.Builder, payload flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(payload), 0)

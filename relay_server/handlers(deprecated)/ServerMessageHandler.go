@@ -1,4 +1,4 @@
-package relay_server
+package handlers_deprecated_
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"sync"
 	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_server"
 )
 
 const (
@@ -15,7 +16,7 @@ const (
 )
 
 type IServerMessageHandler interface {
-	messages.IMessageHandler
+	IMessageHandler
 	Priority() int
 }
 
@@ -25,10 +26,10 @@ type ServerMessageHandlerManager struct {
 }
 
 type IServerMessageHandlerManager interface {
-	messages.IMessageHandler
+	IMessageHandler
 	RegisterHandler(handler IServerMessageHandler)
 	UnregisterHandler(handler IServerMessageHandler)
-	composeHandlers() messages.NextMessageHandler
+	composeHandlers() NextMessageHandler
 }
 
 func (m *ServerMessageHandlerManager) withWrite(cb func()) {
@@ -50,13 +51,13 @@ func (m *ServerMessageHandlerManager) hasHandler(handler IServerMessageHandler) 
 	return false
 }
 
-func (m *ServerMessageHandlerManager) Handle(message *messages.Message, next messages.NextMessageHandler) (*messages.Message, error) {
+func (m *ServerMessageHandlerManager) Handle(message *messages.Message, next NextMessageHandler) (*messages.Message, error) {
 	return m.composeHandlers()(message, next)
 }
 
 // a bad imitation of koa-compose
-func (m *ServerMessageHandlerManager) composeHandlers() messages.HandlerFunction {
-	return func(message *messages.Message, next messages.NextMessageHandler) (*messages.Message, error) {
+func (m *ServerMessageHandlerManager) composeHandlers() HandlerFunction {
+	return func(message *messages.Message, next NextMessageHandler) (*messages.Message, error) {
 		index := -1
 		makeNextHandlerFn := func(i int) (*messages.Message, error) {
 			/*
@@ -111,7 +112,7 @@ type InvalidMessageHandler struct {
 }
 
 func (h *InvalidMessageHandler) Handle(message *messages.Message) *messages.Message {
-	return messages.NewErrorMessage(message.Id(), h.ctx.Identity().Id(), message.From(), message.Uri(), NewInvalidMessageError().Json())
+	return messages.NewErrorMessage(message.Id(), h.ctx.Identity().Id(), message.From(), message.Uri(), relay_server.NewInvalidMessageError().Json())
 }
 
 func (h *InvalidMessageHandler) Priority() int {

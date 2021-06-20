@@ -14,19 +14,17 @@ type ClientService struct {
 	ctx *relay_common.WRContext
 
 	serviceCenterClient service.IServiceCenterClient
-	servicePool         service.IServicePool
+	serviceTaskQueue    service.IServiceTaskQueue
 
-	id          string
-	uriPrefix   string
-	description string
-	serviceUris []string
-	// requestHandlers map[string]messages.MessageHandlerFunc
+	id            string
+	uriPrefix     string
+	description   string
+	serviceUris   []string
 	handler       service.IServiceHandler
-	hostInfo      *relay_common.RoleDescriptor
+	host          *relay_common.WRServer
 	serviceType   int
 	accessType    int
 	executionType int
-	descriptor    *service.ServiceDescriptor
 	cTime         time.Time
 
 	status             int
@@ -41,19 +39,22 @@ type ClientService struct {
 // TODO NewFunc
 func NewClientService(ctx *relay_common.WRContext, id string, server *relay_common.WRServer) *ClientService {
 	handler := service.NewServiceHandler()
-	return &ClientService{
+	s := &ClientService{
 		id:                  id,
 		ctx:                 ctx,
 		serviceCenterClient: service.NewServiceCenterClient(ctx, server),
+		serviceTaskQueue:    service.NewServiceTaskQueue(NewClientServiceExecutor(ctx, handler), ctx.ServiceTaskPool()),
 		handler:             handler,
-		servicePool:         service.NewServicePool(NewClientServiceExecutor(ctx, handler), service.MaxServicePoolSize/2),
+		host:                server,
+		lock:                new(sync.RWMutex),
 	}
+	s.init()
+	return s
 }
 
 type IClientService interface {
 	service.IBaseService
 	UpdateDescription(string) error
-	Handle(*messages.Message) error
 	HostInfo() relay_common.RoleDescriptor
 	RegisterRoute(shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
 	UnregisterRoute(shortUri string) error                               // should update service descriptor to the host
@@ -65,6 +66,18 @@ type IClientService interface {
 	HealthCheck() error
 	OnHealthCheckFails(cb func(service IClientService))
 	OnHealthRestored(cb func(service IClientService))
+}
+
+func (s *ClientService) init() {
+	s.status = service.ServiceStatusUnregistered
+	s.healthCheckHandler = service.NewServiceHealthCheckHandler(
+		s.ctx.TimedJobPool(),
+		service.DefaultHealthCheckInterval,
+		s.HealthCheck,
+		s.onHealthCheckFailedInternalHandler,
+		s.onHealthCheckRestoredInternalHandler,
+	)
+	s.cTime = time.Now()
 }
 
 func (s *ClientService) withWrite(cb func()) {
@@ -133,7 +146,7 @@ func (s *ClientService) ExecutionType() int {
 }
 
 func (s *ClientService) HostInfo() relay_common.RoleDescriptor {
-	return *s.hostInfo
+	return s.host.Describe()
 }
 
 // returns the corresponding raw uri of the service or ""
@@ -147,9 +160,10 @@ func (s *ClientService) matchUri(uri string) (string, error) {
 	return "", errors.New("no matched uri")
 }
 
-func (s *ClientService) Handle(message *messages.Message) error {
+func (s *ClientService) Handle(message *messages.Message) *messages.Message {
 	request := service.NewServiceRequest(message)
-	return s.handler.Handle(request)
+	s.serviceTaskQueue.Add(request)
+	return request.Response()
 }
 
 func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHandler) error {
@@ -248,7 +262,7 @@ func (s *ClientService) Stop() error {
 	s.withWrite(func() {
 		s.status = service.ServiceStatusStopping
 	})
-	s.servicePool.Stop()
+	s.serviceTaskQueue.Stop()
 	// after pool is stopped
 	s.withWrite(func() {
 		s.status = service.ServiceStatusUnregistered
@@ -300,13 +314,13 @@ func (s *ClientService) onHealthCheckRestoredInternalHandler() {
 }
 
 func (s *ClientService) Cancel(messageId string) error {
-	return s.servicePool.Cancel(messageId)
+	return s.serviceTaskQueue.Cancel(messageId)
 }
 
 func (s *ClientService) KillAllProcessingJobs() error {
-	return s.servicePool.KillAll()
+	return s.serviceTaskQueue.KillAll()
 }
 
 func (s *ClientService) CancelAllPendingJobs() error {
-	return s.servicePool.CancelAll()
+	return s.serviceTaskQueue.CancelAll()
 }

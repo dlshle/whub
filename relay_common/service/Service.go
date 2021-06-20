@@ -4,6 +4,7 @@ import (
 	"time"
 	"wsdk/common/json"
 	"wsdk/relay_common"
+	"wsdk/relay_common/messages"
 )
 
 /*
@@ -11,7 +12,7 @@ import (
  * A server service is a collection of local/remote(to client) requests identified by a set of service uris.
  * A client service is a collection of function calls identified by a set of service uris.
  * Client service anatomy:
- *  Service { handlers[path]handler }
+ *  Service { handlers(deprecated)[path]handler }
  * Usual Service Flow:
  *  ClientX -request-> Server -request-> servicePool -request-> serverRequestExecutor -request-> Client -request-> servicePool -request-> clientRequestExecutor -request-> clientServiceHandler -response-> Server -response-> ClientX
  */
@@ -86,6 +87,8 @@ type IBaseService interface {
 	Start() error
 	Stop() error
 	Status() int
+
+	Handle(message *messages.Message) *messages.Message
 
 	Cancel(messageId string) error
 

@@ -5,7 +5,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	Common2 "wsdk/base/connection"
+	"wsdk/base/connection"
 
 	"github.com/gorilla/websocket"
 	"wsdk/common/logger"
@@ -76,27 +76,27 @@ func (ws *WServer) Stop() (err error) {
 }
 
 func (ws *WServer) handleNewConnection(conn *websocket.Conn) {
-	c := Common2.NewWsConnection(conn, nil, nil, nil)
+	c := connection.NewWsConnection(conn, nil, nil, nil)
 	defer c.Close()
 	c.OnClose(func(err error) { ws.handler.OnClientClosed(c, err) })
 	c.OnError(func(err error) { ws.handler.OnConnectionError(c, err) })
 	ws.handler.OnClientConnected(c)
 }
 
-func (ws *WServer) Send(conn *Common2.WsConnection, data []byte) error {
+func (ws *WServer) Send(conn *connection.WsConnection, data []byte) error {
 	// log send
 	return conn.Write(data)
 }
 
-func (ws *WServer) OnConnectionError(cb func(*Common2.WsConnection, error)) {
+func (ws *WServer) OnConnectionError(cb func(*connection.WsConnection, error)) {
 	ws.handler.onConnectionError = cb
 }
 
-func (ws *WServer) OnClientConnected(cb func(*Common2.WsConnection)) {
+func (ws *WServer) OnClientConnected(cb func(*connection.WsConnection)) {
 	ws.handler.onClientConnected = cb
 }
 
-func (ws *WServer) OnClientClosed(cb func(*Common2.WsConnection, error)) {
+func (ws *WServer) OnClientClosed(cb func(*connection.WsConnection, error)) {
 	ws.handler.onClientClosed = cb
 }
 

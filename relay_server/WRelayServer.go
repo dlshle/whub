@@ -102,7 +102,7 @@ func (s *WRelayServer) handleInitialConnection(conn *connection.WsConnection) {
 	// any message from any connection needs to go through here
 	rawConn.OnAnyMessage(func(message *messages.Message) {
 		if s.messageDispatcher != nil {
-			s.messageDispatcher.Dispatch(message)
+			s.messageDispatcher.Dispatch(message, rawConn)
 		}
 	})
 	rawClient := s.NewAnonymousClient(rawConn)
@@ -215,7 +215,7 @@ func NewServer(ctx *relay_common.WRContext, port int) *WRelayServer {
 	}
 	server.OnClientConnected(server.handleInitialConnection)
 	/*
-		onHttpRequest func(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request),
+		onHttpRequest func(u func(w http.ResponseWriter, r *http.Handle) error, w http.ResponseWriter, r *http.Handle),
 	*/
 	return server
 }

@@ -12,7 +12,7 @@ type ServerServiceRequestExecutor struct {
 	conn *connection.WRConnection
 }
 
-func NewServiceRequestExecutor(ctx *relay_common.WRContext, c *connection.WRConnection) *ServerServiceRequestExecutor {
+func SimpleMessageRequestExecutor(ctx *relay_common.WRContext, c *connection.WRConnection) *ServerServiceRequestExecutor {
 	return &ServerServiceRequestExecutor{
 		ctx:  ctx,
 		conn: c,

@@ -35,7 +35,7 @@ const DefaultSurvivalCheckInterval = time.Minute * 30
 
 type IServiceProvider interface {
 	relay_common.IDescribableRole
-	RequestExecutor() relay_common.IRequestExecutor
+	SimpleMessageRequestExecutor() relay_common.IRequestExecutor
 	HealthCheckExecutor() relay_common.IHealthCheckExecutor
 }
 
@@ -54,7 +54,7 @@ type ServerService struct {
 	status int
 	// healthCheckExecutor relay_common.IHealthCheckExecutor
 	lock        *sync.RWMutex
-	servicePool service.IServicePool
+	servicePool service.IServiceTaskQueue
 
 	// healthCheckJobId           int64
 	// healthCheckErrCallback     func(IServerService)
@@ -74,7 +74,6 @@ type IServerService interface {
 	OnStarted(func(IServerService))
 	OnStopped(func(IServerService))
 	// HealthCheck() error
-	Request(*messages.Message) *messages.Message
 
 	// OnHealthCheckFails(cb func(IServerService))
 	// OnHealthRestored(cb func(service IServerService))
@@ -83,7 +82,10 @@ type IServerService interface {
 	RestoreExternally(reconnectedOwner *relay_server.WRServerClient) error
 }
 
-func NewService(ctx relay_common.IWRContext, id string, description string, provider IServiceProvider, serviceUris []string, serviceType int, accessType int, exeType int) IServerService {
+func NewService(ctx relay_common.IWRContext, id string, description string, provider IServiceProvider, requestExecutor relay_common.IRequestExecutor, serviceUris []string, serviceType int, accessType int, exeType int) IServerService {
+	if requestExecutor == nil {
+		requestExecutor = provider.SimpleMessageRequestExecutor()
+	}
 	return &ServerService{
 		uriPrefix:     fmt.Sprintf("%s/%s", service.ServicePrefix, id),
 		ctx:           ctx,
@@ -99,7 +101,7 @@ func NewService(ctx relay_common.IWRContext, id string, description string, prov
 		status: service.ServiceStatusUnregistered,
 		// healthCheckExecutor: provider.HealthCheckExecutor(),
 		lock:        new(sync.RWMutex),
-		servicePool: service.NewServicePool(provider.RequestExecutor(), service.MaxServicePoolSize),
+		servicePool: service.NewServiceTaskQueue(requestExecutor, ctx.ServiceTaskPool()),
 		// healthCheckJobId:    0,
 	}
 }
@@ -277,7 +279,7 @@ func (s *ServerService) RestoreExternally(reconnectedOwner *relay_server.WRServe
 	// oldHealthCheckExecutor := s.healthCheckExecutor
 	s.withWrite(func() {
 		s.provider = reconnectedOwner
-		s.servicePool = service.NewServicePool(reconnectedOwner.RequestExecutor(), s.servicePool.Size())
+		s.servicePool = service.NewServiceTaskQueue(reconnectedOwner.SimpleMessageRequestExecutor(), s.ctx.ServiceTaskPool())
 		// s.healthCheckExecutor = reconnectedOwner.HealthCheckExecutor()
 	})
 	err = s.Start()
@@ -305,10 +307,10 @@ func (s *ServerService) HealthCheck() (err error) {
 }
 */
 
-func (s *ServerService) Request(message *messages.Message) *messages.Message {
+func (s *ServerService) Handle(message *messages.Message) *messages.Message {
 	// when request is relayed to the client, it needs to use shortUri
 	shortUri := strings.TrimPrefix(message.Uri(), s.uriPrefix+"/")
-	serviceRequest := service.NewServiceRequest(message.CUri(shortUri))
+	serviceRequest := service.NewServiceRequest(message.Copy().SetUri(shortUri))
 	s.servicePool.Add(serviceRequest)
 	if s.ExecutionType() == ServiceExecutionAsync {
 		return nil

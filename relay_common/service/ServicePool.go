@@ -3,11 +3,9 @@ package service
 import (
 	"errors"
 	"fmt"
-	"runtime"
 	"sync"
 	"wsdk/common/async"
 	"wsdk/relay_common"
-	"wsdk/relay_common/utils"
 )
 
 const (
@@ -15,7 +13,7 @@ const (
 	MaxServicePoolSize = 2048
 )
 
-type IServicePool interface {
+type IServiceTaskQueue interface {
 	Get(id string) *ServiceRequest
 	Start()
 	Stop()
@@ -28,24 +26,24 @@ type IServicePool interface {
 	Size() int
 }
 
-type ServicePool struct {
+type ServiceTaskQueue struct {
 	pool       *async.AsyncPool
 	executor   relay_common.IRequestExecutor
 	messageSet map[string]*ServiceRequest
 	lock       *sync.RWMutex
 }
 
-func NewServicePool(executor relay_common.IRequestExecutor, size int) *ServicePool {
-	return &ServicePool{async.NewAsyncPool("[ServicePool]", utils.GetIntInRange(MinServicePoolSize, MaxServicePoolSize, size), runtime.NumCPU()*4), executor, make(map[string]*ServiceRequest), new(sync.RWMutex)}
+func NewServiceTaskQueue(executor relay_common.IRequestExecutor, pool *async.AsyncPool) *ServiceTaskQueue {
+	return &ServiceTaskQueue{pool, executor, make(map[string]*ServiceRequest), new(sync.RWMutex)}
 }
 
-func (p *ServicePool) withWrite(cb func()) {
+func (p *ServiceTaskQueue) withWrite(cb func()) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	cb()
 }
 
-func (p *ServicePool) withAll(operation func(message *ServiceRequest) error) error {
+func (p *ServiceTaskQueue) withAll(operation func(message *ServiceRequest) error) error {
 	errorMessage := ""
 	hasError := false
 	p.withWrite(func() {
@@ -63,28 +61,28 @@ func (p *ServicePool) withAll(operation func(message *ServiceRequest) error) err
 	return nil
 }
 
-func (p *ServicePool) Start() {
+func (p *ServiceTaskQueue) Start() {
 	p.pool.Start()
 }
 
-func (p *ServicePool) Stop() {
+func (p *ServiceTaskQueue) Stop() {
 	p.pool.Stop()
 }
 
-func (p *ServicePool) Has(id string) bool {
+func (p *ServiceTaskQueue) Has(id string) bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return p.messageSet[id] != nil
 }
 
-func (p *ServicePool) Get(id string) *ServiceRequest {
+func (p *ServiceTaskQueue) Get(id string) *ServiceRequest {
 	if !p.Has(id) {
 		return nil
 	}
 	return p.messageSet[id]
 }
 
-func (p *ServicePool) Remove(id string) bool {
+func (p *ServiceTaskQueue) Remove(id string) bool {
 	if !p.Has(id) {
 		return false
 	}
@@ -94,7 +92,7 @@ func (p *ServicePool) Remove(id string) bool {
 	return true
 }
 
-func (p *ServicePool) Add(message *ServiceRequest) bool {
+func (p *ServiceTaskQueue) Add(message *ServiceRequest) bool {
 	if p.Has(message.Id()) {
 		return false
 	}
@@ -109,13 +107,13 @@ func (p *ServicePool) Add(message *ServiceRequest) bool {
 	return true
 }
 
-func (p *ServicePool) KillAll() (errMsg error) {
+func (p *ServiceTaskQueue) KillAll() (errMsg error) {
 	return p.withAll(func(message *ServiceRequest) error {
 		return message.Kill()
 	})
 }
 
-func (p *ServicePool) Cancel(id string) error {
+func (p *ServiceTaskQueue) Cancel(id string) error {
 	msg := p.Get(id)
 	if msg == nil {
 		return errors.New("Can not find messages " + id + " from the set")
@@ -123,13 +121,13 @@ func (p *ServicePool) Cancel(id string) error {
 	return msg.Cancel()
 }
 
-func (p *ServicePool) CancelAll() error {
+func (p *ServiceTaskQueue) CancelAll() error {
 	return p.withAll(func(message *ServiceRequest) error {
 		return message.Cancel()
 	})
 }
 
-func (p *ServicePool) Size() int {
+func (p *ServiceTaskQueue) Size() int {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return len(p.messageSet)

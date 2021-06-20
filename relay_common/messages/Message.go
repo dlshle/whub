@@ -12,6 +12,7 @@ const (
 
 // Message Type
 const (
+	MessageTypeUnknown        = -100
 	MessageTypeProtocolUpdate = -1
 	MessageTypePing           = 0
 	MessageTypePong           = 1
@@ -60,48 +61,49 @@ func (t *Message) From() string {
 	return t.from
 }
 
+func (t *Message) SetFrom(from string) *Message {
+	t.from = from
+	return t
+}
+
 func (t *Message) To() string {
 	return t.to
+}
+
+func (t *Message) SetTo(to string) *Message {
+	t.to = to
+	return t
 }
 
 func (t *Message) MessageType() int {
 	return t.messageType
 }
 
+func (t *Message) SetMessageType(mType int) *Message {
+	t.messageType = mType
+	return t
+}
+
 func (t *Message) Uri() string {
 	return t.uri
+}
+
+func (t *Message) SetUri(uri string) *Message {
+	t.uri = uri
+	return t
 }
 
 func (t *Message) Payload() []byte {
 	return t.payload
 }
 
+func (t *Message) SetPayload(payload []byte) *Message {
+	t.payload = payload
+	return t
+}
+
 func (t *Message) String() string {
 	return fmt.Sprintf("{from: \"%s\", to: \"%s\", messageType: %d, payload: %s}", t.from, t.to, t.messageType, t.payload)
-}
-
-func (t *Message) CFrom(from string) *Message {
-	m := t.Copy()
-	m.from = from
-	return m
-}
-
-func (t *Message) CTo(to string) *Message {
-	m := t.Copy()
-	m.to = to
-	return m
-}
-
-func (t *Message) CUri(uri string) *Message {
-	m := t.Copy()
-	m.uri = uri
-	return m
-}
-
-func (t *Message) CType(mType int) *Message {
-	m := t.Copy()
-	m.messageType = mType
-	return m
 }
 
 func (t *Message) Equals(m *Message) bool {

@@ -16,7 +16,8 @@ func init() {
 	globalPool = NewAsyncPool("globalAsyncPool", numCpu*128, numCpu*4)
 }
 
-// channel has better performance, use Barrier to replace Promise
+// TODO update pool size/worker size dynamically
+// channel has better performance, so used Barrier to replace Promise
 
 type AsyncError struct {
 	msg string

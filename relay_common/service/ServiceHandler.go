@@ -61,7 +61,7 @@ func (m *ServiceHandler) Handle(request *ServiceRequest) error {
 	matchContext, err := m.trieTree.Match(request.Uri())
 	if err != nil {
 		// only possible error is no routing found
-		return nil
+		return err
 	}
 	return matchContext.Value.(RequestHandler)(request, matchContext.PathParams, matchContext.QueryParams)
 }

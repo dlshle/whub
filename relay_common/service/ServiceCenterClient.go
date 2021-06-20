@@ -16,19 +16,21 @@ type IServiceCenterClient interface {
 
 type ServiceCenterClient struct {
 	clientCtx *relay_common.WRContext
-	server *relay_common.WRServer
+	server    *relay_common.WRServer
 }
+
 func NewServiceCenterClient(ctx *relay_common.WRContext, server *relay_common.WRServer) IServiceCenterClient {
 	return &ServiceCenterClient{
 		clientCtx: ctx,
-		server: server,
+		server:    server,
 	}
 }
 
 func (c *ServiceCenterClient) draftDescriptorMessageWith(uri string, descriptor ServiceDescriptor) *messages.Message {
 	return c.draftMessage(
 		uri,
-		messages.MessageTypeClientNotification, ([]byte)(descriptor.String()),
+		messages.MessageTypeClientNotification,
+		([]byte)(descriptor.String()),
 	)
 }
 

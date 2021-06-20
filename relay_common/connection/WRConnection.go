@@ -13,7 +13,7 @@ import (
 const DefaultTimeout = time.Second * 30
 
 type WRConnection struct {
-	*Common.WsConnection
+	ws                  *Common.WsConnection
 	requestTimeout      time.Duration
 	messageParser       messages.IMessageParser
 	notificationEmitter notification.IWRNotificationEmitter
@@ -21,6 +21,7 @@ type WRConnection struct {
 }
 
 type IWRConnection interface {
+	Address() string
 	AsyncRequest(*messages.Message) (*async.StatefulBarrier, error)
 	Request(*messages.Message) (*messages.Message, error)
 	RequestWithTimeout(*messages.Message, time.Duration) (*messages.Message, error)
@@ -30,6 +31,8 @@ type IWRConnection interface {
 	OnMessage(string, func(*messages.Message)) (notification.Disposable, error)
 	OffMessage(string, func(*messages.Message))
 	OffAll(string)
+	OnError(func(error))
+	OnClose(func(error))
 	Close() error
 }
 
@@ -40,20 +43,25 @@ func NewWRConnection(c *Common.WsConnection, timeout time.Duration, messageParse
 		timeout = time.Second * 60
 	}
 	conn := &WRConnection{c, timeout, messageParser, notifications, nil}
-	conn.OnError(func(err error) {
-		conn.WsConnection.Close()
+	conn.ws.OnError(func(err error) {
+		conn.ws.Close()
 	})
-	conn.WsConnection.StartListening()
-	conn.WsConnection.OnMessage(func(stream []byte) {
+	conn.ws.StartListening()
+	conn.ws.OnMessage(func(stream []byte) {
 		msg, err := conn.messageParser.Deserialize(stream)
 		if err != nil {
-			if conn.messageCallback != nil {
+			if notifications.HasEvent(msg.Id()) {
+				notifications.Notify(msg.Id(), msg)
+			} else if conn.messageCallback != nil {
 				conn.messageCallback(msg)
 			}
-			notifications.Notify(msg.Id(), msg)
 		}
 	})
 	return conn
+}
+
+func (c *WRConnection) Address() string {
+	return c.ws.Address()
 }
 
 // AsyncRequest DO NOT RECOMMEND DUE TO LACK OF ERROR HINTS
@@ -63,7 +71,7 @@ func (c *WRConnection) AsyncRequest(message *messages.Message) (barrier *async.S
 		return
 	}
 	timeoutEvent := timed.RunAsyncTimeout(func() {
-		barrier.OpenWith(messages.NewErrorMessage(message.Id(), message.From(), message.To(), message.Uri(), "Request timeout"))
+		barrier.OpenWith(messages.NewErrorMessage(message.Id(), message.From(), message.To(), message.Uri(), "Handle timeout"))
 	}, c.requestTimeout)
 	c.notificationEmitter.Once(message.Id(), func(msg *messages.Message) {
 		timed.Cancel(timeoutEvent)
@@ -104,7 +112,7 @@ func (c *WRConnection) RequestWithTimeout(message *messages.Message, timeout tim
 
 func (c *WRConnection) Send(message *messages.Message) error {
 	if m, e := c.messageParser.Serialize(message); e == nil {
-		return c.Write(m)
+		return c.ws.Write(m)
 	} else {
 		return e
 	}
@@ -131,5 +139,13 @@ func (c *WRConnection) OffAll(id string) {
 }
 
 func (c *WRConnection) Close() error {
-	return c.WsConnection.Close()
+	return c.ws.Close()
+}
+
+func (c *WRConnection) OnClose(cb func(error)) {
+	c.ws.OnClose(cb)
+}
+
+func (c *WRConnection) OnError(cb func(error)) {
+	c.ws.OnError(cb)
 }

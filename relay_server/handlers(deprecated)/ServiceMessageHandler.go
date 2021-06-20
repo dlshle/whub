@@ -1,4 +1,4 @@
-package handlers
+package handlers_deprecated_
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server"
 	service2 "wsdk/relay_server/service"
 )
 
@@ -16,11 +15,11 @@ type ServiceRequestHandler struct {
 	serviceManager service2.IServiceManager
 }
 
-func (h *ServiceRequestHandler) NewServiceRequestHandler(ctx *relay_common.WRContext, manager service2.IServiceManager) relay_server.IServerMessageHandler {
+func (h *ServiceRequestHandler) NewServiceRequestHandler(ctx *relay_common.WRContext, manager service2.IServiceManager) IServerMessageHandler {
 	return &ServiceRequestHandler{ctx, manager}
 }
 
-func (h *ServiceRequestHandler) Handle(message *messages.Message, next messages.NextMessageHandler) (*messages.Message, error) {
+func (h *ServiceRequestHandler) Handle(message *messages.Message, next NextMessageHandler) (*messages.Message, error) {
 	if !strings.HasPrefix(message.Uri(), service.ServicePrefix) {
 		return next(message)
 		// return nil, errors.New(relay_server.NewInvalidServiceRequestUriError(message.Uri()).Json())
@@ -29,9 +28,9 @@ func (h *ServiceRequestHandler) Handle(message *messages.Message, next messages.
 	if service == nil {
 		return nil, errors.New(service2.NewCanNotFindServiceError(message.Uri()).Json())
 	}
-	return service.Request(message), nil
+	return service.Handle(message), nil
 }
 
 func (h *ServiceRequestHandler) Priority() int {
-	return relay_server.HandlerPriorityServiceRequest
+	return HandlerPriorityServiceRequest
 }

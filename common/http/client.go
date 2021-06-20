@@ -48,11 +48,11 @@ var randomGenerator = rand.New(rand.NewSource(time.Now().UnixNano()))
 func initRequestStatusErrorMaps() {
 	requestStatusErrorCodeMap = make(map[int]int)
 	requestStatusErrorStringMap = make(map[int]string)
-	requestStatusErrorStringMap[RequestStatusInProgress] = "Request is in progress"
+	requestStatusErrorStringMap[RequestStatusInProgress] = "Handle is in progress"
 	requestStatusErrorCodeMap[RequestStatusInProgress] = ErrRequestInProgress
-	requestStatusErrorStringMap[RequestStatusCancelled] = "Request is cancelled"
+	requestStatusErrorStringMap[RequestStatusCancelled] = "Handle is cancelled"
 	requestStatusErrorCodeMap[RequestStatusCancelled] = ErrRequestCancelled
-	requestStatusErrorStringMap[RequestStatusDone] = "Request is finished"
+	requestStatusErrorStringMap[RequestStatusDone] = "Handle is finished"
 	requestStatusErrorCodeMap[RequestStatusDone] = ErrRequestFinished
 }
 
@@ -489,7 +489,7 @@ func (c *ClientPool) Status() int {
 }
 
 func (c *ClientPool) request(request *http.Request) *TrackableRequest {
-	loggerTag := "[Request]"
+	loggerTag := "[Handle]"
 	c.logger.Printf("%s New request received: %+v\nCurrent queue size: %d\n", loggerTag, request, len(c.queue))
 	trackableRequest := NewTrackableRequest(request)
 	trackableRequest.setStatus(RequestStatusWaiting)
