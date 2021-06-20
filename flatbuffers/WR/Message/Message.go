@@ -62,8 +62,20 @@ func (rcv *Message) MutateMessageType(n int32) bool {
 	return rcv._tab.MutateInt32Slot(10, n)
 }
 
-func (rcv *Message) Payload(j int) int8 {
+func (rcv *Message) Timestamp() int64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	if o != 0 {
+		return rcv._tab.GetInt64(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Message) MutateTimestamp(n int64) bool {
+	return rcv._tab.MutateInt64Slot(12, n)
+}
+
+func (rcv *Message) Payload(j int) int8 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
 		return rcv._tab.GetInt8(a + flatbuffers.UOffsetT(j*1))
@@ -72,7 +84,7 @@ func (rcv *Message) Payload(j int) int8 {
 }
 
 func (rcv *Message) PayloadLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -80,7 +92,7 @@ func (rcv *Message) PayloadLength() int {
 }
 
 func (rcv *Message) MutatePayload(j int, n int8) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
 		return rcv._tab.MutateInt8(a+flatbuffers.UOffsetT(j*1), n)
@@ -89,7 +101,7 @@ func (rcv *Message) MutatePayload(j int, n int8) bool {
 }
 
 func MessageStart(builder *flatbuffers.Builder) {
-	builder.StartObject(5)
+	builder.StartObject(6)
 }
 func MessageAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -103,8 +115,11 @@ func MessageAddTo(builder *flatbuffers.Builder, to flatbuffers.UOffsetT) {
 func MessageAddMessageType(builder *flatbuffers.Builder, messageType int32) {
 	builder.PrependInt32Slot(3, messageType, 0)
 }
+func MessageAddTimestamp(builder *flatbuffers.Builder, timestamp int64) {
+	builder.PrependInt64Slot(4, timestamp, 0)
+}
 func MessageAddPayload(builder *flatbuffers.Builder, payload flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(payload), 0)
+	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(payload), 0)
 }
 func MessageStartPayloadVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(1, numElems, 1)

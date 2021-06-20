@@ -1,0 +1,9 @@
+namespace WR.Service;
+
+table ServiceRequestBody {
+  uri: string;
+  Method: byte;
+  data: [byte];
+}
+
+root_type ServiceRequestBody;

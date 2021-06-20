@@ -4,8 +4,8 @@ table Message {
   id: string;
   from: string;
   to: string;
-  uri: string;
   messageType: int;
+  timestamp: long;
   payload: [byte];
 }
 
