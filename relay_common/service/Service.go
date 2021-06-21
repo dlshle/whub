@@ -88,12 +88,18 @@ type IBaseService interface {
 	Stop() error
 	Status() int
 
+	OnStarted(func(IBaseService))
+	OnStopped(func(IBaseService))
+
 	Handle(message *messages.Message) *messages.Message
 
 	Cancel(messageId string) error
 
 	KillAllProcessingJobs() error
 	CancelAllPendingJobs() error
+
+	ProviderInfo() relay_common.RoleDescriptor
+	HostInfo() relay_common.RoleDescriptor
 
 	Describe() ServiceDescriptor
 }

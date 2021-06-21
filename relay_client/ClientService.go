@@ -2,6 +2,7 @@ package relay_client
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -19,7 +20,7 @@ type ClientService struct {
 	id            string
 	uriPrefix     string
 	description   string
-	serviceUris   []string
+	serviceUris   []string // shortUris
 	handler       service.IServiceHandler
 	host          *relay_common.WRServer
 	serviceType   int
@@ -27,9 +28,12 @@ type ClientService struct {
 	executionType int
 	cTime         time.Time
 
-	status             int
-	healthCheckHandler *service.ServiceHealthCheckHandler
+	status int
 
+	onStartedCallback func(service.IBaseService)
+	onStoppedCallback func(service.IBaseService)
+
+	healthCheckHandler            *service.ServiceHealthCheckHandler
 	onHealthCheckFailsCallback    func(service IClientService)
 	onHealthCheckRestoredCallback func(service IClientService)
 
@@ -47,6 +51,7 @@ func NewClientService(ctx *relay_common.WRContext, id string, server *relay_comm
 		handler:             handler,
 		host:                server,
 		lock:                new(sync.RWMutex),
+		uriPrefix:           fmt.Sprintf("%s/%s", service.ServicePrefix, id),
 	}
 	s.init()
 	return s
@@ -55,7 +60,6 @@ func NewClientService(ctx *relay_common.WRContext, id string, server *relay_comm
 type IClientService interface {
 	service.IBaseService
 	UpdateDescription(string) error
-	HostInfo() relay_common.RoleDescriptor
 	RegisterRoute(shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
 	UnregisterRoute(shortUri string) error                               // should update service descriptor to the host
 	NotifyHostForUpdate() error
@@ -107,16 +111,10 @@ func (s *ClientService) FullServiceUris() []string {
 }
 
 func (s *ClientService) SupportsUri(uri string) bool {
-	if !strings.HasPrefix(uri, s.uriPrefix) {
-		return false
+	if strings.HasPrefix(uri, s.uriPrefix) {
+		uri = strings.TrimPrefix(uri, s.uriPrefix)
 	}
-	actualUri := strings.TrimPrefix(uri, s.uriPrefix)
-	for _, v := range s.ServiceUris() {
-		if strings.HasPrefix(actualUri, v) {
-			return true
-		}
-	}
-	return false
+	return s.handler.SupportsUri(uri)
 }
 
 func (s *ClientService) CTime() time.Time {
@@ -145,6 +143,10 @@ func (s *ClientService) ExecutionType() int {
 	return s.executionType
 }
 
+func (s *ClientService) ProviderInfo() relay_common.RoleDescriptor {
+	return s.ctx.Identity().Describe()
+}
+
 func (s *ClientService) HostInfo() relay_common.RoleDescriptor {
 	return s.host.Describe()
 }
@@ -161,20 +163,30 @@ func (s *ClientService) matchUri(uri string) (string, error) {
 }
 
 func (s *ClientService) Handle(message *messages.Message) *messages.Message {
+	if strings.HasPrefix(message.Uri(), s.uriPrefix) {
+		message = message.Copy().SetUri(strings.TrimPrefix(message.Uri(), s.uriPrefix))
+	}
 	request := service.NewServiceRequest(message)
 	s.serviceTaskQueue.Add(request)
 	return request.Response()
 }
 
-func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHandler) error {
+func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHandler) (err error) {
+	// TODO need to notify manager about new uri routing!!!
+	if strings.HasPrefix(shortUri, s.uriPrefix) {
+		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
+	}
 	s.withWrite(func() {
 		s.serviceUris = append(s.serviceUris, shortUri)
-		s.handler.Register(shortUri, handler)
+		err = s.handler.Register(shortUri, handler)
 	})
+	if err != nil {
+		return err
+	}
 	return s.NotifyHostForUpdate()
 }
 
-func (s *ClientService) UnregisterRoute(shortUri string) error {
+func (s *ClientService) UnregisterRoute(shortUri string) (err error) {
 	uriIndex := -1
 	for i, uri := range s.ServiceUris() {
 		if uri == shortUri {
@@ -188,8 +200,11 @@ func (s *ClientService) UnregisterRoute(shortUri string) error {
 		l := len(s.serviceUris)
 		s.serviceUris[l-1], s.serviceUris[uriIndex] = s.serviceUris[uriIndex], s.serviceUris[l-1]
 		s.serviceUris = s.serviceUris[:l-1]
-		s.handler.Unregister(shortUri)
+		err = s.handler.Unregister(shortUri)
 	})
+	if err != nil {
+		return err
+	}
 	return s.NotifyHostForUpdate()
 }
 
@@ -323,4 +338,12 @@ func (s *ClientService) KillAllProcessingJobs() error {
 
 func (s *ClientService) CancelAllPendingJobs() error {
 	return s.serviceTaskQueue.CancelAll()
+}
+
+func (s *ClientService) OnStarted(cb func(service.IBaseService)) {
+	s.onStartedCallback = cb
+}
+
+func (s *ClientService) OnStopped(cb func(service.IBaseService)) {
+	s.onStoppedCallback = cb
 }

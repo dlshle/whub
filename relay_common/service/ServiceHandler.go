@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"wsdk/relay_common/uri"
 )
@@ -13,8 +15,8 @@ type ServiceHandler struct {
 
 type IServiceHandler interface {
 	SupportsUri(uri string) bool
-	Register(uri string, handler RequestHandler) bool
-	Unregister(uri string) bool
+	Register(uri string, handler RequestHandler) error
+	Unregister(uri string) error
 	Handle(request *ServiceRequest) error
 }
 
@@ -31,28 +33,31 @@ func (m *ServiceHandler) withWrite(cb func()) {
 	cb()
 }
 
-func (m *ServiceHandler) SupportsUri(internalUri string) bool {
+func (m *ServiceHandler) SupportsUri(uri string) bool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	return m.trieTree.SupportsUri(internalUri)
+	return m.trieTree.SupportsUri(uri)
 }
 
-func (m *ServiceHandler) Register(internalUri string, handler RequestHandler) bool {
-	if m.SupportsUri(internalUri) {
-		return false
+func (m *ServiceHandler) Register(uri string, handler RequestHandler) (err error) {
+	if m.SupportsUri(uri) {
+		return errors.New(fmt.Sprintf("uri %s has already been registered", uri))
 	}
 	m.withWrite(func() {
-		m.trieTree.Add(internalUri, handler, false)
+		err = m.trieTree.Add(uri, handler, false)
 	})
-	return true
+	return err
 }
 
-func (m *ServiceHandler) Unregister(internalUri string) bool {
+func (m *ServiceHandler) Unregister(uri string) (err error) {
 	success := true
 	m.withWrite(func() {
-		success = m.trieTree.Remove(internalUri)
+		success = m.trieTree.Remove(uri)
 	})
-	return success
+	if !success {
+		err = errors.New(fmt.Sprintf("unable to remove uri %s as it's not registered into service handler", uri))
+	}
+	return err
 }
 
 func (m *ServiceHandler) Handle(request *ServiceRequest) error {

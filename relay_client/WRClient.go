@@ -11,6 +11,7 @@ type WRClient struct {
 	c          *wclient.WClient
 	serviceMap map[string]IClientService // id -- [listener functions]
 	l          *sync.RWMutex
+	*ClientServiceManager
 }
 
 type IWRClient interface {

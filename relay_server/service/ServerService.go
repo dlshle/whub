@@ -60,8 +60,8 @@ type ServerService struct {
 	// healthCheckErrCallback     func(IServerService)
 	// healthCheckRestoreCallback func(IServerService)
 
-	onStartedCallback func(IServerService)
-	onStoppedCallback func(IServerService)
+	onStartedCallback func(baseService service.IBaseService)
+	onStoppedCallback func(baseService service.IBaseService)
 }
 
 type IServerService interface {
@@ -71,8 +71,6 @@ type IServerService interface {
 	// SetHealthCheckInterval(duration time.Duration)
 
 	Register(relay_server.IWRelayServer) error
-	OnStarted(func(IServerService))
-	OnStopped(func(IServerService))
 	// HealthCheck() error
 
 	// OnHealthCheckFails(cb func(IServerService))
@@ -80,6 +78,8 @@ type IServerService interface {
 	Kill() error
 
 	RestoreExternally(reconnectedOwner *relay_server.WRServerClient) error
+
+	Update(descriptor service.ServiceDescriptor) error
 }
 
 func NewService(ctx relay_common.IWRContext, id string, description string, provider IServiceProvider, requestExecutor relay_common.IRequestExecutor, serviceUris []string, serviceType int, accessType int, exeType int) IServerService {
@@ -258,11 +258,11 @@ func (s *ServerService) Stop() error {
 	return nil
 }
 
-func (s *ServerService) OnStarted(callback func(service IServerService)) {
+func (s *ServerService) OnStarted(callback func(service service.IBaseService)) {
 	s.onStartedCallback = callback
 }
 
-func (s *ServerService) OnStopped(callback func(service IServerService)) {
+func (s *ServerService) OnStopped(callback func(service service.IBaseService)) {
 	s.onStoppedCallback = callback
 }
 
@@ -308,9 +308,7 @@ func (s *ServerService) HealthCheck() (err error) {
 */
 
 func (s *ServerService) Handle(message *messages.Message) *messages.Message {
-	// when request is relayed to the client, it needs to use shortUri
-	shortUri := strings.TrimPrefix(message.Uri(), s.uriPrefix+"/")
-	serviceRequest := service.NewServiceRequest(message.Copy().SetUri(shortUri))
+	serviceRequest := service.NewServiceRequest(message)
 	s.servicePool.Add(serviceRequest)
 	if s.ExecutionType() == ServiceExecutionAsync {
 		return nil
@@ -384,4 +382,24 @@ func (s *ServerService) FullServiceUris() []string {
 func (s *ServerService) Kill() error {
 	s.setStatus(service.ServiceStatusDead)
 	return s.KillAllProcessingJobs()
+}
+
+func (s *ServerService) ProviderInfo() relay_common.RoleDescriptor {
+	return s.Provider().Describe()
+}
+
+func (s *ServerService) HostInfo() relay_common.RoleDescriptor {
+	return s.ctx.Identity().Describe()
+}
+
+func (s *ServerService) Update(descriptor service.ServiceDescriptor) error {
+	s.withWrite(func() {
+		s.description = descriptor.Description
+		s.status = descriptor.Status
+		s.serviceType = descriptor.ServiceType
+		s.executionType = descriptor.ExecutionType
+		s.cTime = descriptor.CTime
+		s.serviceUris = descriptor.ServiceUris
+	})
+	return nil
 }
