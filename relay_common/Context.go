@@ -11,6 +11,7 @@ import (
 	"wsdk/relay_common/notification"
 )
 
+// TODO this is bad, server should have one and the only context(ServerContext), client could have multiple contexts!!!
 var globalContext IWRContext
 
 const (

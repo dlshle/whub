@@ -111,6 +111,7 @@ func (s *WRelayServer) handleInitialConnection(conn *connection.WsConnection) {
 	})
 	resp, err := rawClient.Request(rawClient.NewMessage(s.Id(), "", messages.MessageTypeServerDescriptor, ([]byte)(s.Describe().String())))
 	// try to handle anonymous client upgrade
+	// TODO maybe do this in client manager??? Need to somehow relate this to RelayManagementService
 	if err == nil && resp.MessageType() == messages.MessageTypeClientDescriptor {
 		var clientDescriptor relay_common.RoleDescriptor
 		var clientExtraInfo clientExtraInfoDescriptor
@@ -144,7 +145,7 @@ func (s *WRelayServer) tryToRestoreDeadServicesFromReconnectedClient(clientId st
 		}
 		for i, _ := range services {
 			if services[i] != nil {
-				if err = services[i].RestoreExternally(client); err != nil {
+				if err = services[i].(service.IRelayService).RestoreExternally(client); err != nil {
 					return
 				}
 			}

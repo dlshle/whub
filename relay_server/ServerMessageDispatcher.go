@@ -23,6 +23,7 @@ func (d *ServerMessageDispatcher) init() {
 	// register common message handlers
 	d.RegisterHandler(messages.NewPingMessageHandler(d.ctx), true)
 	d.RegisterHandler(messages.NewInvalidMessageHandler(d.ctx), true)
+	// TODO how to register ServiceUpdateNotificationMessageHandler
 }
 
 func (d *ServerMessageDispatcher) RegisterHandler(handler messages.IMessageHandler, override bool) {

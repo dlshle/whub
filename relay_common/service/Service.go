@@ -21,17 +21,6 @@ const (
 	ServicePrefix = "/service"
 )
 
-const (
-	ServerServiceCenterUri = ServicePrefix + "/center"
-)
-
-// ServerServiceCenter Micro-services
-const (
-	ServiceCenterRegisterService   = ServerServiceCenterUri + "/register"   // payload = service descriptor
-	ServiceCenterUnregisterService = ServerServiceCenterUri + "/unregister" // payload = service descriptor
-	ServiceCenterUpdateService     = ServerServiceCenterUri + "/update"     // payload = service descriptor
-)
-
 type ServiceDescriptor struct {
 	Id            string
 	Description   string
@@ -69,6 +58,27 @@ const (
 	ServiceStatusBlocked      = 4 // when queue is maxed out
 	ServiceStatusDead         = 5 // health check fails
 	ServiceStatusStopping     = 6
+)
+
+// Service Uri should always be /service/serviceId/uri/params
+
+// ServerService access type
+const (
+	ServiceAccessTypeHttp   = 0
+	ServiceAccessTypeSocket = 1
+	ServiceAccessTypeBoth   = 2
+)
+
+// ServerService execution type
+const (
+	ServiceExecutionAsync = 0
+	ServiceExecutionSync  = 1
+)
+
+// ServerService type
+const (
+	ServiceTypeInternal = 0
+	ServiceTypeRelay    = 1
 )
 
 type RequestHandler func(request *ServiceRequest, pathParams map[string]string, queryParams map[string]string) error

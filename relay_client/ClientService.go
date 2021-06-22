@@ -14,8 +14,8 @@ import (
 type ClientService struct {
 	ctx *relay_common.WRContext
 
-	serviceCenterClient service.IServiceCenterClient
-	serviceTaskQueue    service.IServiceTaskQueue
+	serviceManagerClient service.IServiceManagerClient
+	serviceTaskQueue     service.IServiceTaskQueue
 
 	id            string
 	uriPrefix     string
@@ -44,14 +44,14 @@ type ClientService struct {
 func NewClientService(ctx *relay_common.WRContext, id string, server *relay_common.WRServer) *ClientService {
 	handler := service.NewServiceHandler()
 	s := &ClientService{
-		id:                  id,
-		ctx:                 ctx,
-		serviceCenterClient: service.NewServiceCenterClient(ctx, server),
-		serviceTaskQueue:    service.NewServiceTaskQueue(NewClientServiceExecutor(ctx, handler), ctx.ServiceTaskPool()),
-		handler:             handler,
-		host:                server,
-		lock:                new(sync.RWMutex),
-		uriPrefix:           fmt.Sprintf("%s/%s", service.ServicePrefix, id),
+		id:                   id,
+		ctx:                  ctx,
+		serviceManagerClient: service.NewServiceCenterClient(ctx, server),
+		serviceTaskQueue:     service.NewServiceTaskQueue(NewClientServiceExecutor(ctx, handler), ctx.ServiceTaskPool()),
+		handler:              handler,
+		host:                 server,
+		lock:                 new(sync.RWMutex),
+		uriPrefix:            fmt.Sprintf("%s/%s", service.ServicePrefix, id),
 	}
 	s.init()
 	return s
@@ -172,7 +172,6 @@ func (s *ClientService) Handle(message *messages.Message) *messages.Message {
 }
 
 func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHandler) (err error) {
-	// TODO need to notify manager about new uri routing!!!
 	if strings.HasPrefix(shortUri, s.uriPrefix) {
 		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
 	}
@@ -209,10 +208,10 @@ func (s *ClientService) UnregisterRoute(shortUri string) (err error) {
 }
 
 func (s *ClientService) NotifyHostForUpdate() error {
-	if s.serviceCenterClient != nil {
-		return s.serviceCenterClient.UpdateService(s.Describe())
+	if s.serviceManagerClient != nil {
+		return s.serviceManagerClient.UpdateService(s.Describe())
 	}
-	return errors.New("no serviceCenterClient found")
+	return errors.New("no serviceManagerClient found")
 }
 
 func (s *ClientService) NewMessage(to string, uri string, msgType int, payload []byte) *messages.Message {
@@ -241,7 +240,7 @@ func (s *ClientService) Status() int {
 }
 
 func (s *ClientService) Register() (err error) {
-	err = s.serviceCenterClient.RegisterService(s.Describe())
+	err = s.serviceManagerClient.RegisterService(s.Describe())
 	if err == nil {
 		s.withWrite(func() {
 			s.status = service.ServiceStatusRegistered
@@ -258,10 +257,16 @@ func (s *ClientService) Start() (err error) {
 		s.status = service.ServiceStatusStarting
 	})
 	s.healthCheckHandler.StartHealthCheck()
+	err = s.NotifyHostForUpdate()
+	if err != nil {
+		s.withWrite(func() {
+			s.status = service.ServiceStatusRegistered
+		})
+		return err
+	}
 	s.withWrite(func() {
 		s.status = service.ServiceStatusRunning
 	})
-	// Notify service started
 	return
 }
 
@@ -291,11 +296,11 @@ func (s *ClientService) Stop() error {
 }
 
 func (s *ClientService) unregister() error {
-	return s.serviceCenterClient.UnregisterService(s.Describe())
+	return s.serviceManagerClient.UnregisterService(s.Describe())
 }
 
 func (s *ClientService) HealthCheck() error {
-	return s.serviceCenterClient.HealthCheck()
+	return s.serviceManagerClient.HealthCheck()
 }
 
 func (s *ClientService) OnHealthCheckFails(cb func(service IClientService)) {

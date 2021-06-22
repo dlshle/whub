@@ -8,10 +8,11 @@ import (
 
 // TODO
 type WRClient struct {
-	c          *wclient.WClient
-	serviceMap map[string]IClientService // id -- [listener functions]
-	l          *sync.RWMutex
-	*ClientServiceManager
+	c *wclient.WClient
+	// serviceMap map[string]IClientService // id -- [listener functions]
+	service IClientService
+	server  *WRClientServer
+	l       *sync.RWMutex
 }
 
 type IWRClient interface {

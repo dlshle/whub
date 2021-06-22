@@ -15,17 +15,25 @@ type ServiceNotificationMessageHandler struct {
 	m   *service.ServiceManager
 }
 
+func NewServiceNotificationMessageHandler(ctx *relay_common.WRContext, manager *service.ServiceManager) messages.IMessageHandler {
+	return &ServiceNotificationMessageHandler{ctx: ctx, m: manager}
+}
+
 func (h *ServiceNotificationMessageHandler) Type() int {
 	return messages.MessageTypeClientServiceNotification
 }
 
 func (h *ServiceNotificationMessageHandler) Handle(message *messages.Message, conn *connection.WRConnection) (err error) {
 	var serviceDescriptor common.ServiceDescriptor
-	return utils.ProcessWithErrors(func() error {
+	err = utils.ProcessWithErrors(func() error {
 		return json.Unmarshal(message.Payload(), &serviceDescriptor)
 	}, func() error {
 		return h.m.UpdateService(serviceDescriptor)
-	}, func() error {
-		return conn.Send(messages.NewErrorMessage(message.Id(), h.ctx.Identity().Id(), message.From(), message.Uri(), err.Error()))
 	})
+	if err != nil {
+		err = conn.Send(messages.NewErrorMessage(message.Id(), h.ctx.Identity().Id(), message.From(), message.Uri(), err.Error()))
+	} else {
+		err = conn.Send(messages.NewACKMessage(message.Id(), h.ctx.Identity().Id(), message.From(), message.Uri()))
+	}
+	return err
 }

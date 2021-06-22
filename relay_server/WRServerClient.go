@@ -10,12 +10,12 @@ import (
 
 type WRServerClient struct {
 	*relay_common.WRClient
-	simpleMessageRequestExecutor relay_common.IRequestExecutor
-	healthCheckExecutor          relay_common.IHealthCheckExecutor
+	messageRelayExecutor relay_common.IRequestExecutor
+	healthCheckExecutor  relay_common.IHealthCheckExecutor
 }
 
-func (c *WRServerClient) SimpleMessageRequestExecutor() relay_common.IRequestExecutor {
-	return c.simpleMessageRequestExecutor
+func (c *WRServerClient) MessageRelayExecutor() relay_common.IRequestExecutor {
+	return c.messageRelayExecutor
 }
 
 func (c *WRServerClient) HealthCheckExecutor() relay_common.IHealthCheckExecutor {
@@ -36,5 +36,5 @@ func NewAnonymousClient(ctx *relay_common.WRContext, conn *connection.WRConnecti
 }
 
 func NewClient(ctx *relay_common.WRContext, conn *connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
-	return &WRServerClient{relay_common.NewClient(conn, id, description, cType, cKey, pScope), service.SimpleMessageRequestExecutor(ctx, conn), relay_common.NewDefaultHealthCheckExecutor(ctx.Identity().Id(), id, conn)}
+	return &WRServerClient{relay_common.NewClient(conn, id, description, cType, cKey, pScope), service.RelayRequestExecutor(ctx, conn), relay_common.NewDefaultHealthCheckExecutor(ctx.Identity().Id(), id, conn)}
 }

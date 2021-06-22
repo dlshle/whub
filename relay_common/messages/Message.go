@@ -129,3 +129,7 @@ func NewPingMessage(id string, from string, to string) *Message {
 func NewPongMessage(id string, from string, to string) *Message {
 	return &Message{id, from, to, "", MessageTypePong, nil}
 }
+
+func NewACKMessage(id string, from string, to string, uri string) *Message {
+	return &Message{id: id, from: from, to: to, uri: uri, messageType: MessageTypeACK}
+}

@@ -3,15 +3,22 @@ package service
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
+	"wsdk/common/timed"
 	"wsdk/relay_common"
 	"wsdk/relay_common/service"
+	"wsdk/relay_common/uri"
 	"wsdk/relay_common/utils"
 	"wsdk/relay_server"
 )
 
 type ServiceManager struct {
 	// need to use full uris here!
-	m *service.BaseServiceManager
+	trieTree        *uri.TrieTree
+	serviceMap      map[string]IServerService
+	scheduleJobPool *timed.JobPool
+	lock            *sync.RWMutex
 }
 
 type IServiceManager interface {
@@ -25,33 +32,42 @@ type IServiceManager interface {
 	UnregisterAllServicesFromClientId(string) error
 	WithServicesFromClientId(clientId string, cb func([]IServerService)) error
 
-	MatchServiceByUri(uri string) IServerService
+	FindServiceByUri(uri string) IServerService
 	SupportsUri(uri string) bool
 
 	UpdateService(descriptor service.ServiceDescriptor) error
 }
 
 func NewServiceManager(ctx *relay_common.WRContext) IServiceManager {
-	return &ServiceManager{service.NewBaseServiceManager(ctx)}
+	return &ServiceManager{
+		trieTree:        uri.NewTrieTree(),
+		serviceMap:      make(map[string]IServerService),
+		scheduleJobPool: ctx.TimedJobPool(),
+		lock:            new(sync.RWMutex),
+	}
+}
+
+func (m *ServiceManager) withWrite(cb func()) {
+	m.lock.Lock()
+	defer m.lock.RUnlock()
+	cb()
 }
 
 func (s *ServiceManager) UnregisterAllServices() error {
-	return s.m.UnregisterAllServices()
-}
-
-func (s *ServiceManager) getServicesByClientId(id string) []IServerService {
-	bServices := s.m.MatchServicesBy(func(service service.IBaseService) bool {
-		return service.ProviderInfo().Id == id
+	errMsgBuilder := strings.Builder{}
+	s.withWrite(func() {
+		for _, service := range s.serviceMap {
+			errMsgBuilder.WriteString(service.Stop().Error() + "\n")
+			delete(s.serviceMap, service.Id())
+		}
 	})
-	services := make([]IServerService, len(bServices))
-	for i := range bServices {
-		services[i] = bServices[i].(IServerService)
-	}
-	return services
+	return errors.New(errMsgBuilder.String())
 }
 
 func (s *ServiceManager) GetService(id string) IServerService {
-	return s.m.GetService(id).(IServerService)
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.serviceMap[id]
 }
 
 func (s *ServiceManager) HasService(id string) bool {
@@ -79,27 +95,74 @@ func (s *ServiceManager) GetServicesByClientId(id string) []IServerService {
 	return s.getServicesByClientId(id)
 }
 
+func (s *ServiceManager) getServicesByClientId(id string) []IServerService {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	var services []IServerService
+	for _, v := range s.serviceMap {
+		if v.ProviderInfo().Id == id {
+			services = append(services, v)
+		}
+	}
+	return services
+}
+
 func (s *ServiceManager) serviceCountByClientId(id string) int {
 	return len(s.GetServicesByClientId(id))
 }
 
 func (s *ServiceManager) RegisterService(clientId string, service IServerService) error {
+	return s.registerService(clientId, service)
+}
+
+func (s *ServiceManager) registerService(clientId string, svc IServerService) error {
 	if s.serviceCountByClientId(clientId) >= relay_server.MaxServicePerClient {
 		return relay_server.NewClientExceededMaxServiceCountError(clientId)
 	}
-	return s.m.RegisterService(clientId, service)
+	s.withWrite(func() {
+		s.serviceMap[svc.Id()] = svc
+		for _, uri := range svc.FullServiceUris() {
+			s.trieTree.Add(uri, svc, false)
+		}
+		svc.OnStopped(func(tService service.IBaseService) {
+			for _, uri := range tService.FullServiceUris() {
+				s.trieTree.Remove(uri)
+			}
+		})
+	})
+	return nil
 }
 
 func (s *ServiceManager) UnregisterService(serviceId string) error {
-	return s.m.UnregisterService(serviceId)
+	return s.unregisterService(serviceId)
 }
 
-func (s *ServiceManager) MatchServiceByUri(uri string) IServerService {
-	return s.m.MatchServiceByUri(uri).(IServerService)
+func (s *ServiceManager) unregisterService(serviceId string) error {
+	if !s.HasService(serviceId) {
+		// TODO use predefined service errors
+		return errors.New("no such service " + serviceId)
+	}
+	s.withWrite(func() {
+		s.serviceMap[serviceId].Stop()
+		delete(s.serviceMap, serviceId)
+	})
+	return nil
+}
+
+func (s *ServiceManager) FindServiceByUri(uri string) IServerService {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	matchContext, err := s.trieTree.Match(uri)
+	if matchContext == nil || err != nil {
+		return nil
+	}
+	return matchContext.Value.(IServerService)
 }
 
 func (s *ServiceManager) SupportsUri(uri string) bool {
-	return s.m.SupportsUri(uri)
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.trieTree.SupportsUri(uri)
 }
 
 func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) error {
@@ -108,7 +171,7 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 		return errors.New(fmt.Sprintf("tService %s can not be found", descriptor.Id))
 	}
 	return utils.ProcessWithErrors(func() error {
-		return tService.Update(descriptor)
+		return tService.(RelayService).Update(descriptor)
 	}, func() error {
 		// TODO how to update uris here???
 		fullUris := tService.FullServiceUris()
@@ -120,7 +183,7 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 			fullUri := fmt.Sprintf("%s/%s", service.ServicePrefix, shortUri)
 			if !currentUriSet[fullUri] {
 				// add uri
-				err := s.m.AddUriRoute(tService, fullUri)
+				err := s.addUriRoute(tService, fullUri)
 				// TODO should do atomic transaction here? revert previous steps?
 				if err != nil {
 					return err
@@ -129,8 +192,30 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 			}
 		}
 		for uri := range currentUriSet {
-			s.m.RemoveUriRoute(uri)
+			s.removeUriRoute(uri)
 		}
 		return nil
 	})
+}
+
+func (s *ServiceManager) cancelTimedJob(jobId int64) bool {
+	return s.scheduleJobPool.CancelJob(jobId)
+}
+
+func (s *ServiceManager) scheduleTimeoutJob(job func()) int64 {
+	return s.scheduleJobPool.ScheduleAsyncTimeoutJob(job, relay_server.ServiceKillTimeout)
+}
+
+func (s *ServiceManager) addUriRoute(service IServerService, route string) (err error) {
+	s.withWrite(func() {
+		err = s.trieTree.Add(route, service, true)
+	})
+	return err
+}
+
+func (s *ServiceManager) removeUriRoute(route string) (success bool) {
+	s.withWrite(func() {
+		success = s.trieTree.Remove(route)
+	})
+	return success
 }
