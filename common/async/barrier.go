@@ -1,6 +1,8 @@
 package async
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+)
 
 type Barrier struct {
 	c      chan bool

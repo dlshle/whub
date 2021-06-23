@@ -8,13 +8,14 @@ import (
 	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
+	"wsdk/relay_server"
 )
 
 type IServiceProvider = relay_common.IDescribableRole
 
 type ServerService struct {
 	uriPrefix     string
-	ctx           relay_common.IWRContext
+	ctx           *relay_server.Context
 	id            string
 	description   string
 	provider      IServiceProvider
@@ -34,11 +35,12 @@ type ServerService struct {
 // TODO need a safe status transitioning method!
 type IServerService interface {
 	service.IBaseService
+	Ctx() *relay_server.Context
 	Provider() IServiceProvider
 	Kill() error
 }
 
-func NewService(ctx relay_common.IWRContext, id string, description string, provider IServiceProvider, executor relay_common.IRequestExecutor, serviceUris []string, serviceType int, accessType int, exeType int) *ServerService {
+func NewService(ctx *relay_server.Context, id string, description string, provider IServiceProvider, executor relay_common.IRequestExecutor, serviceUris []string, serviceType int, accessType int, exeType int) *ServerService {
 	return &ServerService{
 		uriPrefix:     fmt.Sprintf("%s/%s", service.ServicePrefix, id),
 		ctx:           ctx,
@@ -214,4 +216,8 @@ func (s *ServerService) ProviderInfo() relay_common.RoleDescriptor {
 
 func (s *ServerService) HostInfo() relay_common.RoleDescriptor {
 	return s.ctx.Identity().Describe()
+}
+
+func (s *ServerService) Ctx() *relay_server.Context {
+	return s.ctx
 }

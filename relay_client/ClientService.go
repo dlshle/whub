@@ -14,7 +14,7 @@ import (
 type ClientService struct {
 	ctx *relay_common.WRContext
 
-	serviceManagerClient service.IServiceManagerClient
+	serviceManagerClient IServiceManagerClient
 	serviceTaskQueue     service.IServiceTaskQueue
 
 	id            string
@@ -46,7 +46,7 @@ func NewClientService(ctx *relay_common.WRContext, id string, server *relay_comm
 	s := &ClientService{
 		id:                   id,
 		ctx:                  ctx,
-		serviceManagerClient: service.NewServiceCenterClient(ctx, server),
+		serviceManagerClient: NewServiceCenterClient(ctx, server),
 		serviceTaskQueue:     service.NewServiceTaskQueue(NewClientServiceExecutor(ctx, handler), ctx.ServiceTaskPool()),
 		handler:              handler,
 		host:                 server,

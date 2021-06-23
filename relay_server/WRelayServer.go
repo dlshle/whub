@@ -9,7 +9,7 @@ import (
 	"wsdk/base/wserver"
 	"wsdk/common/timed"
 	"wsdk/relay_common"
-	rconnection "wsdk/relay_common/connection"
+	common_connection "wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/utils"
 	"wsdk/relay_server/service"
@@ -21,7 +21,7 @@ const (
 )
 
 type WRelayServer struct {
-	ctx *relay_common.WRContext
+	ctx *Context
 	*wserver.WServer
 	relay_common.IDescribableRole
 	anonymousClient map[string]*WRServerClient // raw clients or pure anony clients
@@ -74,38 +74,15 @@ func (s *WRelayServer) Stop() (closeError error) {
 	return
 }
 
-func (s *WRelayServer) cancelTimedJob(jobId int64) bool {
-	return s.scheduleJobPool.CancelJob(jobId)
-}
-
-func (s *WRelayServer) scheduleTimeoutJob(job func()) int64 {
-	return s.scheduleJobPool.ScheduleAsyncTimeoutJob(job, ServiceKillTimeout)
-}
-
-func (s *WRelayServer) GetServicesByClientId(id string) ([]service.IServerService, error) {
-	if !s.HasClient(id) {
-		return nil, NewNoSuchClientError(id)
-	}
-	return s.IServiceManager.GetServicesByClientId(id), nil
-}
-
-func (s *WRelayServer) RegisterService(service service.IServerService) error {
-	clientId := service.Provider().Id()
-	if !s.HasClient(clientId) {
-		return NewNoSuchClientError(clientId)
-	}
-	return s.IServiceManager.RegisterService(clientId, service)
-}
-
 func (s *WRelayServer) handleInitialConnection(conn *connection.WsConnection) {
-	rawConn := rconnection.NewWRConnection(conn, rconnection.DefaultTimeout, s.messageParser, s.ctx.NotificationEmitter())
+	rawConn := common_connection.NewWRConnection(conn, common_connection.DefaultTimeout, s.messageParser, s.ctx.NotificationEmitter())
 	// any message from any connection needs to go through here
-	rawConn.OnAnyMessage(func(message *messages.Message) {
+	rawConn.OnIncomingMessage(func(message *messages.Message) {
 		if s.messageDispatcher != nil {
 			s.messageDispatcher.Dispatch(message, rawConn)
 		}
 	})
-	rawClient := s.NewAnonymousClient(rawConn)
+	rawClient := s.createAnonymousClient(rawConn)
 	s.withWrite(func() {
 		s.anonymousClient[conn.Address()] = rawClient
 	})
@@ -127,31 +104,12 @@ func (s *WRelayServer) handleInitialConnection(conn *connection.WsConnection) {
 			s.withWrite(func() {
 				delete(s.anonymousClient, conn.Address())
 			})
-			client := s.NewClient(rawClient.WRConnection, clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.cType, clientExtraInfo.cKey, clientExtraInfo.pScope)
+			client := s.createClient(rawClient.WRConnection, clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.cType, clientExtraInfo.cKey, clientExtraInfo.pScope)
 			s.AddClient(client)
 			s.initClientCallbackHandlers(client)
-			err = s.tryToRestoreDeadServicesFromReconnectedClient(clientDescriptor.Id)
 			// log err
 		}
 	}
-}
-
-func (s *WRelayServer) tryToRestoreDeadServicesFromReconnectedClient(clientId string) (err error) {
-	s.WithServicesFromClientId(clientId, func(services []service.IServerService) {
-		client := s.GetClient(clientId)
-		if client == nil {
-			err = NewNoSuchClientError(clientId)
-			return
-		}
-		for i, _ := range services {
-			if services[i] != nil {
-				if err = services[i].(service.IRelayService).RestoreExternally(client); err != nil {
-					return
-				}
-			}
-		}
-	})
-	return
 }
 
 // client connection close handler is defined in the upgrade part ^^
@@ -162,57 +120,32 @@ func (s *WRelayServer) handleAnonymousConnectionClosed(c *connection.WsConnectio
 
 func (s *WRelayServer) initClientCallbackHandlers(client *WRServerClient) {
 	client.OnClose(func(err error) {
-		s.handleClientConnectionClosed(client, err)
+		s.HandleClientConnectionClosed(client, err)
 	})
 	client.OnError(func(err error) {
-		s.handleClientError(client, err)
+		s.HandleClientError(client, err)
 	})
 }
 
-func (s *WRelayServer) handleClientConnectionClosed(c *WRServerClient, err error) {
-	if err == nil {
-		// normal closure
-		// close all services
-		s.UnregisterAllServicesFromClientId(c.Id())
-		// remove client from connection
-		s.DisconnectClient(c.Id())
-	} else {
-		// unexpected closure
-		// service should kill all jobs and transit to DeadMode
-		s.DisconnectClient(c.Id())
-		s.WithServicesFromClientId(c.Id(), func(services []service.IServerService) {
-			for i := range services {
-				services[i].Kill()
-			}
-		})
-	}
-}
-
-func (s *WRelayServer) handleClientError(c *WRServerClient, err error) {
-	// log
-	fmt.Printf("Server(%s) error(%s)", c.Id(), err.Error())
-}
-
-func (s *WRelayServer) NewClient(conn *rconnection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
+func (s *WRelayServer) createClient(conn *common_connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
 	return NewClient(s.ctx, conn, id, description, cType, cKey, pScope)
 }
 
-func (s *WRelayServer) NewAnonymousClient(conn *rconnection.WRConnection) *WRServerClient {
+func (s *WRelayServer) createAnonymousClient(conn *common_connection.WRConnection) *WRServerClient {
 	return NewAnonymousClient(s.ctx, conn)
 }
 
-func NewServer(ctx *relay_common.WRContext, port int) *WRelayServer {
+func NewServer(ctx *Context, port int) *WRelayServer {
 	server := &WRelayServer{
 		ctx:              ctx,
 		WServer:          wserver.NewWServer(wserver.NewServerConfig(ctx.Identity().Id(), "127.0.0.1", port, wserver.DefaultWsConnHandler())),
 		IDescribableRole: ctx.Identity(),
 		anonymousClient:  make(map[string]*WRServerClient),
-		// clients: make(map[string]*WRServerClient),
-		IClientManager:  NewClientManager(),
-		IServiceManager: service.NewServiceManager(ctx),
-		scheduleJobPool: ctx.TimedJobPool(),
-		messageParser:   messages.NewSimpleMessageParser(),
-		lock:            new(sync.RWMutex),
+		IClientManager:   NewClientManager(ctx),
+		IServiceManager:  service.NewServiceManager(ctx),
+		scheduleJobPool:  ctx.TimedJobPool(),
+		messageParser:    messages.NewSimpleMessageParser(),
+		lock:             new(sync.RWMutex),
 	}
 	server.OnClientConnected(server.handleInitialConnection)
 	/*

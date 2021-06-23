@@ -31,10 +31,10 @@ func (c *WRServerClient) NewMessage(from string, uri string, msgType int, payloa
 	return messages.NewMessage(utils.GenStringId(), from, c.Id(), uri, msgType, payload)
 }
 
-func NewAnonymousClient(ctx *relay_common.WRContext, conn *connection.WRConnection) *WRServerClient {
+func NewAnonymousClient(ctx *Context, conn *connection.WRConnection) *WRServerClient {
 	return NewClient(ctx, conn, "_", "", relay_common.ClientTypeAnonymous, "", relay_common.PRMessage)
 }
 
-func NewClient(ctx *relay_common.WRContext, conn *connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
+func NewClient(ctx *Context, conn *connection.WRConnection, id string, description string, cType int, cKey string, pScope int) *WRServerClient {
 	return &WRServerClient{relay_common.NewClient(conn, id, description, cType, cKey, pScope), service.RelayRequestExecutor(ctx, conn), relay_common.NewDefaultHealthCheckExecutor(ctx.Identity().Id(), id, conn)}
 }

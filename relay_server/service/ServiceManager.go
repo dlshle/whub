@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 	"wsdk/common/timed"
-	"wsdk/relay_common"
 	"wsdk/relay_common/service"
 	"wsdk/relay_common/uri"
 	"wsdk/relay_common/utils"
@@ -38,7 +37,7 @@ type IServiceManager interface {
 	UpdateService(descriptor service.ServiceDescriptor) error
 }
 
-func NewServiceManager(ctx *relay_common.WRContext) IServiceManager {
+func NewServiceManager(ctx *relay_server.Context) IServiceManager {
 	return &ServiceManager{
 		trieTree:        uri.NewTrieTree(),
 		serviceMap:      make(map[string]IServerService),

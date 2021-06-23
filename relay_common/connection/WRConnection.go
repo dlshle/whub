@@ -26,7 +26,7 @@ type IWRConnection interface {
 	Request(*messages.Message) (*messages.Message, error)
 	RequestWithTimeout(*messages.Message, time.Duration) (*messages.Message, error)
 	Send(*messages.Message) error
-	OnAnyMessage(func(message *messages.Message))
+	OnIncomingMessage(func(message *messages.Message))
 	OnceMessage(string, func(*messages.Message)) (notification.Disposable, error)
 	OnMessage(string, func(*messages.Message)) (notification.Disposable, error)
 	OffMessage(string, func(*messages.Message))
@@ -118,7 +118,7 @@ func (c *WRConnection) Send(message *messages.Message) error {
 	}
 }
 
-func (c *WRConnection) OnAnyMessage(cb func(*messages.Message)) {
+func (c *WRConnection) OnIncomingMessage(cb func(*messages.Message)) {
 	c.messageCallback = cb
 }
 

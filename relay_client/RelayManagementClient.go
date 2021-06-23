@@ -1,13 +1,14 @@
-package service
+package relay_client
 
 import (
 	"errors"
 	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/service"
 )
 
 const (
-	ServerServiceManagerUri = ServicePrefix + "/relay"
+	ServerServiceManagerUri = service.ServicePrefix + "/relay"
 )
 
 // ServerServiceManager
@@ -18,26 +19,26 @@ const (
 )
 
 type IServiceManagerClient interface {
-	RegisterService(descriptor ServiceDescriptor) error
-	UnregisterService(descriptor ServiceDescriptor) error
-	UpdateService(descriptor ServiceDescriptor) error
+	RegisterService(descriptor service.ServiceDescriptor) error
+	UnregisterService(descriptor service.ServiceDescriptor) error
+	UpdateService(descriptor service.ServiceDescriptor) error
 	Response(message *messages.Message) error
 	HealthCheck() error
 }
 
 type ServiceManagerClient struct {
 	clientCtx *relay_common.WRContext
-	server    *relay_common.WRServer
+	server    IWRClientServer
 }
 
-func NewServiceCenterClient(ctx *relay_common.WRContext, server *relay_common.WRServer) IServiceManagerClient {
+func NewServiceCenterClient(ctx *relay_common.WRContext, server IWRClientServer) IServiceManagerClient {
 	return &ServiceManagerClient{
 		clientCtx: ctx,
 		server:    server,
 	}
 }
 
-func (c *ServiceManagerClient) draftDescriptorMessageWith(uri string, descriptor ServiceDescriptor) *messages.Message {
+func (c *ServiceManagerClient) draftDescriptorMessageWith(uri string, descriptor service.ServiceDescriptor) *messages.Message {
 	return c.draftMessage(
 		uri,
 		messages.MessageTypeClientNotification,
@@ -57,15 +58,15 @@ func (c *ServiceManagerClient) HealthCheck() error {
 	return c.requestMessage(c.draftMessage("", messages.MessageTypePing, nil))
 }
 
-func (c *ServiceManagerClient) RegisterService(descriptor ServiceDescriptor) (err error) {
+func (c *ServiceManagerClient) RegisterService(descriptor service.ServiceDescriptor) (err error) {
 	return c.requestMessage(c.draftDescriptorMessageWith(ServiceManagerRegisterService, descriptor))
 }
 
-func (c *ServiceManagerClient) UnregisterService(descriptor ServiceDescriptor) (err error) {
+func (c *ServiceManagerClient) UnregisterService(descriptor service.ServiceDescriptor) (err error) {
 	return c.requestMessage(c.draftDescriptorMessageWith(ServiceManagerUnregisterService, descriptor))
 }
 
-func (c *ServiceManagerClient) UpdateService(descriptor ServiceDescriptor) error {
+func (c *ServiceManagerClient) UpdateService(descriptor service.ServiceDescriptor) error {
 	return c.requestMessage(c.draftDescriptorMessageWith(ServiceManagerUpdateService, descriptor))
 }
 

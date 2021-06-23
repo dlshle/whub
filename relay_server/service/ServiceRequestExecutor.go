@@ -5,14 +5,15 @@ import (
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
+	"wsdk/relay_server"
 )
 
 type InternalServiceRequestExecutor struct {
-	ctx     *relay_common.WRContext
+	ctx     *relay_server.Context
 	handler service.IServiceHandler
 }
 
-func NewInternalServiceRequestExecutor(ctx *relay_common.WRContext, handler service.IServiceHandler) relay_common.IRequestExecutor {
+func NewInternalServiceRequestExecutor(ctx *relay_server.Context, handler service.IServiceHandler) relay_common.IRequestExecutor {
 	return &InternalServiceRequestExecutor{ctx, handler}
 }
 
@@ -24,11 +25,11 @@ func (e *InternalServiceRequestExecutor) Execute(request *service.ServiceRequest
 }
 
 type RelayServiceRequestExecutor struct {
-	ctx  *relay_common.WRContext
+	ctx  *relay_server.Context
 	conn *connection.WRConnection
 }
 
-func RelayRequestExecutor(ctx *relay_common.WRContext, c *connection.WRConnection) relay_common.IRequestExecutor {
+func RelayRequestExecutor(ctx *relay_server.Context, c *connection.WRConnection) relay_common.IRequestExecutor {
 	return &RelayServiceRequestExecutor{
 		ctx:  ctx,
 		conn: c,

@@ -40,7 +40,7 @@ const (
 type WRBaseRole struct {
 	id          string
 	description string
-	rType		int
+	rType       int
 }
 
 type IWRBaseRole interface {
@@ -76,11 +76,11 @@ type IDescribableRole interface {
 }
 
 type RoleDescriptor struct {
-	Id string
+	Id          string
 	Description string
-	RoleType string
-	ExtraInfo string
-	Address string
+	RoleType    string
+	ExtraInfo   string
+	Address     string
 }
 
 func (rd RoleDescriptor) String() string {
@@ -90,9 +90,9 @@ func (rd RoleDescriptor) String() string {
 type WRClient struct {
 	*connection.WRConnection
 	*WRBaseRole
-	pScope int // a 16-bit
-	cKey   string
-	cType int
+	pScope     int // a 16-bit
+	cKey       string
+	cType      int
 	descriptor *RoleDescriptor
 }
 
@@ -143,9 +143,9 @@ func NewClient(conn *connection.WRConnection, id string, description string, cTy
 }
 
 type WRServer struct {
-	*connection.WRConnection
 	*WRBaseRole
-	url string
+	url        string
+	port       int
 	descriptor *RoleDescriptor
 }
 
@@ -159,13 +159,17 @@ func (s *WRServer) Url() string {
 	return s.url
 }
 
+func (s *WRServer) Port() int {
+	return s.port
+}
+
 func (s *WRServer) Describe() RoleDescriptor {
 	if s.descriptor == nil {
-		s.descriptor = &RoleDescriptor{s.Id(), s.Description(), RoleTypeServerStr, s.Url(), s.Address()}
+		s.descriptor = &RoleDescriptor{s.Id(), s.Description(), RoleTypeServerStr, s.Url(), fmt.Sprintf("%s:%s", s.Url(), s.Port())}
 	}
 	return *s.descriptor
 }
 
-func NewServer(conn *connection.WRConnection, id string, description string, url string) *WRServer {
-	return &WRServer{WRConnection: conn, WRBaseRole: NewBaseRole(id, description, RoleTypeServer), url: url}
+func NewServer(id string, description string, url string, port int) *WRServer {
+	return &WRServer{WRBaseRole: NewBaseRole(id, description, RoleTypeServer), url: url, port: port}
 }

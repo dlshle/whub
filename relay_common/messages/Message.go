@@ -32,6 +32,8 @@ const (
 
 	MessageTypeServerDescriptor = 100
 	MessageTypeClientDescriptor = 200
+
+	MessageTypeInternalNotification = 333
 )
 
 type Message struct {
@@ -132,4 +134,8 @@ func NewPongMessage(id string, from string, to string) *Message {
 
 func NewACKMessage(id string, from string, to string, uri string) *Message {
 	return &Message{id: id, from: from, to: to, uri: uri, messageType: MessageTypeACK}
+}
+
+func NewNotification(id string, message string) *Message {
+	return &Message{id: id, messageType: MessageTypeInternalNotification, payload: ([]byte)(message)}
 }

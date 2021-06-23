@@ -3,8 +3,8 @@ package service
 import (
 	"errors"
 	"strings"
-	"wsdk/relay_common"
 	"wsdk/relay_common/service"
+	"wsdk/relay_server"
 )
 
 type InternalService struct {
@@ -18,7 +18,7 @@ type IInternalService interface {
 	UnregisterRoute(shortUri string) (err error)
 }
 
-func NewInternalService(ctx *relay_common.WRContext, id, description string, serviceType, accessType, exeType int) *InternalService {
+func NewInternalService(ctx *relay_server.Context, id, description string, serviceType, accessType, exeType int) *InternalService {
 	handler := service.NewServiceHandler()
 	return &InternalService{
 		NewService(ctx, id, description, ctx.Identity(), NewInternalServiceRequestExecutor(ctx, handler), make([]string, 0), serviceType, accessType, exeType),

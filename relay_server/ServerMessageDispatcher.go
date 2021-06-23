@@ -2,13 +2,12 @@ package relay_server
 
 import (
 	"sync"
-	"wsdk/relay_common"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 )
 
 type ServerMessageDispatcher struct {
-	ctx      *relay_common.WRContext
+	ctx      *Context
 	handlers map[int]messages.IMessageHandler
 	lock     *sync.RWMutex
 }
@@ -21,8 +20,8 @@ func (d *ServerMessageDispatcher) withWrite(cb func()) {
 
 func (d *ServerMessageDispatcher) init() {
 	// register common message handlers
-	d.RegisterHandler(messages.NewPingMessageHandler(d.ctx), true)
-	d.RegisterHandler(messages.NewInvalidMessageHandler(d.ctx), true)
+	d.RegisterHandler(messages.NewPingMessageHandler(d.ctx.Identity()), true)
+	d.RegisterHandler(messages.NewInvalidMessageHandler(d.ctx.Identity()), true)
 	// TODO how to register ServiceUpdateNotificationMessageHandler
 }
 

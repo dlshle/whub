@@ -17,7 +17,7 @@ type IRelayService interface {
 	Update(descriptor service.ServiceDescriptor) error
 }
 
-func NewRelayService(ctx relay_common.IWRContext,
+func NewRelayService(ctx *relay_server.Context,
 	descriptor service.ServiceDescriptor,
 	provider IServiceProvider,
 	executor relay_common.IRequestExecutor) IServerService {
