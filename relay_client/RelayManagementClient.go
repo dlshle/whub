@@ -2,7 +2,6 @@ package relay_client
 
 import (
 	"errors"
-	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 )
@@ -27,14 +26,14 @@ type IServiceManagerClient interface {
 }
 
 type ServiceManagerClient struct {
-	clientCtx *relay_common.WRContext
-	server    IWRClientServer
+	clientId string
+	server   IServer
 }
 
-func NewServiceCenterClient(ctx *relay_common.WRContext, server IWRClientServer) IServiceManagerClient {
+func NewServiceCenterClient(id string, server IServer) IServiceManagerClient {
 	return &ServiceManagerClient{
-		clientCtx: ctx,
-		server:    server,
+		clientId: id,
+		server:   server,
 	}
 }
 
@@ -75,5 +74,5 @@ func (c *ServiceManagerClient) Response(message *messages.Message) error {
 }
 
 func (c *ServiceManagerClient) draftMessage(uri string, msgType int, payload []byte) *messages.Message {
-	return c.server.DraftMessage(c.clientCtx.Identity().Id(), c.server.Id(), uri, msgType, payload)
+	return messages.DraftMessage(c.clientId, c.server.Id(), uri, msgType, payload)
 }

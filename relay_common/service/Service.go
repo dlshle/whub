@@ -3,8 +3,8 @@ package service
 import (
 	"time"
 	"wsdk/common/json"
-	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/roles"
 )
 
 /*
@@ -24,8 +24,8 @@ const (
 type ServiceDescriptor struct {
 	Id            string
 	Description   string
-	HostInfo      relay_common.RoleDescriptor // server id
-	Provider      relay_common.RoleDescriptor
+	HostInfo      roles.RoleDescriptor // server id
+	Provider      roles.RoleDescriptor
 	ServiceUris   []string
 	CTime         time.Time
 	ServiceType   int
@@ -62,20 +62,20 @@ const (
 
 // Service Uri should always be /service/serviceId/uri/params
 
-// ServerService access type
+// Service access type
 const (
 	ServiceAccessTypeHttp   = 0
 	ServiceAccessTypeSocket = 1
 	ServiceAccessTypeBoth   = 2
 )
 
-// ServerService execution type
+// Service execution type
 const (
 	ServiceExecutionAsync = 0
 	ServiceExecutionSync  = 1
 )
 
-// ServerService type
+// Service type
 const (
 	ServiceTypeInternal = 0
 	ServiceTypeRelay    = 1
@@ -108,8 +108,8 @@ type IBaseService interface {
 	KillAllProcessingJobs() error
 	CancelAllPendingJobs() error
 
-	ProviderInfo() relay_common.RoleDescriptor
-	HostInfo() relay_common.RoleDescriptor
+	ProviderInfo() roles.RoleDescriptor
+	HostInfo() roles.RoleDescriptor
 
 	Describe() ServiceDescriptor
 }

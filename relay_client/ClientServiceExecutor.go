@@ -2,17 +2,16 @@ package relay_client
 
 import (
 	"fmt"
-	"wsdk/relay_common"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 )
 
 type ClientServiceExecutor struct {
-	ctx     *relay_common.WRContext
+	ctx     IContext
 	handler service.IServiceHandler
 }
 
-func NewClientServiceExecutor(ctx *relay_common.WRContext, handler service.IServiceHandler) *ClientServiceExecutor {
+func NewClientServiceExecutor(ctx IContext, handler service.IServiceHandler) *ClientServiceExecutor {
 	return &ClientServiceExecutor{
 		ctx:     ctx,
 		handler: handler,

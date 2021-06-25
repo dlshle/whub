@@ -9,38 +9,39 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_common/uri"
 	"wsdk/relay_common/utils"
-	"wsdk/relay_server"
+	"wsdk/relay_server/context"
+	servererror "wsdk/relay_server/errors"
 )
 
 type ServiceManager struct {
 	// need to use full uris here!
 	trieTree        *uri.TrieTree
-	serviceMap      map[string]IServerService
+	serviceMap      map[string]IService
 	scheduleJobPool *timed.JobPool
 	lock            *sync.RWMutex
 }
 
 type IServiceManager interface {
 	HasService(id string) bool
-	GetService(id string) IServerService
-	GetServicesByClientId(clientId string) []IServerService
-	RegisterService(string, IServerService) error
+	GetService(id string) IService
+	GetServicesByClientId(clientId string) []IService
+	RegisterService(string, IService) error
 	UnregisterService(string) error
 
 	UnregisterAllServices() error
 	UnregisterAllServicesFromClientId(string) error
-	WithServicesFromClientId(clientId string, cb func([]IServerService)) error
+	WithServicesFromClientId(clientId string, cb func([]IService)) error
 
-	FindServiceByUri(uri string) IServerService
+	FindServiceByUri(uri string) IService
 	SupportsUri(uri string) bool
 
 	UpdateService(descriptor service.ServiceDescriptor) error
 }
 
-func NewServiceManager(ctx *relay_server.Context) IServiceManager {
+func NewServiceManager(ctx *context.Context) IServiceManager {
 	return &ServiceManager{
 		trieTree:        uri.NewTrieTree(),
-		serviceMap:      make(map[string]IServerService),
+		serviceMap:      make(map[string]IService),
 		scheduleJobPool: ctx.TimedJobPool(),
 		lock:            new(sync.RWMutex),
 	}
@@ -63,7 +64,7 @@ func (s *ServiceManager) UnregisterAllServices() error {
 	return errors.New(errMsgBuilder.String())
 }
 
-func (s *ServiceManager) GetService(id string) IServerService {
+func (s *ServiceManager) GetService(id string) IService {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return s.serviceMap[id]
@@ -73,14 +74,14 @@ func (s *ServiceManager) HasService(id string) bool {
 	return s.HasService(id)
 }
 
-func (s *ServiceManager) WithServicesFromClientId(clientId string, cb func([]IServerService)) error {
+func (s *ServiceManager) WithServicesFromClientId(clientId string, cb func([]IService)) error {
 	services := s.GetServicesByClientId(clientId)
 	cb(services)
 	return nil
 }
 
 func (s *ServiceManager) UnregisterAllServicesFromClientId(clientId string) error {
-	return s.WithServicesFromClientId(clientId, func(services []IServerService) {
+	return s.WithServicesFromClientId(clientId, func(services []IService) {
 		for i, _ := range services {
 			if services[i] != nil {
 				s.UnregisterService(services[i].Id())
@@ -90,14 +91,14 @@ func (s *ServiceManager) UnregisterAllServicesFromClientId(clientId string) erro
 }
 
 // nil -> no such client, [] -> no service
-func (s *ServiceManager) GetServicesByClientId(id string) []IServerService {
+func (s *ServiceManager) GetServicesByClientId(id string) []IService {
 	return s.getServicesByClientId(id)
 }
 
-func (s *ServiceManager) getServicesByClientId(id string) []IServerService {
+func (s *ServiceManager) getServicesByClientId(id string) []IService {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-	var services []IServerService
+	var services []IService
 	for _, v := range s.serviceMap {
 		if v.ProviderInfo().Id == id {
 			services = append(services, v)
@@ -110,13 +111,13 @@ func (s *ServiceManager) serviceCountByClientId(id string) int {
 	return len(s.GetServicesByClientId(id))
 }
 
-func (s *ServiceManager) RegisterService(clientId string, service IServerService) error {
+func (s *ServiceManager) RegisterService(clientId string, service IService) error {
 	return s.registerService(clientId, service)
 }
 
-func (s *ServiceManager) registerService(clientId string, svc IServerService) error {
-	if s.serviceCountByClientId(clientId) >= relay_server.MaxServicePerClient {
-		return relay_server.NewClientExceededMaxServiceCountError(clientId)
+func (s *ServiceManager) registerService(clientId string, svc IService) error {
+	if s.serviceCountByClientId(clientId) >= MaxServicePerClient {
+		return servererror.NewClientExceededMaxServiceCountError(clientId, MaxServicePerClient)
 	}
 	s.withWrite(func() {
 		s.serviceMap[svc.Id()] = svc
@@ -148,14 +149,14 @@ func (s *ServiceManager) unregisterService(serviceId string) error {
 	return nil
 }
 
-func (s *ServiceManager) FindServiceByUri(uri string) IServerService {
+func (s *ServiceManager) FindServiceByUri(uri string) IService {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	matchContext, err := s.trieTree.Match(uri)
 	if matchContext == nil || err != nil {
 		return nil
 	}
-	return matchContext.Value.(IServerService)
+	return matchContext.Value.(IService)
 }
 
 func (s *ServiceManager) SupportsUri(uri string) bool {
@@ -202,10 +203,10 @@ func (s *ServiceManager) cancelTimedJob(jobId int64) bool {
 }
 
 func (s *ServiceManager) scheduleTimeoutJob(job func()) int64 {
-	return s.scheduleJobPool.ScheduleAsyncTimeoutJob(job, relay_server.ServiceKillTimeout)
+	return s.scheduleJobPool.ScheduleAsyncTimeoutJob(job, ServiceKillTimeout)
 }
 
-func (s *ServiceManager) addUriRoute(service IServerService, route string) (err error) {
+func (s *ServiceManager) addUriRoute(service IService, route string) (err error) {
 	s.withWrite(func() {
 		err = s.trieTree.Add(route, service, true)
 	})

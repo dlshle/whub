@@ -3,12 +3,14 @@ package relay_server
 import (
 	"sync"
 	"wsdk/relay_common/connection"
+	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_server/context"
 )
 
 type ServerMessageDispatcher struct {
-	ctx      *Context
-	handlers map[int]messages.IMessageHandler
+	ctx      *context.Context
+	handlers map[int]message_actions.IMessageHandler
 	lock     *sync.RWMutex
 }
 
@@ -20,12 +22,12 @@ func (d *ServerMessageDispatcher) withWrite(cb func()) {
 
 func (d *ServerMessageDispatcher) init() {
 	// register common message handlers
-	d.RegisterHandler(messages.NewPingMessageHandler(d.ctx.Identity()), true)
-	d.RegisterHandler(messages.NewInvalidMessageHandler(d.ctx.Identity()), true)
+	d.RegisterHandler(message_actions.NewPingMessageHandler(d.ctx.Server()), true)
+	d.RegisterHandler(message_actions.NewInvalidMessageHandler(d.ctx.Server()), true)
 	// TODO how to register ServiceUpdateNotificationMessageHandler
 }
 
-func (d *ServerMessageDispatcher) RegisterHandler(handler messages.IMessageHandler, override bool) {
+func (d *ServerMessageDispatcher) RegisterHandler(handler message_actions.IMessageHandler, override bool) {
 	h := d.handlers[handler.Type()]
 	d.withWrite(func() {
 		if h != nil && override {
@@ -36,7 +38,7 @@ func (d *ServerMessageDispatcher) RegisterHandler(handler messages.IMessageHandl
 	})
 }
 
-func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn *connection.WRConnection) {
+func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn *connection.Connection) {
 	d.ctx.AsyncTaskPool().Schedule(func() {
 		handler := d.handlers[message.MessageType()]
 		if handler == nil {

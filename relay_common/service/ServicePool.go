@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 	"wsdk/common/async"
-	"wsdk/relay_common"
 )
 
 const (
@@ -17,7 +16,7 @@ type IServiceTaskQueue interface {
 	Get(id string) *ServiceRequest
 	Start()
 	Stop()
-	Add(message *ServiceRequest) bool
+	Schedule(message *ServiceRequest) *async.Barrier
 	Remove(id string) bool
 	Has(id string) bool
 	KillAll() error
@@ -28,12 +27,12 @@ type IServiceTaskQueue interface {
 
 type ServiceTaskQueue struct {
 	pool       *async.AsyncPool
-	executor   relay_common.IRequestExecutor
+	executor   IRequestExecutor
 	messageSet map[string]*ServiceRequest
 	lock       *sync.RWMutex
 }
 
-func NewServiceTaskQueue(executor relay_common.IRequestExecutor, pool *async.AsyncPool) *ServiceTaskQueue {
+func NewServiceTaskQueue(executor IRequestExecutor, pool *async.AsyncPool) *ServiceTaskQueue {
 	return &ServiceTaskQueue{pool, executor, make(map[string]*ServiceRequest), new(sync.RWMutex)}
 }
 
@@ -92,19 +91,19 @@ func (p *ServiceTaskQueue) Remove(id string) bool {
 	return true
 }
 
-func (p *ServiceTaskQueue) Add(message *ServiceRequest) bool {
+func (p *ServiceTaskQueue) Schedule(message *ServiceRequest) *async.Barrier {
 	if p.Has(message.Id()) {
-		return false
+		return nil
 	}
 	p.withWrite(func() {
 		p.messageSet[message.Id()] = message
 	})
-	p.pool.Schedule(func() {
+	return p.pool.Schedule(func() {
+		message.TransitStatus(ServiceRequestStatusProcessing)
 		// execute should take care of the execution logic
 		p.executor.Execute(message)
 		p.Remove(message.Id())
 	})
-	return true
 }
 
 func (p *ServiceTaskQueue) KillAll() (errMsg error) {

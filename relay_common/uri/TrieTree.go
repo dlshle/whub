@@ -17,6 +17,9 @@ type MatchContext struct {
 func tParseQueryParams(queryParamString string) (pMap map[string]string, err error) {
 	//xx=1&&yy=2...
 	pMap = make(map[string]string)
+	if queryParamString == "" {
+		return pMap, nil
+	}
 	exps := strings.Split(queryParamString, "&")
 	for _, exp := range exps {
 		split := strings.Split(exp, "=")
@@ -31,7 +34,14 @@ func tParseQueryParams(queryParamString string) (pMap map[string]string, err err
 }
 
 func tSplitRemaining(remaining string) (string, string) {
+	if len(remaining) == 0 {
+		return "", ""
+	}
 	i := 0
+	// special case when url starts with '/' (e.g. /service/xx/yy)
+	if remaining[0] == '/' {
+		i = 1
+	}
 	// stop until it hits /
 	for i < len(remaining) && remaining[i] != '/' {
 		i++
@@ -233,7 +243,7 @@ func (n *trieNode) match(path string, ctx *MatchContext) (node *trieNode, err er
 			curr = curr.paramChild
 			ctx.PathParams[curr.param] = subPath
 		} else {
-			err = errors.New(fmt.Sprintf("mismatch subpath %s from %s- not routing found", subPath, path))
+			err = errors.New(fmt.Sprintf("mismatch subpath %s from %s- no routing found", subPath, path))
 			curr = nil
 			break
 		}
@@ -251,6 +261,9 @@ func (n *trieNode) matchByPath(pathWithoutQueryParams string, ctx *MatchContext)
 		return nil, errors.New("no pathWithoutQueryParams find")
 	}
 	node, err := n.match(pathWithoutQueryParams, ctx)
+	if err != nil || node == nil {
+		return
+	}
 	ctx.Value = node.value
 	c = ctx
 	return

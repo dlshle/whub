@@ -43,7 +43,7 @@ func Copy(src interface{}) interface{} {
 }
 
 // copyRecursive does the actual copying of the interface. It currently has
-// limited support for what it can handle. Add as needed.
+// limited support for what it can handle. Schedule as needed.
 func copyRecursive(original, cpy reflect.Value) {
 	// check for implement deepcopy.Interface
 	if original.CanInterface() {

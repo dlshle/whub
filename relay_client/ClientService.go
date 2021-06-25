@@ -6,13 +6,14 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"wsdk/relay_common"
+	"wsdk/relay_common/health_check"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
 )
 
 type ClientService struct {
-	ctx *relay_common.WRContext
+	ctx IContext
 
 	serviceManagerClient IServiceManagerClient
 	serviceTaskQueue     service.IServiceTaskQueue
@@ -22,7 +23,7 @@ type ClientService struct {
 	description   string
 	serviceUris   []string // shortUris
 	handler       service.IServiceHandler
-	host          *relay_common.WRServer
+	host          roles.ICommonServer
 	serviceType   int
 	accessType    int
 	executionType int
@@ -33,7 +34,7 @@ type ClientService struct {
 	onStartedCallback func(service.IBaseService)
 	onStoppedCallback func(service.IBaseService)
 
-	healthCheckHandler            *service.ServiceHealthCheckHandler
+	healthCheckHandler            *health_check.HealthCheckHandler
 	onHealthCheckFailsCallback    func(service IClientService)
 	onHealthCheckRestoredCallback func(service IClientService)
 
@@ -41,12 +42,12 @@ type ClientService struct {
 }
 
 // TODO NewFunc
-func NewClientService(ctx *relay_common.WRContext, id string, server *relay_common.WRServer) *ClientService {
+func NewClientService(ctx IContext, id string, server *Server) *ClientService {
 	handler := service.NewServiceHandler()
 	s := &ClientService{
 		id:                   id,
 		ctx:                  ctx,
-		serviceManagerClient: NewServiceCenterClient(ctx, server),
+		serviceManagerClient: NewServiceCenterClient(ctx.Identity().Id(), server),
 		serviceTaskQueue:     service.NewServiceTaskQueue(NewClientServiceExecutor(ctx, handler), ctx.ServiceTaskPool()),
 		handler:              handler,
 		host:                 server,
@@ -74,9 +75,9 @@ type IClientService interface {
 
 func (s *ClientService) init() {
 	s.status = service.ServiceStatusUnregistered
-	s.healthCheckHandler = service.NewServiceHealthCheckHandler(
+	s.healthCheckHandler = health_check.NewHealthCheckHandler(
 		s.ctx.TimedJobPool(),
-		service.DefaultHealthCheckInterval,
+		health_check.DefaultHealthCheckInterval,
 		s.HealthCheck,
 		s.onHealthCheckFailedInternalHandler,
 		s.onHealthCheckRestoredInternalHandler,
@@ -143,11 +144,11 @@ func (s *ClientService) ExecutionType() int {
 	return s.executionType
 }
 
-func (s *ClientService) ProviderInfo() relay_common.RoleDescriptor {
+func (s *ClientService) ProviderInfo() roles.RoleDescriptor {
 	return s.ctx.Identity().Describe()
 }
 
-func (s *ClientService) HostInfo() relay_common.RoleDescriptor {
+func (s *ClientService) HostInfo() roles.RoleDescriptor {
 	return s.host.Describe()
 }
 
@@ -167,7 +168,7 @@ func (s *ClientService) Handle(message *messages.Message) *messages.Message {
 		message = message.Copy().SetUri(strings.TrimPrefix(message.Uri(), s.uriPrefix))
 	}
 	request := service.NewServiceRequest(message)
-	s.serviceTaskQueue.Add(request)
+	s.serviceTaskQueue.Schedule(request)
 	return request.Response()
 }
 
@@ -215,7 +216,7 @@ func (s *ClientService) NotifyHostForUpdate() error {
 }
 
 func (s *ClientService) NewMessage(to string, uri string, msgType int, payload []byte) *messages.Message {
-	return s.ctx.Identity().DraftMessage(s.ctx.Identity().Id(), to, uri, msgType, payload)
+	return messages.DraftMessage(s.ctx.Identity().Id(), to, uri, msgType, payload)
 }
 
 func (s *ClientService) Describe() service.ServiceDescriptor {

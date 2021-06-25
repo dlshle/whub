@@ -2,6 +2,7 @@ package messages
 
 import (
 	"fmt"
+	"wsdk/relay_common/utils"
 )
 
 // Message Protocol
@@ -105,7 +106,7 @@ func (t *Message) SetPayload(payload []byte) *Message {
 }
 
 func (t *Message) String() string {
-	return fmt.Sprintf("{from: \"%s\", to: \"%s\", messageType: %d, payload: %s}", t.from, t.to, t.messageType, t.payload)
+	return fmt.Sprintf("{id: \"%s\", from: \"%s\", to: \"%s\", uri: \"%s\", messageType: %d, payload: \"%s\"}", t.id, t.from, t.to, t.uri, t.messageType, t.payload)
 }
 
 func (t *Message) Equals(m *Message) bool {
@@ -118,6 +119,10 @@ func (t *Message) Copy() *Message {
 
 func NewMessage(id string, from string, to string, uri string, messageType int, payload []byte) *Message {
 	return &Message{id, from, to, uri, messageType, payload}
+}
+
+func DraftMessage(from string, to string, uri string, messageType int, payload []byte) *Message {
+	return NewMessage(utils.GenStringId(), from, to, uri, messageType, payload)
 }
 
 func NewErrorMessage(id string, from string, to string, uri string, errorMessage string) *Message {

@@ -2,31 +2,31 @@ package service
 
 import (
 	"fmt"
-	"wsdk/relay_common"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server"
+	"wsdk/relay_server/client"
+	"wsdk/relay_server/context"
 )
 
 type RelayService struct {
-	*ServerService
+	*Service
 }
 
 type IRelayService interface {
-	IServerService
-	RestoreExternally(reconnectedOwner *relay_server.WRServerClient) error
+	IService
+	RestoreExternally(reconnectedOwner *client.Client) error
 	Update(descriptor service.ServiceDescriptor) error
 }
 
-func NewRelayService(ctx *relay_server.Context,
+func NewRelayService(ctx *context.Context,
 	descriptor service.ServiceDescriptor,
 	provider IServiceProvider,
-	executor relay_common.IRequestExecutor) IServerService {
+	executor service.IRequestExecutor) IService {
 	return &RelayService{
 		NewService(ctx, descriptor.Id, descriptor.Description, provider, executor, descriptor.ServiceUris, descriptor.ServiceType, descriptor.AccessType, descriptor.ExecutionType),
 	}
 }
 
-func (s *RelayService) RestoreExternally(reconnectedOwner *relay_server.WRServerClient) (err error) {
+func (s *RelayService) RestoreExternally(reconnectedOwner *client.Client) (err error) {
 	if s.Status() != service.ServiceStatusDead {
 		err = NewInvalidServiceStatusError(s.Id(), s.Status(), fmt.Sprintf(" status should be %d to be restored externally", service.ServiceStatusDead))
 		return
@@ -52,7 +52,7 @@ func (s *RelayService) RestoreExternally(reconnectedOwner *relay_server.WRServer
 	return err
 }
 
-func (s *ServerService) Update(descriptor service.ServiceDescriptor) (err error) {
+func (s *Service) Update(descriptor service.ServiceDescriptor) (err error) {
 	oldDescriptor := s.Describe()
 	s.update(descriptor)
 	if descriptor.Status == service.ServiceStatusStarting {
@@ -64,7 +64,7 @@ func (s *ServerService) Update(descriptor service.ServiceDescriptor) (err error)
 	return nil
 }
 
-func (s *ServerService) update(descriptor service.ServiceDescriptor) {
+func (s *Service) update(descriptor service.ServiceDescriptor) {
 	s.withWrite(func() {
 		s.description = descriptor.Description
 		s.status = descriptor.Status

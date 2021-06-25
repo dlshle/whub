@@ -24,5 +24,21 @@ func TestFBMessageParser(t *testing.T) {
 			}
 			return m.Equals(m0)
 		}),
+		test_utils.NewTestCase("Partial", "", func() bool {
+			m0 := &Message{id: "ppp", uri: "ok"}
+			s, e := p.Serialize(m0)
+			if e != nil {
+				t.Log("Serialization failed due to ", e)
+				return false
+			}
+			t.Log(s)
+			m, e := p.Deserialize(s)
+			if e != nil {
+				t.Log("Deserialization failed due to ", e)
+				return false
+			}
+			t.Log("Deserialized ", m.String())
+			return m.Equals(m0)
+		}),
 	}).Do(t)
 }

@@ -53,7 +53,7 @@ func (s *StatefulBarrier) Wait() {
 
 func (s *StatefulBarrier) Get() interface{} {
 	s.Wait()
-	return s.state
+	return s.state.Load()
 }
 
 func NewStatefulBarrier() *StatefulBarrier {
