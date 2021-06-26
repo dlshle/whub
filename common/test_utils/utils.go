@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 type Assertion struct {
@@ -112,6 +113,7 @@ func indents(level int) string {
 }
 
 func (a *Assertion) Do(t *testing.T) {
+	startTiem := time.Now()
 	curr := a.head
 	indent := 0
 	for curr != nil {
@@ -131,6 +133,7 @@ func (a *Assertion) Do(t *testing.T) {
 		}
 		curr = curr.next
 	}
+	t.Log("All test finished, overall runtime: ", time.Now().Sub(startTiem))
 }
 
 func assertCase(t *testing.T, indent int, id string, desc string, assertion func() bool) {

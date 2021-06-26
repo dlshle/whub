@@ -5,8 +5,8 @@ import (
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server"
-	"wsdk/relay_server/client"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/controllers"
 	errors2 "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 	"wsdk/relay_server/service"
@@ -22,11 +22,11 @@ const (
 
 type RelayManagementService struct {
 	*service.NativeService
-	clientManager  client.IClientManager
-	serviceManager service.IServiceManager
+	clientManager  controllers.IClientManager
+	serviceManager controllers.IServiceManager
 }
 
-func New(ctx *context.Context, serviceManager service.IServiceManager, clientManager client.IClientManager) service.IService {
+func New(ctx *context.Context, serviceManager controllers.IServiceManager, clientManager controllers.IClientManager) service.IService {
 	relayManagementService := &RelayManagementService{
 		service.NewNativeService(ctx, ID, "relay management service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
 		clientManager,

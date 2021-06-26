@@ -1,4 +1,4 @@
-package client
+package controllers
 
 import (
 	"errors"
@@ -6,34 +6,38 @@ import (
 	"strings"
 	"sync"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_server/client"
 	"wsdk/relay_server/context"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 )
 
+const ClientManagerId = "ClientManager"
+
 type ClientManager struct {
 	ctx     *context.Context
-	clients map[string]*Client
+	clients map[string]*client.Client
 	lock    *sync.RWMutex
 }
 
 type IClientManager interface {
+	Id() string
 	HasClient(id string) bool
-	GetClient(id string) *Client
-	GetClientByAddr(addr string) *Client
-	WithAllClients(cb func(clients []*Client))
+	GetClient(id string) *client.Client
+	GetClientByAddr(addr string) *client.Client
+	WithAllClients(cb func(clients []*client.Client))
 	DisconnectClient(id string) error
 	DisconnectClientByAddr(addr string) error
 	DisconnectAllClients() error
-	AddClient(client *Client) error
-	HandleClientConnectionClosed(c *Client, err error)
-	HandleClientError(c *Client, err error)
+	AddClient(client *client.Client) error
+	HandleClientConnectionClosed(c *client.Client, err error)
+	HandleClientError(c *client.Client, err error)
 }
 
 func NewClientManager(ctx *context.Context) IClientManager {
 	return &ClientManager{
 		ctx:     ctx,
-		clients: make(map[string]*Client),
+		clients: make(map[string]*client.Client),
 		lock:    new(sync.RWMutex),
 	}
 }
@@ -44,17 +48,21 @@ func (m *ClientManager) withWrite(cb func()) {
 	cb()
 }
 
+func (m *ClientManager) Id() string {
+	return ClientManagerId
+}
+
 func (m *ClientManager) HasClient(id string) bool {
 	return m.GetClient(id) != nil
 }
 
-func (m *ClientManager) GetClient(id string) *Client {
+func (m *ClientManager) GetClient(id string) *client.Client {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	return m.clients[id]
 }
 
-func (m *ClientManager) AddClient(client *Client) error {
+func (m *ClientManager) AddClient(client *client.Client) error {
 	id := client.Id()
 	if m.HasClient(id) {
 		return servererror.NewClientAlreadyConnectedError(id)
@@ -82,7 +90,7 @@ func (m *ClientManager) DisconnectClient(id string) (err error) {
 	return
 }
 
-func (m *ClientManager) findClientByAddr(addr string) *Client {
+func (m *ClientManager) findClientByAddr(addr string) *client.Client {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	for _, c := range m.clients {
@@ -93,14 +101,14 @@ func (m *ClientManager) findClientByAddr(addr string) *Client {
 	return nil
 }
 
-func (m *ClientManager) GetClientByAddr(addr string) *Client {
+func (m *ClientManager) GetClientByAddr(addr string) *client.Client {
 	return m.findClientByAddr(addr)
 }
 
-func (m *ClientManager) WithAllClients(cb func(clients []*Client)) {
+func (m *ClientManager) WithAllClients(cb func(clients []*client.Client)) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	var clients []*Client
+	var clients []*client.Client
 	for _, c := range m.clients {
 		clients = append(clients, c)
 	}
@@ -125,7 +133,7 @@ func (m *ClientManager) DisconnectAllClients() error {
 	return errors.New(errMsgBuilder.String())
 }
 
-func (m *ClientManager) HandleClientConnectionClosed(c *Client, err error) {
+func (m *ClientManager) HandleClientConnectionClosed(c *client.Client, err error) {
 	if err == nil {
 		// remove client from connection
 		m.DisconnectClient(c.Id())
@@ -140,7 +148,7 @@ func (m *ClientManager) HandleClientConnectionClosed(c *Client, err error) {
 	}
 }
 
-func (m *ClientManager) HandleClientError(c *Client, err error) {
+func (m *ClientManager) HandleClientError(c *client.Client, err error) {
 	// just log it
 	fmt.Println(c, err)
 }

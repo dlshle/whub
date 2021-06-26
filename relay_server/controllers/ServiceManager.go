@@ -1,4 +1,4 @@
-package service
+package controllers
 
 import (
 	"errors"
@@ -11,28 +11,32 @@ import (
 	"wsdk/relay_common/utils"
 	"wsdk/relay_server/context"
 	servererror "wsdk/relay_server/errors"
+	service2 "wsdk/relay_server/service"
 )
+
+const ServiceManagerId = "ServiceManager"
 
 type ServiceManager struct {
 	// need to use full uris here!
 	trieTree        *uri.TrieTree
-	serviceMap      map[string]IService
+	serviceMap      map[string]service2.IService
 	scheduleJobPool *timed.JobPool
 	lock            *sync.RWMutex
 }
 
 type IServiceManager interface {
+	Id() string
 	HasService(id string) bool
-	GetService(id string) IService
-	GetServicesByClientId(clientId string) []IService
-	RegisterService(string, IService) error
+	GetService(id string) service2.IService
+	GetServicesByClientId(clientId string) []service2.IService
+	RegisterService(string, service2.IService) error
 	UnregisterService(string) error
 
 	UnregisterAllServices() error
 	UnregisterAllServicesFromClientId(string) error
-	WithServicesFromClientId(clientId string, cb func([]IService)) error
+	WithServicesFromClientId(clientId string, cb func([]service2.IService)) error
 
-	FindServiceByUri(uri string) IService
+	FindServiceByUri(uri string) service2.IService
 	SupportsUri(uri string) bool
 
 	UpdateService(descriptor service.ServiceDescriptor) error
@@ -41,7 +45,7 @@ type IServiceManager interface {
 func NewServiceManager(ctx *context.Context) IServiceManager {
 	return &ServiceManager{
 		trieTree:        uri.NewTrieTree(),
-		serviceMap:      make(map[string]IService),
+		serviceMap:      make(map[string]service2.IService),
 		scheduleJobPool: ctx.TimedJobPool(),
 		lock:            new(sync.RWMutex),
 	}
@@ -51,6 +55,10 @@ func (m *ServiceManager) withWrite(cb func()) {
 	m.lock.Lock()
 	defer m.lock.RUnlock()
 	cb()
+}
+
+func (s *ServiceManager) Id() string {
+	return ServiceManagerId
 }
 
 func (s *ServiceManager) UnregisterAllServices() error {
@@ -64,7 +72,7 @@ func (s *ServiceManager) UnregisterAllServices() error {
 	return errors.New(errMsgBuilder.String())
 }
 
-func (s *ServiceManager) GetService(id string) IService {
+func (s *ServiceManager) GetService(id string) service2.IService {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return s.serviceMap[id]
@@ -74,14 +82,14 @@ func (s *ServiceManager) HasService(id string) bool {
 	return s.HasService(id)
 }
 
-func (s *ServiceManager) WithServicesFromClientId(clientId string, cb func([]IService)) error {
+func (s *ServiceManager) WithServicesFromClientId(clientId string, cb func([]service2.IService)) error {
 	services := s.GetServicesByClientId(clientId)
 	cb(services)
 	return nil
 }
 
 func (s *ServiceManager) UnregisterAllServicesFromClientId(clientId string) error {
-	return s.WithServicesFromClientId(clientId, func(services []IService) {
+	return s.WithServicesFromClientId(clientId, func(services []service2.IService) {
 		for i, _ := range services {
 			if services[i] != nil {
 				s.UnregisterService(services[i].Id())
@@ -91,14 +99,14 @@ func (s *ServiceManager) UnregisterAllServicesFromClientId(clientId string) erro
 }
 
 // nil -> no such client, [] -> no service
-func (s *ServiceManager) GetServicesByClientId(id string) []IService {
+func (s *ServiceManager) GetServicesByClientId(id string) []service2.IService {
 	return s.getServicesByClientId(id)
 }
 
-func (s *ServiceManager) getServicesByClientId(id string) []IService {
+func (s *ServiceManager) getServicesByClientId(id string) []service2.IService {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-	var services []IService
+	var services []service2.IService
 	for _, v := range s.serviceMap {
 		if v.ProviderInfo().Id == id {
 			services = append(services, v)
@@ -111,13 +119,13 @@ func (s *ServiceManager) serviceCountByClientId(id string) int {
 	return len(s.GetServicesByClientId(id))
 }
 
-func (s *ServiceManager) RegisterService(clientId string, service IService) error {
+func (s *ServiceManager) RegisterService(clientId string, service service2.IService) error {
 	return s.registerService(clientId, service)
 }
 
-func (s *ServiceManager) registerService(clientId string, svc IService) error {
-	if s.serviceCountByClientId(clientId) >= MaxServicePerClient {
-		return servererror.NewClientExceededMaxServiceCountError(clientId, MaxServicePerClient)
+func (s *ServiceManager) registerService(clientId string, svc service2.IService) error {
+	if s.serviceCountByClientId(clientId) >= service2.MaxServicePerClient {
+		return servererror.NewClientExceededMaxServiceCountError(clientId, service2.MaxServicePerClient)
 	}
 	s.withWrite(func() {
 		s.serviceMap[svc.Id()] = svc
@@ -149,14 +157,14 @@ func (s *ServiceManager) unregisterService(serviceId string) error {
 	return nil
 }
 
-func (s *ServiceManager) FindServiceByUri(uri string) IService {
+func (s *ServiceManager) FindServiceByUri(uri string) service2.IService {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	matchContext, err := s.trieTree.Match(uri)
 	if matchContext == nil || err != nil {
 		return nil
 	}
-	return matchContext.Value.(IService)
+	return matchContext.Value.(service2.IService)
 }
 
 func (s *ServiceManager) SupportsUri(uri string) bool {
@@ -171,7 +179,7 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 		return errors.New(fmt.Sprintf("tService %s can not be found", descriptor.Id))
 	}
 	return utils.ProcessWithErrors(func() error {
-		return tService.(RelayService).Update(descriptor)
+		return tService.(service2.RelayService).Update(descriptor)
 	}, func() error {
 		// TODO how to update uris here???
 		fullUris := tService.FullServiceUris()
@@ -203,10 +211,10 @@ func (s *ServiceManager) cancelTimedJob(jobId int64) bool {
 }
 
 func (s *ServiceManager) scheduleTimeoutJob(job func()) int64 {
-	return s.scheduleJobPool.ScheduleAsyncTimeoutJob(job, ServiceKillTimeout)
+	return s.scheduleJobPool.ScheduleAsyncTimeoutJob(job, service2.ServiceKillTimeout)
 }
 
-func (s *ServiceManager) addUriRoute(service IService, route string) (err error) {
+func (s *ServiceManager) addUriRoute(service service2.IService, route string) (err error) {
 	s.withWrite(func() {
 		err = s.trieTree.Add(route, service, true)
 	})

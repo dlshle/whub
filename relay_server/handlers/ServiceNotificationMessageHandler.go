@@ -8,15 +8,15 @@ import (
 	common "wsdk/relay_common/service"
 	"wsdk/relay_common/utils"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/service"
+	"wsdk/relay_server/controllers"
 )
 
 type ServiceNotificationMessageHandler struct {
 	ctx *context.Context
-	m   *service.ServiceManager
+	m   *controllers.ServiceManager
 }
 
-func NewServiceNotificationMessageHandler(ctx *context.Context, manager *service.ServiceManager) message_actions.IMessageHandler {
+func NewServiceNotificationMessageHandler(ctx *context.Context, manager *controllers.ServiceManager) message_actions.IMessageHandler {
 	return &ServiceNotificationMessageHandler{ctx: ctx, m: manager}
 }
 
