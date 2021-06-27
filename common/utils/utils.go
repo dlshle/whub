@@ -1,5 +1,18 @@
 package utils
 
+import "fmt"
+
+func ByteToUpperCase(b byte) byte {
+	if b > 96 && b < 123 {
+		return b - 32
+	}
+	return b
+}
+
+func ToCamelCase(name string) string {
+	return fmt.Sprintf("%c%s", ByteToUpperCase(name[0]), name[1:])
+}
+
 func GetOr(obj interface{}, otherwise func() interface{}) interface{} {
 	if obj != nil {
 		return obj

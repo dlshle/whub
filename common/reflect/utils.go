@@ -2,8 +2,14 @@ package reflect
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
+	"wsdk/common/utils"
+)
+
+const (
+	setterMethodPrefix = "Set"
 )
 
 func getReflectKind(o interface{}) reflect.Type {
@@ -71,12 +77,32 @@ func GetValueByField(o interface{}, field string) (reflect.Value, error) {
 	return fv, nil
 }
 
+// setter = SetX
+func tryToGetSetterAndSet(object reflect.Value, fieldName string, value interface{}) bool {
+	setterMethodName := fmt.Sprintf("%s%s", setterMethodPrefix, utils.ToCamelCase(fieldName))
+	mv := object.MethodByName(setterMethodName)
+	if !(mv.IsValid() && mv.Kind() == reflect.Func) {
+		return false
+	}
+	mv.Call([]reflect.Value{reflect.ValueOf(value)})
+	if recover() != nil {
+		return false
+	}
+	return true
+}
+
 func SetValueOnField(o interface{}, fieldName string, value interface{}) error {
 	v, e := GetValueByField(o, fieldName)
 	if e != nil {
 		return e
 	}
-	v.Set(reflect.ValueOf(value))
+	if v.CanSet() {
+		v.Set(reflect.ValueOf(value))
+	} else {
+		if !tryToGetSetterAndSet(reflect.ValueOf(o), fieldName, value) {
+			return errors.New("can not set field " + fieldName)
+		}
+	}
 	return nil
 }
 

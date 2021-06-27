@@ -12,13 +12,20 @@ import (
 const (
 	TypeComponentPrefix = "$type-"
 	AutoWireTagPrefix   = "$autowire"
-	InjectTagPrefix     = "$inject"
+	InjectTagPrefix     = "$inject:"
 )
 
 type Container struct {
 	components map[string]interface{} // byTypePrefix
 	tagPrefix  string                 // prefix: xxx
 	lock       *sync.RWMutex
+}
+
+func NewContainer() *Container {
+	return &Container{
+		components: make(map[string]interface{}),
+		lock:       new(sync.RWMutex),
+	}
 }
 
 func (c *Container) withWrite(cb func()) {
@@ -94,13 +101,14 @@ func (c *Container) injectFieldById(object interface{}, fieldName string, tag st
 	}
 	id := strings.TrimPrefix(tag, InjectTagPrefix)
 	component := c.GetById(id)
+	fmt.Println("component: ", component)
 	if component == nil {
 		return errors.New(fmt.Sprintf("injection failed for field %s as component with id %s does not exist", fieldName, id))
 	}
 	return reflect.SetValueOnField(object, fieldName, component)
 }
 
-func (c *Container) InjectFieldById(object interface{}, fieldName string) error {
+func (c *Container) InjectField(object interface{}, fieldName string) error {
 	tag, err := reflect.GetTagByField(object, fieldName)
 	if err != nil {
 		return err
@@ -108,7 +116,7 @@ func (c *Container) InjectFieldById(object interface{}, fieldName string) error 
 	return c.injectFieldById(object, fieldName, tag)
 }
 
-func (c *Container) InjectFieldsByIds(object interface{}) error {
+func (c *Container) InjectFields(object interface{}) error {
 	ftMap, err := reflect.GetFieldsAndTags(object)
 	if err != nil {
 		return err
@@ -128,7 +136,15 @@ func (c *Container) autowireFieldByField(object interface{}, field rawReflect.St
 	if tag != AutoWireTagPrefix {
 		return errors.New(fmt.Sprintf("incorrect tag(%s) for AutoWiring(%s)", tag, AutoWireTagPrefix))
 	}
-	component := c.GetByType(field.Type.Name())
+	typeName := field.Type.Name()
+	if typeName == "" {
+		// special case for struct { *AnotherStructName }
+		typeName = field.Type.Elem().Name()
+		if typeName == "" {
+			typeName = field.Name
+		}
+	}
+	component := c.GetByType(typeName)
 	if component == nil {
 		component = c.GetById(field.Name)
 		if component == nil {
@@ -160,4 +176,46 @@ func (c *Container) AutoWireFieldsByType(object interface{}) error {
 		}
 	}
 	return nil
+}
+
+func (c *Container) handleAutoInjectField(object interface{}, field rawReflect.StructField) error {
+	tag := string(field.Tag)
+	if strings.HasPrefix(tag, InjectTagPrefix) {
+		return c.injectFieldById(object, field.Name, tag)
+	} else if strings.HasPrefix(tag, AutoWireTagPrefix) {
+		return c.autowireFieldByField(object, field)
+	}
+	return nil
+}
+
+func (c *Container) AutoInjectComponents(object interface{}) error {
+	fields, err := reflect.GetFields(object)
+	if err != nil {
+		return err
+	}
+	for i := range fields {
+		if err = c.handleAutoInjectField(object, fields[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Container) UnregisterById(id string) bool {
+	notExist := c.GetById(id) == nil
+	if notExist {
+		return false
+	}
+	c.withWrite(func() {
+		delete(c.components, id)
+	})
+	return true
+}
+
+func (c *Container) Clear() {
+	c.withWrite(func() {
+		for k := range c.components {
+			delete(c.components, k)
+		}
+	})
 }
