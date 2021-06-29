@@ -61,12 +61,12 @@ func (c *Container) assembleTypedComponentId(component interface{}) string {
 }
 
 // register by type, will replace the last component registered under the same type
-func (c *Container) AutoRegister(component interface{}) bool {
+func (c *Container) RegisterByComponentType(component interface{}) bool {
 	return c.registerComponent(c.assembleTypedComponentId(component), component)
 }
 
 // register by fieldName
-func (c *Container) AutoRegisterField(object interface{}, fieldName string) (bool, error) {
+func (c *Container) RegisterFieldByType(object interface{}, fieldName string) (bool, error) {
 	value, err := reflect.GetValueByField(object, fieldName)
 	if err != nil {
 		return false, err
@@ -178,7 +178,7 @@ func (c *Container) AutoWireFieldsByType(object interface{}) error {
 	return nil
 }
 
-func (c *Container) handleAutoInjectField(object interface{}, field rawReflect.StructField) error {
+func (c *Container) handleFieldInjection(object interface{}, field rawReflect.StructField) error {
 	tag := string(field.Tag)
 	if strings.HasPrefix(tag, InjectTagPrefix) {
 		return c.injectFieldById(object, field.Name, tag)
@@ -188,13 +188,13 @@ func (c *Container) handleAutoInjectField(object interface{}, field rawReflect.S
 	return nil
 }
 
-func (c *Container) AutoInjectComponents(object interface{}) error {
+func (c *Container) InjectFieldComponentsToObject(object interface{}) error {
 	fields, err := reflect.GetFields(object)
 	if err != nil {
 		return err
 	}
 	for i := range fields {
-		if err = c.handleAutoInjectField(object, fields[i]); err != nil {
+		if err = c.handleFieldInjection(object, fields[i]); err != nil {
 			return err
 		}
 	}

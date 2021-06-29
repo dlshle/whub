@@ -1,4 +1,4 @@
-package controllers
+package managers
 
 import (
 	"errors"
@@ -25,7 +25,6 @@ type ServiceManager struct {
 }
 
 type IServiceManager interface {
-	Id() string
 	HasService(id string) bool
 	GetService(id string) service2.IService
 	GetServicesByClientId(clientId string) []service2.IService
@@ -42,11 +41,11 @@ type IServiceManager interface {
 	UpdateService(descriptor service.ServiceDescriptor) error
 }
 
-func NewServiceManager(ctx *context.Context) IServiceManager {
+func NewServiceManager() IServiceManager {
 	return &ServiceManager{
 		trieTree:        uri.NewTrieTree(),
 		serviceMap:      make(map[string]service2.IService),
-		scheduleJobPool: ctx.TimedJobPool(),
+		scheduleJobPool: context.Ctx.TimedJobPool(),
 		lock:            new(sync.RWMutex),
 	}
 }
@@ -55,10 +54,6 @@ func (m *ServiceManager) withWrite(cb func()) {
 	m.lock.Lock()
 	defer m.lock.RUnlock()
 	cb()
-}
-
-func (s *ServiceManager) Id() string {
-	return ServiceManagerId
 }
 
 func (s *ServiceManager) UnregisterAllServices() error {

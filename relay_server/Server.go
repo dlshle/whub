@@ -12,8 +12,8 @@ import (
 	"wsdk/relay_common/utils"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers"
 	"wsdk/relay_server/errors"
+	"wsdk/relay_server/managers"
 	"wsdk/websocket/connection"
 	"wsdk/websocket/wserver"
 )
@@ -23,8 +23,6 @@ type Server struct {
 	*wserver.WServer
 	roles.IDescribableRole
 	anonymousClient   map[string]*client.Client // raw clients or pure anony clients
-	clientManager     controllers.IClientManager
-	serviceMaanger    controllers.IServiceManager
 	scheduleJobPool   *timed.JobPool
 	messageParser     messages.IMessageParser
 	messageDispatcher message_actions.IMessageDispatcher
@@ -137,8 +135,6 @@ func NewServer(ctx *context.Context, port int) *Server {
 		WServer:          wserver.NewWServer(wserver.NewServerConfig(ctx.Server().Id(), "127.0.0.1", port, wserver.DefaultWsConnHandler())),
 		IDescribableRole: ctx.Server(),
 		anonymousClient:  make(map[string]*client.Client),
-		IClientManager:   controllers.NewClientManager(ctx),
-		IServiceManager:  controllers.NewServiceManager(ctx),
 		scheduleJobPool:  ctx.TimedJobPool(),
 		messageParser:    messages.NewSimpleMessageParser(),
 		lock:             new(sync.RWMutex),

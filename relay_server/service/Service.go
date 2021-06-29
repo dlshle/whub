@@ -45,10 +45,10 @@ type IService interface {
 	Kill() error
 }
 
-func NewService(ctx *context.Context, id string, description string, provider IServiceProvider, executor service.IRequestExecutor, serviceUris []string, serviceType int, accessType int, exeType int) *Service {
+func NewService(id string, description string, provider IServiceProvider, executor service.IRequestExecutor, serviceUris []string, serviceType int, accessType int, exeType int) *Service {
 	return &Service{
 		uriPrefix:     fmt.Sprintf("%s/%s", service.ServicePrefix, id),
-		ctx:           ctx,
+		ctx:           context.Ctx,
 		id:            id,
 		description:   description,
 		provider:      provider,
@@ -59,7 +59,7 @@ func NewService(ctx *context.Context, id string, description string, provider IS
 		executionType: exeType,
 		status:        service.ServiceStatusIdle,
 		lock:          new(sync.RWMutex),
-		serviceQueue:  service.NewServiceTaskQueue(executor, ctx.ServiceTaskPool()),
+		serviceQueue:  service.NewServiceTaskQueue(executor, context.Ctx.ServiceTaskPool()),
 	}
 }
 

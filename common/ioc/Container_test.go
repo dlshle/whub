@@ -58,8 +58,8 @@ func TestContainer(t *testing.T) {
 		}),
 		test_utils.NewTestCase("basic autowiring", "", func() bool {
 			c.Clear()
-			c.AutoRegister(&Box{name: "box"})
-			c.AutoRegister(&Jar{liter: 1})
+			c.RegisterByComponentType(&Box{name: "box"})
+			c.RegisterByComponentType(&Jar{liter: 1})
 			type TSealed struct {
 				*Box `$autowire`
 				*Jar `$autowire`

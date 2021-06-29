@@ -6,25 +6,24 @@ import (
 	"strings"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/client"
-	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers"
+	"wsdk/relay_server/managers"
 	"wsdk/relay_server/service"
 )
 
 const (
-	ID             = "messaging"
+	ID             = "message"
 	RouteSend      = "/send"
 	RouteBroadcast = "/broadcast"
 )
 
 type MessagingService struct {
 	*service.NativeService
-	controllers.IClientManager
+	managers.IClientManager
 }
 
-func NewMessagingService(ctx *context.Context, manager controllers.IClientManager) service.INativeService {
+func New(manager managers.IClientManager) service.INativeService {
 	messagingService := &MessagingService{
-		service.NewNativeService(ctx, ID, "basic messaging service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
+		service.NewNativeService(ID, "basic messaging service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
 		manager,
 	}
 	messagingService.RegisterRoute(RouteSend, messagingService.Send)

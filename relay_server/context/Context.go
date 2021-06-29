@@ -11,6 +11,12 @@ import (
 	"wsdk/relay_common/roles"
 )
 
+var Ctx *Context
+
+func init() {
+	Ctx = NewContext()
+}
+
 const (
 	defaultTimedJobPoolSize        = 4096
 	defaultMaxListenerCount        = 1024
@@ -28,6 +34,7 @@ type Context struct {
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
 	lock                *sync.RWMutex
+	startBarrier        *async.Barrier
 }
 
 type IContext interface {
@@ -61,10 +68,12 @@ func (c *Context) withWrite(cb func()) {
 func (c *Context) Start(server roles.ICommonServer) {
 	c.withWrite(func() {
 		c.server = server
+		c.startBarrier.Open()
 	})
 }
 
 func (c *Context) Server() roles.IDescribableRole {
+	c.startBarrier.Wait()
 	return c.server
 }
 

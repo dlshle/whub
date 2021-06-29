@@ -19,10 +19,10 @@ type INativeService interface {
 	UnregisterRoute(shortUri string) (err error)
 }
 
-func NewNativeService(ctx *context.Context, id, description string, serviceType, accessType, exeType int) *NativeService {
+func NewNativeService(id, description string, serviceType, accessType, exeType int) *NativeService {
 	handler := service.NewServiceHandler()
 	return &NativeService{
-		NewService(ctx, id, description, ctx.Server(), request.NewInternalServiceRequestExecutor(ctx, handler), make([]string, 0), serviceType, accessType, exeType),
+		NewService(id, description, context.Ctx.Server(), request.NewInternalServiceRequestExecutor(context.Ctx, handler), make([]string, 0), serviceType, accessType, exeType),
 		handler,
 	}
 }

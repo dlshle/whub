@@ -34,10 +34,10 @@ type ISQLManager interface {
 	All(container interface{}) (interface{}, error)
 }
 
-func (m *SQLManager) withRead(callback func()) {
+func (m *SQLManager) withRead(callback func() interface{}) interface{} {
 	m.rwLock.RLock()
 	defer m.rwLock.RUnlock()
-	callback()
+	return callback()
 }
 
 func (m *SQLManager) withWrite(callback func()) {
@@ -53,14 +53,12 @@ func (m *SQLManager) setInitialized(init bool) {
 }
 
 func (m *SQLManager) HasInitialized() bool {
-	var hasInit bool
-	m.withRead(func() {
-		hasInit = m.hasInitialized
-	})
-	return hasInit
+	return m.withRead(func() interface{} {
+		return m.hasInitialized
+	}).(bool)
 }
 
-func NewSQLManager(url, userName, password, database string) (*SQLManager, error) {
+func InitSQLManager(url, userName, password, database string) (*SQLManager, error) {
 	dataSource := fmt.Sprintf("%s:%s@tcp(%s)/%s", userName, password, url, database)
 	err := orm.RegisterDataBase("default", "mysql", dataSource)
 	if err != nil {

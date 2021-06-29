@@ -5,10 +5,10 @@ import (
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server"
-	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers"
+	"wsdk/relay_server/container"
 	errors2 "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
+	"wsdk/relay_server/managers"
 	"wsdk/relay_server/service"
 )
 
@@ -22,15 +22,18 @@ const (
 
 type RelayManagementService struct {
 	*service.NativeService
-	clientManager  controllers.IClientManager
-	serviceManager controllers.IServiceManager
+	clientManager  managers.IClientManager  `autowire`
+	serviceManager managers.IServiceManager `autowire`
 }
 
-func New(ctx *context.Context, serviceManager controllers.IServiceManager, clientManager controllers.IClientManager) service.IService {
+func New() service.IService {
 	relayManagementService := &RelayManagementService{
-		service.NewNativeService(ctx, ID, "relay management service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
-		clientManager,
-		serviceManager,
+		NativeService: service.NewNativeService(ID, "relay management service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
+	}
+	err := container.Container.InjectFields(relayManagementService)
+	if err != nil {
+		relayManagementService.clientManager = container.Container.GetById(managers.ClientManagerId).(managers.IClientManager)
+		relayManagementService.serviceManager = container.Container.GetById(managers.ServiceManagerId).(managers.IServiceManager)
 	}
 	relayManagementService.init()
 	return relayManagementService

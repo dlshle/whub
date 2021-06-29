@@ -1,4 +1,4 @@
-package controllers
+package managers
 
 import (
 	"errors"
@@ -15,13 +15,11 @@ import (
 const ClientManagerId = "ClientManager"
 
 type ClientManager struct {
-	ctx     *context.Context
 	clients map[string]*client.Client
 	lock    *sync.RWMutex
 }
 
 type IClientManager interface {
-	Id() string
 	HasClient(id string) bool
 	GetClient(id string) *client.Client
 	GetClientByAddr(addr string) *client.Client
@@ -34,9 +32,8 @@ type IClientManager interface {
 	HandleClientError(c *client.Client, err error)
 }
 
-func NewClientManager(ctx *context.Context) IClientManager {
+func NewClientManager() IClientManager {
 	return &ClientManager{
-		ctx:     ctx,
 		clients: make(map[string]*client.Client),
 		lock:    new(sync.RWMutex),
 	}
@@ -46,10 +43,6 @@ func (m *ClientManager) withWrite(cb func()) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	cb()
-}
-
-func (m *ClientManager) Id() string {
-	return ClientManagerId
 }
 
 func (m *ClientManager) HasClient(id string) bool {
@@ -70,7 +63,7 @@ func (m *ClientManager) AddClient(client *client.Client) error {
 	m.withWrite(func() {
 		m.clients[id] = client
 	})
-	m.ctx.NotificationEmitter().Notify(events.EventClientConnected, messages.NewNotification(events.EventClientConnected, client.Id()))
+	context.Ctx.NotificationEmitter().Notify(events.EventClientConnected, messages.NewNotification(events.EventClientConnected, client.Id()))
 	return nil
 }
 
@@ -83,7 +76,7 @@ func (m *ClientManager) DisconnectClient(id string) (err error) {
 	m.withWrite(func() {
 		delete(m.clients, id)
 	})
-	m.ctx.NotificationEmitter().Notify(
+	context.Ctx.NotificationEmitter().Notify(
 		events.EventClientDisconnected,
 		messages.NewMessage(events.EventClientDisconnected, "WRelayServer", "", "", messages.MessageTypeInternalNotification, ([]byte)(id)),
 	)
@@ -143,8 +136,7 @@ func (m *ClientManager) HandleClientConnectionClosed(c *client.Client, err error
 		m.withWrite(func() {
 			delete(m.clients, c.Id())
 		})
-		m.ctx.NotificationEmitter().Notify(events.EventClientUnexpectedClosure, messages.NewNotification(events.EventClientUnexpectedClosure, c.Id()))
-
+		context.Ctx.NotificationEmitter().Notify(events.EventClientUnexpectedClosure, messages.NewNotification(events.EventClientUnexpectedClosure, c.Id()))
 	}
 }
 
