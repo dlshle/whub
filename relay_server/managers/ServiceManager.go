@@ -9,10 +9,15 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_common/uri"
 	"wsdk/relay_common/utils"
+	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	servererror "wsdk/relay_server/errors"
 	service2 "wsdk/relay_server/service"
 )
+
+func init() {
+	container.Container.RegisterComponent(ServiceManagerId, NewServiceManager())
+}
 
 const ServiceManagerId = "ServiceManager"
 

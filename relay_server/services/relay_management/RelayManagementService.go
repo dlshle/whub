@@ -6,6 +6,7 @@ import (
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server"
 	"wsdk/relay_server/container"
+	"wsdk/relay_server/context"
 	errors2 "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 	"wsdk/relay_server/managers"
@@ -45,11 +46,11 @@ func (s *RelayManagementService) init() {
 }
 
 func (s *RelayManagementService) initNotificationHandlers() {
-	s.Ctx().NotificationEmitter().On(events.EventClientDisconnected, func(message *messages.Message) {
+	context.Ctx.NotificationEmitter().On(events.EventClientDisconnected, func(message *messages.Message) {
 		clientId := string(message.Payload()[:])
 		s.serviceManager.UnregisterAllServicesFromClientId(clientId)
 	})
-	s.Ctx().NotificationEmitter().On(events.EventClientUnexpectedClosure, func(message *messages.Message) {
+	context.Ctx.NotificationEmitter().On(events.EventClientUnexpectedClosure, func(message *messages.Message) {
 		clientId := string(message.Payload()[:])
 		s.serviceManager.WithServicesFromClientId(clientId, func(services []service.IService) {
 			for _, svc := range services {
@@ -57,7 +58,7 @@ func (s *RelayManagementService) initNotificationHandlers() {
 			}
 		})
 	})
-	s.Ctx().NotificationEmitter().On(events.EventClientConnected, func(message *messages.Message) {
+	context.Ctx.NotificationEmitter().On(events.EventClientConnected, func(message *messages.Message) {
 		clientId := string(message.Payload()[:])
 		s.tryToRestoreDeadServicesFromReconnectedClient(clientId)
 	})
@@ -77,7 +78,7 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 	if client == nil {
 		return errors.New("unable to find the client by providerId " + descriptor.Provider.Id)
 	}
-	service := service.NewRelayService(s.Ctx(), *descriptor, client, client.MessageRelayExecutor())
+	service := service.NewRelayService(*descriptor, client, client.MessageRelayExecutor())
 	return s.serviceManager.RegisterService(descriptor.Id, service)
 }
 

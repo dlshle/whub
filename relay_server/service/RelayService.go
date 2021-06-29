@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
-	"wsdk/relay_server/context"
 )
 
 type RelayService struct {
@@ -17,12 +16,12 @@ type IRelayService interface {
 	Update(descriptor service.ServiceDescriptor) error
 }
 
-func NewRelayService(ctx *context.Context,
+func NewRelayService(
 	descriptor service.ServiceDescriptor,
 	provider IServiceProvider,
 	executor service.IRequestExecutor) IService {
 	return &RelayService{
-		NewService(ctx, descriptor.Id, descriptor.Description, provider, executor, descriptor.ServiceUris, descriptor.ServiceType, descriptor.AccessType, descriptor.ExecutionType),
+		NewService(descriptor.Id, descriptor.Description, provider, executor, descriptor.ServiceUris, descriptor.ServiceType, descriptor.AccessType, descriptor.ExecutionType),
 	}
 }
 

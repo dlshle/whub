@@ -40,9 +40,9 @@ type Service struct {
 // TODO need a safe status transitioning method!
 type IService interface {
 	service.IBaseService
-	Ctx() *context.Context
 	Provider() IServiceProvider
 	Kill() error
+	UriPrefix() string
 }
 
 func NewService(id string, description string, provider IServiceProvider, executor service.IRequestExecutor, serviceUris []string, serviceType int, accessType int, exeType int) *Service {
@@ -226,6 +226,6 @@ func (s *Service) HostInfo() roles.RoleDescriptor {
 	return s.ctx.Server().Describe()
 }
 
-func (s *Service) Ctx() *context.Context {
-	return s.ctx
+func (s *Service) UriPrefix() string {
+	return s.uriPrefix
 }

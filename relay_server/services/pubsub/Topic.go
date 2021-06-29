@@ -85,8 +85,8 @@ func (t *Topic) CheckAndAddSubscriber(subscriber string) error {
 }
 
 func (t *Topic) CheckAndRemoveSubscriber(subscriber string) error {
-	if !t.HasSubscriber(subscriber) {
-		return errors.New(fmt.Sprintf("subscriber %s is not subscriberd to topic %s", subscriber, t.id))
+	if t.Creator() != subscriber {
+		return errors.New(fmt.Sprintf("subscriber %s is not the creator of the topic %s", subscriber, t.id))
 	}
 	t.removeSubscriber(subscriber)
 	return nil

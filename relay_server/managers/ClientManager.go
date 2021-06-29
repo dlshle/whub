@@ -7,10 +7,15 @@ import (
 	"sync"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/client"
+	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 )
+
+func init() {
+	container.Container.RegisterComponent(ClientManagerId, NewClientManager())
+}
 
 const ClientManagerId = "ClientManager"
 
