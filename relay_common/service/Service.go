@@ -1,8 +1,8 @@
 package service
 
 import (
+	"encoding/json"
 	"time"
-	"wsdk/common/json"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
 )
@@ -35,18 +35,11 @@ type ServiceDescriptor struct {
 }
 
 func (sd ServiceDescriptor) String() string {
-	return json.NewJsonBuilder().
-		Put("id", sd.Id).
-		Put("description", sd.Description).
-		Put("hostInfo", sd.HostInfo.String()).
-		Put("provider", sd.Provider.String()).
-		Put("serviceUris", json.BracketStrings(sd.ServiceUris)).
-		Put("cTime", sd.CTime.String()).
-		Put("serviceType", (string)(sd.ServiceType)).
-		Put("accessType", (string)(sd.AccessType)).
-		Put("executionType", (string)(sd.ExecutionType)).
-		Put("status", (string)(sd.Status)).
-		Build()
+	marshalled, err := json.Marshal(sd)
+	if err != nil {
+		return "error"
+	}
+	return (string)(marshalled)
 }
 
 const (

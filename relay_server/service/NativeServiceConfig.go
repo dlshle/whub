@@ -17,7 +17,6 @@ type NativeServiceConfig struct {
 
 func CreateNativeService(config NativeServiceConfig) INativeService {
 	service := NewNativeService(
-		config.ctx,
 		config.id,
 		config.description,
 		config.serviceType,

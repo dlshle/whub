@@ -77,11 +77,11 @@ type RoleDescriptor struct {
 }
 
 func (rd RoleDescriptor) String() string {
-	return fmt.Sprintf("{id:%s,description:%s,roleType:%s,extraInfo:%s}", rd.Id, rd.Description, rd.RoleType, rd.ExtraInfo)
+	return fmt.Sprintf("{id:\"%s\",description:\"%s\",roleType:\"%s\",extraInfo:\"%s\"}", rd.Id, rd.Description, rd.RoleType, rd.ExtraInfo)
 }
 
 type CommonClient struct {
-	*connection.Connection
+	connection.IConnection
 	*CommonRole
 	pScope     int // a 16-bit
 	cKey       string
@@ -131,8 +131,8 @@ func (c *CommonClient) Describe() RoleDescriptor {
 	return *c.descriptor
 }
 
-func NewClient(conn *connection.Connection, id string, description string, cType int, cKey string, pScope int) *CommonClient {
-	return &CommonClient{Connection: conn, CommonRole: NewBaseRole(id, description, RoleTypeClient), pScope: pScope, cKey: cKey, cType: cType}
+func NewClient(conn connection.IConnection, id string, description string, cType int, cKey string, pScope int) *CommonClient {
+	return &CommonClient{IConnection: conn, CommonRole: NewBaseRole(id, description, RoleTypeClient), pScope: pScope, cKey: cKey, cType: cType}
 }
 
 type CommonServer struct {

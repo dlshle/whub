@@ -8,7 +8,7 @@ import (
 
 type IMessageHandler interface {
 	Type() int
-	Handle(*messages.Message, *connection.Connection) error
+	Handle(*messages.Message, connection.IConnection) error
 }
 
 // common message handlers
@@ -21,7 +21,7 @@ func NewPingMessageHandler(role roles.IDescribableRole) IMessageHandler {
 	return &PingMessageHandler{role}
 }
 
-func (h *PingMessageHandler) Handle(message *messages.Message, conn *connection.Connection) error {
+func (h *PingMessageHandler) Handle(message *messages.Message, conn connection.IConnection) error {
 	var resp *messages.Message
 	if message.To() != h.role.Id() {
 		resp = messages.NewErrorMessage(message.Id(), h.role.Id(), message.From(), message.Uri(), "incorrect receiver id")
@@ -43,7 +43,7 @@ func NewInvalidMessageHandler(role roles.IDescribableRole) IMessageHandler {
 	return &InvalidMessageHandler{role}
 }
 
-func (h *InvalidMessageHandler) Handle(message *messages.Message, conn *connection.Connection) error {
+func (h *InvalidMessageHandler) Handle(message *messages.Message, conn connection.IConnection) error {
 	return conn.Send(messages.NewErrorMessage(message.Id(), h.role.Id(), message.From(), message.Uri(), "invalid message(no handler found)"))
 }
 

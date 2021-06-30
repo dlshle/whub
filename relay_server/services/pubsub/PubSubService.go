@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
+	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/events"
 	"wsdk/relay_server/managers"
@@ -22,12 +23,14 @@ const (
 type PubSubService struct {
 	*service.NativeService
 	topicSubscribers map[string]*Topic
-	clientManager    managers.IClientManager `autowire`
+	clientManager    managers.IClientManager
 }
 
 func New() *PubSubService {
 	// TODO New func
-	return &PubSubService{}
+	return &PubSubService{
+		clientManager: container.Container.GetById(managers.ClientManagerId).(managers.IClientManager),
+	}
 }
 
 func (s *PubSubService) registerRoutes() {

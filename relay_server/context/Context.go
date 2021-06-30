@@ -56,6 +56,7 @@ func NewContext() *Context {
 		timedJobPool:        timed.NewJobPool("Context", defaultTimedJobPoolSize, false),
 		notificationEmitter: notification.New(defaultMaxListenerCount),
 		lock:                new(sync.RWMutex),
+		startBarrier:        async.NewBarrier(),
 	}
 }
 

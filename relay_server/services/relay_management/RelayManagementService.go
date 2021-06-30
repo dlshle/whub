@@ -23,18 +23,20 @@ const (
 
 type RelayManagementService struct {
 	*service.NativeService
-	clientManager  managers.IClientManager  `autowire`
-	serviceManager managers.IServiceManager `autowire`
+	clientManager  managers.IClientManager
+	serviceManager managers.IServiceManager
 }
 
 func New() service.IService {
 	relayManagementService := &RelayManagementService{
-		NativeService: service.NewNativeService(ID, "relay management service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
+		NativeService:  service.NewNativeService(ID, "relay management service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
+		clientManager:  container.Container.GetById(managers.ClientManagerId).(managers.IClientManager),
+		serviceManager: container.Container.GetById(managers.ServiceManagerId).(managers.IServiceManager),
 	}
-	err := container.Container.InjectFields(relayManagementService)
+	err := container.Container.AutoWireFieldsByType(relayManagementService)
 	if err != nil {
-		relayManagementService.clientManager = container.Container.GetById(managers.ClientManagerId).(managers.IClientManager)
-		relayManagementService.serviceManager = container.Container.GetById(managers.ServiceManagerId).(managers.IServiceManager)
+		relayManagementService.clientManager = container.Container.GetById(managers.ClientManagerId).(*managers.ClientManager)
+		relayManagementService.serviceManager = container.Container.GetById(managers.ServiceManagerId).(*managers.ServiceManager)
 	}
 	relayManagementService.init()
 	return relayManagementService

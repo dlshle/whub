@@ -25,11 +25,6 @@ func (c *Client) HealthCheckExecutor() health_check.IHealthCheckExecutor {
 	return c.healthCheckExecutor
 }
 
-// since client is to server, so the drafted messages is to the client
-func (c *Client) DraftMessage(from string, to string, uri string, msgType int, payload []byte) *messages.Message {
-	return messages.NewMessage(utils.GenStringId(), from, c.Id(), uri, msgType, payload)
-}
-
 func (c *Client) NewMessage(from string, uri string, msgType int, payload []byte) *messages.Message {
 	return messages.NewMessage(utils.GenStringId(), from, c.Id(), uri, msgType, payload)
 }
