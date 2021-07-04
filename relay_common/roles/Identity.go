@@ -69,11 +69,11 @@ type IDescribableRole interface {
 }
 
 type RoleDescriptor struct {
-	Id          string
-	Description string
-	RoleType    string
-	ExtraInfo   string
-	Address     string
+	Id          string `json:"id"`
+	Description string `json:"description"`
+	RoleType    string `json:"roleType"`
+	ExtraInfo   string `json:"extraInfo"`
+	Address     string `json:"address"`
 }
 
 func (rd RoleDescriptor) String() string {
@@ -91,11 +91,16 @@ type CommonClient struct {
 
 type ICommonClient interface {
 	ICommonRole
+	Connection() connection.IConnection
 	Scopes() []int
 	HasScope(int) bool
 	CKey() string
 	CType() int
 	Describe() RoleDescriptor
+}
+
+func (c *CommonClient) Connection() connection.IConnection {
+	return c.IConnection
 }
 
 func (c *CommonClient) Scopes() (scopes []int) {

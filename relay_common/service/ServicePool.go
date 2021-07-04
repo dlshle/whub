@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"wsdk/common/async"
+	"wsdk/relay_common/messages"
 )
 
 const (
@@ -26,14 +27,15 @@ type IServiceTaskQueue interface {
 }
 
 type ServiceTaskQueue struct {
+	hostId     string
 	pool       *async.AsyncPool
 	executor   IRequestExecutor
 	messageSet map[string]*ServiceRequest
 	lock       *sync.RWMutex
 }
 
-func NewServiceTaskQueue(executor IRequestExecutor, pool *async.AsyncPool) *ServiceTaskQueue {
-	return &ServiceTaskQueue{pool, executor, make(map[string]*ServiceRequest), new(sync.RWMutex)}
+func NewServiceTaskQueue(hostId string, executor IRequestExecutor, pool *async.AsyncPool) *ServiceTaskQueue {
+	return &ServiceTaskQueue{hostId, pool, executor, make(map[string]*ServiceRequest), new(sync.RWMutex)}
 }
 
 func (p *ServiceTaskQueue) withWrite(cb func()) {
@@ -91,18 +93,23 @@ func (p *ServiceTaskQueue) Remove(id string) bool {
 	return true
 }
 
-func (p *ServiceTaskQueue) Schedule(message *ServiceRequest) *async.Barrier {
-	if p.Has(message.Id()) {
+func (p *ServiceTaskQueue) Schedule(request *ServiceRequest) *async.Barrier {
+	if p.Has(request.Id()) {
 		return nil
 	}
 	p.withWrite(func() {
-		p.messageSet[message.Id()] = message
+		p.messageSet[request.Id()] = request
 	})
 	return p.pool.Schedule(func() {
-		message.TransitStatus(ServiceRequestStatusProcessing)
+		// check if messages is processable
+		if UnProcessableServiceRequestMap[request.Status()] {
+			request.Resolve(messages.NewErrorMessage(request.Id(), p.hostId, request.From(), request.Uri(), "request has been cancelled or target server is dead"))
+			return
+		}
+		request.TransitStatus(ServiceRequestStatusProcessing)
 		// execute should take care of the execution logic
-		p.executor.Execute(message)
-		p.Remove(message.Id())
+		p.executor.Execute(request)
+		p.Remove(request.Id())
 	})
 }
 

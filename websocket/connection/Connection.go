@@ -106,6 +106,8 @@ func (c *WsConnection) StartListening() {
 			msg, err := c.Read()
 			if err == nil && c.onMessage != nil {
 				c.onMessage(msg)
+			} else if err != nil {
+				break
 			}
 		}
 		c.setState(StateStopped)

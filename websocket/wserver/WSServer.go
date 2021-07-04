@@ -2,13 +2,12 @@ package wserver
 
 import (
 	"fmt"
+	"github.com/gorilla/websocket"
 	"net"
 	"net/http"
 	"os"
-	"wsdk/websocket/connection"
-
-	"github.com/gorilla/websocket"
 	"wsdk/common/logger"
+	"wsdk/websocket/connection"
 )
 
 type WServer struct {

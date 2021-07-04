@@ -22,16 +22,16 @@ const (
 )
 
 type ServiceDescriptor struct {
-	Id            string
-	Description   string
-	HostInfo      roles.RoleDescriptor // server id
-	Provider      roles.RoleDescriptor
-	ServiceUris   []string
-	CTime         time.Time
-	ServiceType   int
-	AccessType    int
-	ExecutionType int
-	Status        int
+	Id            string               `json:"id"`
+	Description   string               `json:"description"`
+	HostInfo      roles.RoleDescriptor `json:"hostInfo"`
+	Provider      roles.RoleDescriptor `json:"provider"`
+	ServiceUris   []string             `json:"serviceUris"`
+	CTime         time.Time            `json:"cTime"`
+	ServiceType   int                  `json:"serviceType"`
+	AccessType    int                  `json:"accessType"`
+	ExecutionType int                  `json:"executionType"`
+	Status        int                  `json:"status"`
 }
 
 func (sd ServiceDescriptor) String() string {

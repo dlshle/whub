@@ -15,6 +15,12 @@ type Topic struct {
 	lock           *sync.RWMutex
 }
 
+type TopicDescriptor struct {
+	Id          string   `json:"id"`
+	Creator     string   `json:"creator"`
+	Subscribers []string `json:"subscribers"`
+}
+
 func NewTopic(id string, creatorId string) *Topic {
 	topic := &Topic{
 		id:             id,
@@ -90,4 +96,12 @@ func (t *Topic) CheckAndRemoveSubscriber(subscriber string) error {
 	}
 	t.removeSubscriber(subscriber)
 	return nil
+}
+
+func (t *Topic) Describe() TopicDescriptor {
+	return TopicDescriptor{
+		Id:          t.Id(),
+		Creator:     t.Creator(),
+		Subscribers: t.Subscribers(),
+	}
 }

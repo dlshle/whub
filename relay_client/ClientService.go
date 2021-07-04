@@ -48,7 +48,7 @@ func NewClientService(ctx IContext, id string, server *Server) *ClientService {
 		id:                   id,
 		ctx:                  ctx,
 		serviceManagerClient: NewServiceCenterClient(ctx.Identity().Id(), server),
-		serviceTaskQueue:     service.NewServiceTaskQueue(NewClientServiceExecutor(ctx, handler), ctx.ServiceTaskPool()),
+		serviceTaskQueue:     service.NewServiceTaskQueue(ctx.Identity().Id(), NewClientServiceExecutor(ctx, handler), ctx.ServiceTaskPool()),
 		handler:              handler,
 		host:                 server,
 		lock:                 new(sync.RWMutex),
@@ -320,6 +320,7 @@ func (s *ClientService) onHealthCheckFailedInternalHandler() {
 	s.withWrite(func() {
 		s.status = service.ServiceStatusDead
 	})
+	s.KillAllProcessingJobs()
 	if s.onHealthCheckFailsCallback != nil {
 		s.onHealthCheckRestoredCallback(s)
 	}

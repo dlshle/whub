@@ -40,7 +40,7 @@ func NewServiceCenterClient(id string, server IServer) IServiceManagerClient {
 func (c *ServiceManagerClient) draftDescriptorMessageWith(uri string, descriptor service.ServiceDescriptor) *messages.Message {
 	return c.draftMessage(
 		uri,
-		messages.MessageTypeClientNotification,
+		messages.MessageTypeServiceRequest,
 		([]byte)(descriptor.String()),
 	)
 }

@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"wsdk/relay_common/messages"
@@ -18,33 +19,39 @@ const (
 	RouteUnSub  = "/unsubscribe/:topic"
 	RoutePub    = "/publish/:topic"
 	RouteRemove = "/remove/:topic"
+	RouteTopics = "/topics"
 )
 
 type PubSubService struct {
 	*service.NativeService
-	topicSubscribers map[string]*Topic
-	clientManager    managers.IClientManager
+	topics        map[string]*Topic
+	clientManager managers.IClientManager
 }
 
 func New() *PubSubService {
-	// TODO New func
-	return &PubSubService{
+	service := &PubSubService{
+		NativeService: service.NewNativeService(ID, "message pub/sub service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionAsync),
+		topics:        make(map[string]*Topic),
 		clientManager: container.Container.GetById(managers.ClientManagerId).(managers.IClientManager),
 	}
+	service.initNotificationHandlers()
+	service.initRoutes()
+	return service
 }
 
-func (s *PubSubService) registerRoutes() {
+func (s *PubSubService) initRoutes() {
 	s.RegisterRoute(RouteSub, s.Subscribe)
 	s.RegisterRoute(RouteUnSub, s.Unsubscribe)
 	s.RegisterRoute(RoutePub, s.Publish)
 	s.RegisterRoute(RouteRemove, s.Remove)
+	s.RegisterRoute(RouteTopics, s.Topics)
 }
 
-func (s *PubSubService) initNotifications() {
-	context.Ctx.NotificationEmitter().On(events.EventClientDisconnected, func(e *messages.Message) {
+func (s *PubSubService) initNotificationHandlers() {
+	events.OnEvent(events.EventClientDisconnected, func(e *messages.Message) {
 		clientId := string(e.Payload()[:])
-		for _, t := range s.topicSubscribers {
-			t.removeSubscriber(clientId)
+		for _, t := range s.topics {
+			t.CheckAndRemoveSubscriber(clientId)
 		}
 	})
 }
@@ -55,11 +62,15 @@ func (s *PubSubService) Subscribe(request *service_common.ServiceRequest, pathPa
 		return errors.New(fmt.Sprintf("can not find client by id %s", request.From()))
 	}
 	topicId := pathParams[":topic"]
-	topic := s.topicSubscribers[topicId]
+	topic := s.topics[topicId]
 	if topic == nil {
 		return errors.New(fmt.Sprintf("topic %s does not exist", topicId))
 	}
-	return topic.CheckAndAddSubscriber(client.Id())
+	err := topic.CheckAndAddSubscriber(client.Id())
+	if err != nil {
+		return err
+	}
+	return s.ResolveByAck(request)
 }
 
 func (s *PubSubService) Unsubscribe(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
@@ -68,11 +79,15 @@ func (s *PubSubService) Unsubscribe(request *service_common.ServiceRequest, path
 		return errors.New(fmt.Sprintf("can not find client by id %s", request.From()))
 	}
 	topicId := pathParams[":topic"]
-	topic := s.topicSubscribers[topicId]
+	topic := s.topics[topicId]
 	if topic == nil {
 		return errors.New(fmt.Sprintf("topic %s does not exist", topicId))
 	}
-	return topic.CheckAndRemoveSubscriber(client.Id())
+	err := topic.CheckAndRemoveSubscriber(client.Id())
+	if err != nil {
+		return err
+	}
+	return s.ResolveByAck(request)
 }
 
 func (s *PubSubService) Publish(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
@@ -81,7 +96,7 @@ func (s *PubSubService) Publish(request *service_common.ServiceRequest, pathPara
 		return errors.New(fmt.Sprintf("can not find client by id %s", request.From()))
 	}
 	topicId := pathParams[":topic"]
-	topic := s.topicSubscribers[topicId]
+	topic := s.topics[topicId]
 	if topic == nil {
 		return errors.New(fmt.Sprintf("topic %s does not exist", topicId))
 	}
@@ -91,7 +106,22 @@ func (s *PubSubService) Publish(request *service_common.ServiceRequest, pathPara
 			c.Send(request.Message)
 		}
 	}
-	return nil
+	return s.ResolveByAck(request)
+}
+
+func (s *PubSubService) Topics(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+	if !s.clientManager.HasClient(request.From()) {
+		return errors.New(fmt.Sprintf("can not find client by id %s", request.From()))
+	}
+	topics := make([]TopicDescriptor, 0, len(s.topics))
+	for _, t := range s.topics {
+		topics = append(topics, t.Describe())
+	}
+	marshalled, err := json.Marshal(topics)
+	if err != nil {
+		return err
+	}
+	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, marshalled))
 }
 
 func (s *PubSubService) notifySubscribersForTopicRemoval(topic *Topic, message *messages.Message) {
@@ -109,7 +139,7 @@ func (s *PubSubService) Remove(request *service_common.ServiceRequest, pathParam
 		return errors.New(fmt.Sprintf("can not find client by id %s", request.From()))
 	}
 	topicId := pathParams[":topic"]
-	topic := s.topicSubscribers[topicId]
+	topic := s.topics[topicId]
 	if topic == nil {
 		return errors.New(fmt.Sprintf("topic %s does not exist", topicId))
 	}

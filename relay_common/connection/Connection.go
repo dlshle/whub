@@ -7,13 +7,13 @@ import (
 	"wsdk/common/timed"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/notification"
-	Common "wsdk/websocket/connection"
+	"wsdk/websocket/connection"
 )
 
 const DefaultTimeout = time.Second * 30
 
 type Connection struct {
-	ws                  Common.IWsConnection
+	ws                  connection.IWsConnection
 	requestTimeout      time.Duration
 	messageParser       messages.IMessageParser
 	notificationEmitter notification.IWRNotificationEmitter
@@ -36,7 +36,7 @@ type IConnection interface {
 	Close() error
 }
 
-func NewConnection(c Common.IWsConnection, timeout time.Duration, messageParser messages.IMessageParser, notifications notification.IWRNotificationEmitter) *Connection {
+func NewConnection(c connection.IWsConnection, timeout time.Duration, messageParser messages.IMessageParser, notifications notification.IWRNotificationEmitter) IConnection {
 	if timeout < time.Second*15 {
 		timeout = time.Second * 15
 	} else if timeout > time.Second*60 {

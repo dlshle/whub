@@ -6,5 +6,5 @@ import (
 )
 
 type IMessageDispatcher interface {
-	Dispatch(message *messages.Message, conn *connection.Connection)
+	Dispatch(message *messages.Message, conn connection.IConnection)
 }

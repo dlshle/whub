@@ -5,12 +5,12 @@ import (
 	"github.com/gorilla/websocket"
 	"os"
 	"wsdk/common/logger"
-	Common2 "wsdk/websocket/connection"
+	"wsdk/websocket/connection"
 )
 
 type WClientConnectionHandler struct {
 	onMessage               func([]byte)
-	onConnectionEstablished func(*Common2.WsConnection)
+	onConnectionEstablished func(*connection.WsConnection)
 	onConnectionFailed      func(error)
 	onDisconnected          func(error)
 	onError                 func(error)
@@ -22,7 +22,7 @@ func (c *WClientConnectionHandler) OnMessage(msg []byte) {
 	}
 }
 
-func (c *WClientConnectionHandler) OnConnectionEstablished(connection *Common2.WsConnection) {
+func (c *WClientConnectionHandler) OnConnectionEstablished(connection *connection.WsConnection) {
 	if c.onConnectionEstablished != nil {
 		c.onConnectionEstablished(connection)
 	}
@@ -47,7 +47,7 @@ func (c *WClientConnectionHandler) OnError(err error) {
 }
 
 type IWClientConnectionHandler interface {
-	OnConnectionEstablished(*Common2.WsConnection)
+	OnConnectionEstablished(*connection.WsConnection)
 	OnConnectionFailed(error)
 	OnDisconnected(error)
 	OnError(error)
@@ -58,7 +58,7 @@ type WClientConfig struct {
 	serverUrl string
 }
 
-func NewWClientConfig(serverUrl string, onMessage func([]byte), onConnectionEstablished func(connection *Common2.WsConnection), onConnectionFailed func(error), onDisconnected func(error), onError func(error)) *WClientConfig {
+func NewWClientConfig(serverUrl string, onMessage func([]byte), onConnectionEstablished func(connection *connection.WsConnection), onConnectionFailed func(error), onDisconnected func(error), onError func(error)) *WClientConfig {
 	return &WClientConfig{&WClientConnectionHandler{onMessage, onConnectionEstablished, onConnectionFailed, onDisconnected, onError}, serverUrl}
 }
 
@@ -66,7 +66,7 @@ type WClient struct {
 	serverUrl string
 	handler   *WClientConnectionHandler
 	logger    *logger.SimpleLogger
-	conn      *Common2.WsConnection
+	conn      *connection.WsConnection
 }
 
 func New(config *WClientConfig) *WClient {
@@ -95,7 +95,7 @@ func (c *WClient) Connect() error {
 		c.handler.OnConnectionFailed(err)
 		return err
 	}
-	connection := Common2.NewWsConnection(conn, func(msg []byte) {
+	connection := connection.NewWsConnection(conn, func(msg []byte) {
 		c.handler.OnMessage(msg)
 	}, func(err error) {
 		c.handler.OnDisconnected(err)

@@ -6,12 +6,14 @@ import (
 	"strings"
 	"sync"
 	"wsdk/common/timed"
+	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_common/uri"
 	"wsdk/relay_common/utils"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	servererror "wsdk/relay_server/errors"
+	"wsdk/relay_server/events"
 	service2 "wsdk/relay_server/service"
 )
 
@@ -47,12 +49,20 @@ type IServiceManager interface {
 }
 
 func NewServiceManager() IServiceManager {
-	return &ServiceManager{
+	manager := &ServiceManager{
 		trieTree:        uri.NewTrieTree(),
 		serviceMap:      make(map[string]service2.IService),
 		scheduleJobPool: context.Ctx.TimedJobPool(),
 		lock:            new(sync.RWMutex),
 	}
+	manager.initNotificationHandlers()
+	return manager
+}
+
+func (m *ServiceManager) initNotificationHandlers() {
+	events.OnEvent(events.EventServerClosed, func(msg *messages.Message) {
+		m.UnregisterAllServices()
+	})
 }
 
 func (m *ServiceManager) withWrite(cb func()) {

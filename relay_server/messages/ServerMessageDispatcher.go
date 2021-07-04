@@ -25,7 +25,6 @@ func (d *ServerMessageDispatcher) init() {
 	// register common message handlers
 	d.RegisterHandler(message_actions.NewPingMessageHandler(context.Ctx.Server()))
 	d.RegisterHandler(message_actions.NewInvalidMessageHandler(context.Ctx.Server()))
-	d.RegisterHandler(handlers.NewServiceNotificationMessageHandler())
 	d.RegisterHandler(handlers.NewServiceRequestMessageHandler())
 }
 
@@ -35,7 +34,7 @@ func (d *ServerMessageDispatcher) RegisterHandler(handler message_actions.IMessa
 	})
 }
 
-func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn *connection.Connection) {
+func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn connection.IConnection) {
 	context.Ctx.AsyncTaskPool().Schedule(func() {
 		handler := d.handlers[message.MessageType()]
 		if handler == nil {

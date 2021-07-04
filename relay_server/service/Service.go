@@ -43,6 +43,7 @@ type IService interface {
 	Provider() IServiceProvider
 	Kill() error
 	UriPrefix() string
+	ResolveByAck(request *service.ServiceRequest) error
 }
 
 func NewService(id string, description string, provider IServiceProvider, executor service.IRequestExecutor, serviceUris []string, serviceType int, accessType int, exeType int) *Service {
@@ -59,7 +60,7 @@ func NewService(id string, description string, provider IServiceProvider, execut
 		executionType: exeType,
 		status:        service.ServiceStatusIdle,
 		lock:          new(sync.RWMutex),
-		serviceQueue:  service.NewServiceTaskQueue(executor, context.Ctx.ServiceTaskPool()),
+		serviceQueue:  service.NewServiceTaskQueue(context.Ctx.Server().Id(), executor, context.Ctx.ServiceTaskPool()),
 	}
 }
 
@@ -228,4 +229,8 @@ func (s *Service) HostInfo() roles.RoleDescriptor {
 
 func (s *Service) UriPrefix() string {
 	return s.uriPrefix
+}
+
+func (s *Service) ResolveByAck(request *service.ServiceRequest) error {
+	return request.Resolve(messages.NewACKMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri()))
 }

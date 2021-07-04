@@ -8,7 +8,6 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/context"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 )
@@ -32,16 +31,24 @@ type IClientManager interface {
 	DisconnectClient(id string) error
 	DisconnectClientByAddr(addr string) error
 	DisconnectAllClients() error
-	AddClient(client *client.Client) error
+	AcceptClient(id string, client *client.Client) error
 	HandleClientConnectionClosed(c *client.Client, err error)
 	HandleClientError(c *client.Client, err error)
 }
 
 func NewClientManager() IClientManager {
-	return &ClientManager{
+	manager := &ClientManager{
 		clients: make(map[string]*client.Client),
 		lock:    new(sync.RWMutex),
 	}
+	manager.initNotificationHandlers()
+	return manager
+}
+
+func (m *ClientManager) initNotificationHandlers() {
+	events.OnEvent(events.EventServerClosed, func(msg *messages.Message) {
+		m.DisconnectAllClients()
+	})
 }
 
 func (m *ClientManager) withWrite(cb func()) {
@@ -60,16 +67,29 @@ func (m *ClientManager) GetClient(id string) *client.Client {
 	return m.clients[id]
 }
 
-func (m *ClientManager) AddClient(client *client.Client) error {
-	id := client.Id()
+func (m *ClientManager) AcceptClient(id string, client *client.Client) error {
 	if m.HasClient(id) {
 		return servererror.NewClientAlreadyConnectedError(id)
 	}
 	m.withWrite(func() {
 		m.clients[id] = client
 	})
-	context.Ctx.NotificationEmitter().Notify(events.EventClientConnected, messages.NewNotification(events.EventClientConnected, client.Id()))
+	m.handleClientAccepted(client)
 	return nil
+}
+
+func (m *ClientManager) handleClientAccepted(client *client.Client) {
+	m.initClientCallbackHandlers(client)
+	events.EmitEvent(events.EventClientConnected, client.Id())
+}
+
+func (m *ClientManager) initClientCallbackHandlers(client *client.Client) {
+	client.OnClose(func(err error) {
+		m.HandleClientConnectionClosed(client, err)
+	})
+	client.OnError(func(err error) {
+		m.HandleClientError(client, err)
+	})
 }
 
 func (m *ClientManager) DisconnectClient(id string) (err error) {
@@ -81,10 +101,7 @@ func (m *ClientManager) DisconnectClient(id string) (err error) {
 	m.withWrite(func() {
 		delete(m.clients, id)
 	})
-	context.Ctx.NotificationEmitter().Notify(
-		events.EventClientDisconnected,
-		messages.NewMessage(events.EventClientDisconnected, "WRelayServer", "", "", messages.MessageTypeInternalNotification, ([]byte)(id)),
-	)
+	events.EmitEvent(events.EventClientDisconnected, id)
 	return
 }
 
@@ -141,7 +158,7 @@ func (m *ClientManager) HandleClientConnectionClosed(c *client.Client, err error
 		m.withWrite(func() {
 			delete(m.clients, c.Id())
 		})
-		context.Ctx.NotificationEmitter().Notify(events.EventClientUnexpectedClosure, messages.NewNotification(events.EventClientUnexpectedClosure, c.Id()))
+		events.EmitEvent(events.EventClientUnexpectedClosure, c.Id())
 	}
 }
 
