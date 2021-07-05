@@ -10,6 +10,12 @@ import (
 	"wsdk/relay_common/roles"
 )
 
+var Ctx IContext
+
+func init() {
+	Ctx = NewContext()
+}
+
 const (
 	defaultTimedJobPoolSize        = 4096
 	defaultMaxListenerCount        = 1024
@@ -21,16 +27,18 @@ const (
 
 type Context struct {
 	identity            roles.IDescribableRole
-	server              IServer
+	server              roles.ICommonServer
 	asyncTaskPool       *async.AsyncPool
 	serviceTaskPool     *async.AsyncPool
 	timedJobPool        *timed.JobPool
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
+	barrier             *async.Barrier
 }
 
 type IContext interface {
-	Server() IServer
+	Start(identity roles.IDescribableRole, server roles.ICommonServer)
+	Server() roles.ICommonServer
 	Identity() roles.IDescribableRole
 	TimedJobPool() *timed.JobPool
 	NotificationEmitter() notification.IWRNotificationEmitter
@@ -39,7 +47,7 @@ type IContext interface {
 	ServiceTaskPool() *async.AsyncPool
 }
 
-func NewContext() *Context {
+func NewContext() IContext {
 	asyncPool := async.NewAsyncPool(fmt.Sprintf("[ctx-async-pool]"), 2048, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
 	servicePool := async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), 1024, runtime.NumCPU()*defaultServicePoolWorkerFactor)
 	return &Context{
@@ -48,19 +56,22 @@ func NewContext() *Context {
 		serviceTaskPool:     servicePool,
 		timedJobPool:        timed.NewJobPool("Context", defaultTimedJobPoolSize, false),
 		notificationEmitter: notification.New(defaultMaxListenerCount),
+		barrier:             async.NewBarrier(),
 	}
 }
 
-func (c *Context) Start(identity roles.IDescribableRole, server IServer) {
+func (c *Context) Start(identity roles.IDescribableRole, server roles.ICommonServer) {
 	c.identity = identity
 	c.server = server
+	c.barrier.Open()
 }
 
 func (c *Context) Identity() roles.IDescribableRole {
+	c.barrier.Wait()
 	return c.identity
 }
 
-func (c *Context) Server() IServer {
+func (c *Context) Server() roles.ICommonServer {
 	return c.server
 }
 

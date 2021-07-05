@@ -101,7 +101,7 @@ func (p *ServiceTaskQueue) Schedule(request *ServiceRequest) *async.Barrier {
 		p.messageSet[request.Id()] = request
 	})
 	return p.pool.Schedule(func() {
-		// check if messages is processable
+		// check if message_dispatcher is processable
 		if UnProcessableServiceRequestMap[request.Status()] {
 			request.Resolve(messages.NewErrorMessage(request.Id(), p.hostId, request.From(), request.Uri(), "request has been cancelled or target server is dead"))
 			return
@@ -122,7 +122,7 @@ func (p *ServiceTaskQueue) KillAll() (errMsg error) {
 func (p *ServiceTaskQueue) Cancel(id string) error {
 	msg := p.Get(id)
 	if msg == nil {
-		return errors.New("Can not find messages " + id + " from the set")
+		return errors.New("Can not find message_dispatcher " + id + " from the set")
 	}
 	return msg.Cancel()
 }

@@ -1,4 +1,4 @@
-package handlers
+package message_dispatcher
 
 import (
 	"wsdk/relay_common/connection"

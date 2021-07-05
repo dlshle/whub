@@ -28,7 +28,7 @@ type Request = http.Request
 // logger
 var globalLogger = logger.New(os.Stdout, "[NetworkClient]", true)
 
-// request status error messages
+// request status error message_dispatcher
 var requestStatusErrorStringMap map[int]string
 var requestStatusErrorCodeMap map[int]int
 

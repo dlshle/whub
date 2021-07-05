@@ -1,4 +1,4 @@
-package messages
+package message_dispatcher
 
 import (
 	"fmt"
@@ -7,12 +7,18 @@ import (
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/handlers"
 )
 
 type ServerMessageDispatcher struct {
 	handlers map[int]message_actions.IMessageHandler
 	lock     *sync.RWMutex
+}
+
+func NewServerMessageDispatcher() *ServerMessageDispatcher {
+	return &ServerMessageDispatcher{
+		handlers: make(map[int]message_actions.IMessageHandler),
+		lock:     new(sync.RWMutex),
+	}
 }
 
 func (d *ServerMessageDispatcher) withWrite(cb func()) {
@@ -25,7 +31,7 @@ func (d *ServerMessageDispatcher) init() {
 	// register common message handlers
 	d.RegisterHandler(message_actions.NewPingMessageHandler(context.Ctx.Server()))
 	d.RegisterHandler(message_actions.NewInvalidMessageHandler(context.Ctx.Server()))
-	d.RegisterHandler(handlers.NewServiceRequestMessageHandler())
+	d.RegisterHandler(NewServiceRequestMessageHandler())
 }
 
 func (d *ServerMessageDispatcher) RegisterHandler(handler message_actions.IMessageHandler) {

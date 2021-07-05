@@ -147,7 +147,6 @@ func (c *WClient) OnError(cb func(error)) {
 	c.handler.onError = cb
 }
 
-// TODO not so good...
 func (c *WClient) ListenToMessage() {
 	if c.conn != nil {
 		c.conn.StartListening()

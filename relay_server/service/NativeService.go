@@ -5,6 +5,7 @@ import (
 	"strings"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/request"
 )
 
 type NativeService struct {
@@ -21,7 +22,7 @@ type INativeService interface {
 func NewNativeService(id, description string, serviceType, accessType, exeType int) *NativeService {
 	handler := service.NewServiceHandler()
 	return &NativeService{
-		NewService(id, description, context.Ctx.Server(), NewInternalServiceRequestExecutor(context.Ctx, handler), make([]string, 0), serviceType, accessType, exeType),
+		NewService(id, description, context.Ctx.Server(), request.NewInternalServiceRequestExecutor(handler), make([]string, 0), serviceType, accessType, exeType),
 		handler,
 	}
 }

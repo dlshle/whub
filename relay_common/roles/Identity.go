@@ -47,7 +47,7 @@ type ICommonRole interface {
 	Type() int
 }
 
-func NewBaseRole(id, description string, rType int) *CommonRole {
+func NewCommonRole(id, description string, rType int) *CommonRole {
 	return &CommonRole{id, description, rType}
 }
 
@@ -137,7 +137,11 @@ func (c *CommonClient) Describe() RoleDescriptor {
 }
 
 func NewClient(conn connection.IConnection, id string, description string, cType int, cKey string, pScope int) *CommonClient {
-	return &CommonClient{IConnection: conn, CommonRole: NewBaseRole(id, description, RoleTypeClient), pScope: pScope, cKey: cKey, cType: cType}
+	return &CommonClient{IConnection: conn, CommonRole: NewCommonRole(id, description, RoleTypeClient), pScope: pScope, cKey: cKey, cType: cType}
+}
+
+func CreateClient(conn connection.IConnection, role IDescribableRole, cKey string, pScope int) *CommonClient {
+	return NewClient(conn, role.Id(), role.Description(), role.Type(), cKey, pScope)
 }
 
 type CommonServer struct {
@@ -151,6 +155,7 @@ type ICommonServer interface {
 	IDescribableRole
 	Url() string
 	Port() int
+	Address() string
 }
 
 func (s *CommonServer) Url() string {
@@ -161,6 +166,10 @@ func (s *CommonServer) Port() int {
 	return s.port
 }
 
+func (s *CommonServer) Address() string {
+	return fmt.Sprintf("%s:%d", s.Url(), s.Port())
+}
+
 func (s *CommonServer) Describe() RoleDescriptor {
 	if s.descriptor == nil {
 		s.descriptor = &RoleDescriptor{s.Id(), s.Description(), RoleTypeServerStr, s.Url(), fmt.Sprintf("%s:%s", s.Url(), s.Port())}
@@ -169,5 +178,5 @@ func (s *CommonServer) Describe() RoleDescriptor {
 }
 
 func NewServer(id string, description string, url string, port int) *CommonServer {
-	return &CommonServer{CommonRole: NewBaseRole(id, description, RoleTypeServer), url: url, port: port}
+	return &CommonServer{CommonRole: NewCommonRole(id, description, RoleTypeServer), url: url, port: port}
 }

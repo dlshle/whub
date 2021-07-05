@@ -42,7 +42,7 @@ type ClientService struct {
 }
 
 // TODO NewFunc
-func NewClientService(ctx IContext, id string, server *Server) *ClientService {
+func NewClientService(ctx IContext, id string, server roles.ICommonServer) *ClientService {
 	handler := service.NewServiceHandler()
 	s := &ClientService{
 		id:                   id,

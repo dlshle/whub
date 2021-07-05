@@ -70,7 +70,7 @@ func (h *SimpleMessageParser) Deserialize(serialMessage []byte) (msg *Message, e
 		}
 	}
 	if stage != lastIndex {
-		return nil, errors.New("invalid messages format")
+		return nil, errors.New("invalid message_dispatcher format")
 	}
 	return NewMessage(id, msgFrom, msgTo, msgUri, msgType, payload), nil
 }

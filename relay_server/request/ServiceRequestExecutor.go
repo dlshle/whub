@@ -1,4 +1,4 @@
-package service
+package request
 
 import (
 	"wsdk/relay_common/connection"
@@ -38,7 +38,7 @@ func NewRelayServiceRequestExecutor(c connection.IConnection) service.IRequestEx
 func (e *RelayServiceRequestExecutor) Execute(request *service.ServiceRequest) {
 	response, err := e.conn.Request(request.Message)
 	if request.Status() == service.ServiceRequestStatusDead {
-		// last check on if messages is killed
+		// last check on if message_dispatcher is killed
 		request.Resolve(messages.NewErrorMessage(request.Id(), e.hostId, request.From(), request.Uri(), "request has been cancelled or target server is dead"))
 	} else if err != nil {
 		request.Resolve(messages.NewErrorMessage(request.Id(), e.hostId, request.From(), request.Uri(), err.Error()))

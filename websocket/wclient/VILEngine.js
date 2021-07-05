@@ -19,7 +19,7 @@ let VIL = (function () {
                     console.log("disconnect ", e);
                 },
                 onMsg:function (data) {
-                    //console.log("receive messages ", data)
+                    //console.log("receive message_dispatcher ", data)
                 }
             }
         }

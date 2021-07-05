@@ -1,4 +1,4 @@
-package handlers
+package relay_server
 
 import (
 	"encoding/json"

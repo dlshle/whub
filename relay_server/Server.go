@@ -8,19 +8,18 @@ import (
 	"wsdk/relay_common/roles"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/events"
-	"wsdk/relay_server/handlers"
+	"wsdk/relay_server/message_dispatcher"
 	"wsdk/websocket/connection"
 	"wsdk/websocket/wserver"
 )
 
 type Server struct {
-	ctx *context.Context
 	*wserver.WServer
 	roles.IDescribableRole
 	scheduleJobPool         *timed.JobPool
 	messageParser           messages.IMessageParser
 	messageDispatcher       message_actions.IMessageDispatcher
-	clientConnectionHandler handlers.IClientConnectionHandler
+	clientConnectionHandler IClientConnectionHandler
 	lock                    *sync.RWMutex
 }
 
@@ -48,17 +47,17 @@ func (s *Server) handleInitialConnection(conn *connection.WsConnection) {
 	s.clientConnectionHandler.HandleConnectionEstablished(conn)
 }
 
-func NewServer(ctx *context.Context, port int) *Server {
+func NewServer(identity roles.ICommonServer) *Server {
 	server := &Server{
-		ctx:              ctx,
-		WServer:          wserver.NewWServer(wserver.NewServerConfig(ctx.Server().Id(), "127.0.0.1", port, wserver.DefaultWsConnHandler())),
-		IDescribableRole: ctx.Server(),
-		scheduleJobPool:  ctx.TimedJobPool(),
-		messageParser:    messages.NewFBMessageParser(),
-		lock:             new(sync.RWMutex),
+		WServer:           wserver.NewWServer(wserver.NewServerConfig(identity.Id(), identity.Url(), identity.Port(), wserver.DefaultWsConnHandler())),
+		IDescribableRole:  identity,
+		scheduleJobPool:   context.Ctx.TimedJobPool(),
+		messageParser:     messages.NewFBMessageParser(),
+		messageDispatcher: message_dispatcher.NewServerMessageDispatcher(),
+		lock:              new(sync.RWMutex),
 	}
 	server.OnClientConnected(server.handleInitialConnection)
-	server.clientConnectionHandler = handlers.NewClientConnectionHandler(server.messageDispatcher)
+	server.clientConnectionHandler = NewClientConnectionHandler(server.messageDispatcher)
 	/*
 		onHttpRequest func(u func(w http.ResponseWriter, r *http.Handle) error, w http.ResponseWriter, r *http.Handle),
 	*/

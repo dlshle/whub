@@ -6,7 +6,7 @@ import (
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
 	"wsdk/relay_common/utils"
-	server_service "wsdk/relay_server/service"
+	"wsdk/relay_server/request"
 )
 
 type Client struct {
@@ -28,6 +28,6 @@ func NewAnonymousClient(conn connection.IConnection) *Client {
 
 func NewClient(conn connection.IConnection, id string, description string, cType int, cKey string, pScope int) *Client {
 	return &Client{roles.NewClient(conn, id, description, cType, cKey, pScope),
-		server_service.NewRelayServiceRequestExecutor(conn),
+		request.NewRelayServiceRequestExecutor(conn),
 	}
 }

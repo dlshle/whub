@@ -70,7 +70,7 @@ func (t *ServiceRequest) withWrite(cb func()) {
 
 func (t *ServiceRequest) setStatus(status int) {
 	if t.Status() == ServiceRequestStatusFinished {
-		// can not set status of a finished service messages
+		// can not set status of a finished service message_dispatcher
 		return
 	}
 	t.withWrite(func() {
