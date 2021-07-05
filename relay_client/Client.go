@@ -12,7 +12,7 @@ import (
 // TODO
 type Client struct {
 	wclient *WSClient.WClient
-	client roles.ICommonClient
+	client  roles.ICommonClient
 	// serviceMap map[string]IClientService // id -- [listener functions]
 	service IClientService
 	server  roles.ICommonServer
@@ -29,8 +29,8 @@ type IWRClient interface {
 
 func (c *Client) onConnected(rawConn *ws_connection.WsConnection) error {
 	// ctx has already started!
-	conn := connection.NewConnection(rawConn, connection.DefaultTimeout, Ctx.MessageParser(), Ctx.NotificationEmitter()))
-	c.client = roles.CreateClient(conn, Ctx.Identity(), "asd",2)
+	conn := connection.NewConnection(rawConn, connection.DefaultTimeout, Ctx.MessageParser(), Ctx.NotificationEmitter())
+	c.client = roles.CreateClient(conn, Ctx.Identity(), "asd", 2)
 }
 
 func (c *Client) Request(message *messages.Message) (*messages.Message, error) {
