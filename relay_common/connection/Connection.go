@@ -2,8 +2,10 @@ package connection
 
 import (
 	"errors"
+	"fmt"
 	"time"
 	"wsdk/common/async"
+	"wsdk/common/logger"
 	"wsdk/common/timed"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/notification"
@@ -14,10 +16,13 @@ const DefaultTimeout = time.Second * 30
 
 type Connection struct {
 	ws                  connection.IWsConnection
+	address             string
 	requestTimeout      time.Duration
 	messageParser       messages.IMessageParser
 	notificationEmitter notification.IWRNotificationEmitter
 	messageCallback     func(*messages.Message)
+	logger              *logger.SimpleLogger
+	timedJobPool        *timed.JobPool
 }
 
 type IConnection interface {
@@ -36,32 +41,43 @@ type IConnection interface {
 	Close() error
 }
 
-func NewConnection(c connection.IWsConnection, timeout time.Duration, messageParser messages.IMessageParser, notifications notification.IWRNotificationEmitter) IConnection {
+func NewConnection(logger *logger.SimpleLogger,
+	c connection.IWsConnection,
+	timeout time.Duration,
+	messageParser messages.IMessageParser,
+	notifications notification.IWRNotificationEmitter,
+	timedPool *timed.JobPool,
+) IConnection {
 	if timeout < time.Second*15 {
 		timeout = time.Second * 15
 	} else if timeout > time.Second*60 {
 		timeout = time.Second * 60
 	}
-	conn := &Connection{c, timeout, messageParser, notifications, nil}
+	conn := &Connection{c, "", timeout, messageParser, notifications, nil, logger, timedPool}
 	conn.ws.OnError(func(err error) {
 		conn.ws.Close()
 	})
 	conn.ws.StartListening()
 	conn.ws.OnMessage(func(stream []byte) {
 		msg, err := conn.messageParser.Deserialize(stream)
-		if err != nil {
+		if err == nil {
 			if notifications.HasEvent(msg.Id()) {
 				notifications.Notify(msg.Id(), msg)
 			} else if conn.messageCallback != nil {
 				conn.messageCallback(msg)
 			}
+		} else {
+			logger.Println("unable to parse message ", stream)
 		}
 	})
 	return conn
 }
 
 func (c *Connection) Address() string {
-	return c.ws.Address()
+	if c.address == "" {
+		c.address = c.ws.Address()
+	}
+	return c.address
 }
 
 // AsyncRequest DO NOT RECOMMEND DUE TO LACK OF ERROR HINTS
@@ -70,11 +86,11 @@ func (c *Connection) AsyncRequest(message *messages.Message) (barrier *async.Sta
 	if err = c.Send(message); err != nil {
 		return
 	}
-	timeoutEvent := timed.RunAsyncTimeout(func() {
+	timeoutEvent := c.timedJobPool.TimeoutJob(func() {
 		barrier.OpenWith(messages.NewErrorMessage(message.Id(), message.From(), message.To(), message.Uri(), "Handle timeout"))
 	}, c.requestTimeout)
 	c.notificationEmitter.Once(message.Id(), func(msg *messages.Message) {
-		timed.Cancel(timeoutEvent)
+		c.timedJobPool.Cancel(timeoutEvent)
 		if msg == nil {
 			barrier.OpenWith(messages.NewErrorMessage(message.Id(), message.From(), message.To(), message.Uri(), "invalid(nil) response for request "+message.Id()))
 		} else {
@@ -94,11 +110,12 @@ func (c *Connection) RequestWithTimeout(message *messages.Message, timeout time.
 	if err = c.Send(message); err != nil {
 		return
 	}
-	timeoutEvent := timed.RunAsyncTimeout(func() {
+	timeoutEvent := c.timedJobPool.TimeoutJob(func() {
 		close(waiter)
+		err = errors.New(fmt.Sprintf("request timeout for message %s", message.Id()))
 	}, timeout)
 	c.OnceMessage(message.Id(), func(msg *messages.Message) {
-		timed.Cancel(timeoutEvent)
+		c.timedJobPool.Cancel(timeoutEvent)
 		if msg == nil {
 			err = errors.New("invalid(nil) response for request " + message.Id())
 		} else {
@@ -143,6 +160,7 @@ func (c *Connection) Close() error {
 }
 
 func (c *Connection) OnClose(cb func(error)) {
+	c.logger.Println("connection closed")
 	c.ws.OnClose(cb)
 }
 

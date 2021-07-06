@@ -3,6 +3,7 @@ package message_dispatcher
 import (
 	"fmt"
 	"sync"
+	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
@@ -11,12 +12,14 @@ import (
 
 type ServerMessageDispatcher struct {
 	handlers map[int]message_actions.IMessageHandler
+	logger   *logger.SimpleLogger
 	lock     *sync.RWMutex
 }
 
 func NewServerMessageDispatcher() *ServerMessageDispatcher {
 	return &ServerMessageDispatcher{
 		handlers: make(map[int]message_actions.IMessageHandler),
+		logger:   context.Ctx.Logger().WithPrefix("[ServerMessageDispatcher]"),
 		lock:     new(sync.RWMutex),
 	}
 }
@@ -41,6 +44,7 @@ func (d *ServerMessageDispatcher) RegisterHandler(handler message_actions.IMessa
 }
 
 func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn connection.IConnection) {
+	d.logger.Printf("receive message %s", message.String())
 	context.Ctx.AsyncTaskPool().Schedule(func() {
 		handler := d.handlers[message.MessageType()]
 		if handler == nil {

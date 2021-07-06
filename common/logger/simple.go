@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"log"
 )
@@ -20,6 +21,20 @@ func (l *SimpleLogger) Verbose(use bool) {
 	} else if toSilent {
 		l.SetOutput(sw)
 	}
+}
+
+func (l *SimpleLogger) Copy() *SimpleLogger {
+	return New(l.w, l.Prefix(), l.verbose)
+}
+
+func (l *SimpleLogger) AppendPrefix(prefix string) {
+	l.SetPrefix(fmt.Sprintf("%s%s", l.Prefix(), prefix))
+}
+
+func (l *SimpleLogger) WithPrefix(prefix string) *SimpleLogger {
+	c := l.Copy()
+	c.AppendPrefix(prefix)
+	return c
 }
 
 type silentWriter struct{}

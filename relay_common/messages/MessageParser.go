@@ -117,5 +117,8 @@ func (p *FBMessageParser) Deserialize(buffer []byte) (*Message, error) {
 	uri := (string)(fbMessage.Uri())
 	msgType := fbMessage.MessageType()
 	payload := fbMessage.Payload()
+	if err := recover(); err != nil {
+		return nil, errors.New("unable to deserialize message")
+	}
 	return NewMessage(id, from, to, uri, (int)(msgType), payload), nil
 }

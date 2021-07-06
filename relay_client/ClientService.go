@@ -45,14 +45,14 @@ type ClientService struct {
 func NewClientService(ctx IContext, id string, server roles.ICommonServer) *ClientService {
 	handler := service.NewServiceHandler()
 	s := &ClientService{
-		id:                   id,
-		ctx:                  ctx,
-		serviceManagerClient: NewServiceCenterClient(ctx.Identity().Id(), server),
-		serviceTaskQueue:     service.NewServiceTaskQueue(ctx.Identity().Id(), NewClientServiceExecutor(ctx, handler), ctx.ServiceTaskPool()),
-		handler:              handler,
-		host:                 server,
-		lock:                 new(sync.RWMutex),
-		uriPrefix:            fmt.Sprintf("%s/%s", service.ServicePrefix, id),
+		id:  id,
+		ctx: ctx,
+		// serviceManagerClient: NewServiceCenterClient(ctx.Identity().Id(), server.Id(), ),
+		serviceTaskQueue: service.NewServiceTaskQueue(ctx.Identity().Id(), NewClientServiceExecutor(ctx, handler), ctx.ServiceTaskPool()),
+		handler:          handler,
+		host:             server,
+		lock:             new(sync.RWMutex),
+		uriPrefix:        fmt.Sprintf("%s/%s", service.ServicePrefix, id),
 	}
 	s.init()
 	return s

@@ -2,8 +2,10 @@ package relay_client
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"wsdk/common/async"
+	"wsdk/common/logger"
 	"wsdk/common/timed"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/notification"
@@ -33,6 +35,7 @@ type Context struct {
 	timedJobPool        *timed.JobPool
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
+	logger              *logger.SimpleLogger
 	barrier             *async.Barrier
 }
 
@@ -56,6 +59,7 @@ func NewContext() IContext {
 		serviceTaskPool:     servicePool,
 		timedJobPool:        timed.NewJobPool("Context", defaultTimedJobPoolSize, false),
 		notificationEmitter: notification.New(defaultMaxListenerCount),
+		logger:              logger.New(os.Stdout, "[WClient]", true),
 		barrier:             async.NewBarrier(),
 	}
 }

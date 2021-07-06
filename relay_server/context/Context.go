@@ -2,9 +2,11 @@ package context
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"sync"
 	"wsdk/common/async"
+	"wsdk/common/logger"
 	"wsdk/common/timed"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/notification"
@@ -35,6 +37,7 @@ type Context struct {
 	messageParser       messages.IMessageParser
 	lock                *sync.RWMutex
 	startBarrier        *async.Barrier
+	logger              *logger.SimpleLogger
 }
 
 type IContext interface {
@@ -44,19 +47,25 @@ type IContext interface {
 	AsyncTaskPool() *async.AsyncPool
 	MessageParser() messages.IMessageParser
 	ServiceTaskPool() *async.AsyncPool
+	Logger() *logger.SimpleLogger
 }
 
 func NewContext() *Context {
 	asyncPool := async.NewAsyncPool(fmt.Sprintf("[ctx-async-pool]"), defaultAsyncPoolSize, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
+	asyncPool.Verbose(false)
 	servicePool := async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), defaultServicePoolSize, runtime.NumCPU()*defaultServicePoolWorkerFactor)
+	servicePool.Verbose(false)
+	jobPool := timed.NewJobPool("[ctx-timed-job-pool]", defaultTimedJobPoolSize, false)
+	jobPool.Verbose(false)
 	return &Context{
 		messageParser:       messages.NewFBMessageParser(),
 		asyncTaskPool:       asyncPool,
 		serviceTaskPool:     servicePool,
-		timedJobPool:        timed.NewJobPool("Context", defaultTimedJobPoolSize, false),
+		timedJobPool:        jobPool,
 		notificationEmitter: notification.New(defaultMaxListenerCount),
 		lock:                new(sync.RWMutex),
 		startBarrier:        async.NewBarrier(),
+		logger:              logger.New(os.Stdout, "[WServer]", true),
 	}
 }
 
@@ -96,4 +105,8 @@ func (c *Context) NotificationEmitter() notification.IWRNotificationEmitter {
 
 func (c *Context) MessageParser() messages.IMessageParser {
 	return c.messageParser
+}
+
+func (c *Context) Logger() *logger.SimpleLogger {
+	return c.logger
 }

@@ -57,6 +57,7 @@ func (ws *WServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WServer) Start() (err error) {
+	ws.logger.Println("starting ws server...")
 	ws.listener, err = net.Listen("tcp", ws.address)
 	if err != nil {
 		ws.logger.Println("net listen error:", err)
@@ -75,6 +76,7 @@ func (ws *WServer) Stop() (err error) {
 }
 
 func (ws *WServer) handleNewConnection(conn *websocket.Conn) {
+	ws.logger.Printf("new connection from %s detected", conn.RemoteAddr())
 	c := connection.NewWsConnection(conn, nil, nil, nil)
 	defer c.Close()
 	c.OnClose(func(err error) { ws.handler.OnClientClosed(c, err) })
@@ -101,4 +103,8 @@ func (ws *WServer) OnClientClosed(cb func(*connection.WsConnection, error)) {
 
 func (ws *WServer) OnHttpRequest(cb func(upgradeFunc func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request)) {
 	ws.handler.onHttpRequest = cb
+}
+
+func (ws *WServer) SetLogger(logger *logger.SimpleLogger) {
+	ws.logger = logger
 }

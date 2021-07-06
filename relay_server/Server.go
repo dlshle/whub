@@ -1,7 +1,9 @@
 package relay_server
 
 import (
+	"fmt"
 	"sync"
+	"wsdk/common/logger"
 	"wsdk/common/timed"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
@@ -15,11 +17,12 @@ import (
 
 type Server struct {
 	*wserver.WServer
-	roles.IDescribableRole
+	roles.ICommonServer
 	scheduleJobPool         *timed.JobPool
 	messageParser           messages.IMessageParser
 	messageDispatcher       message_actions.IMessageDispatcher
 	clientConnectionHandler IClientConnectionHandler
+	logger                  *logger.SimpleLogger
 	lock                    *sync.RWMutex
 }
 
@@ -35,6 +38,7 @@ func (s *Server) withWrite(cb func()) {
 }
 
 func (s *Server) Start() error {
+	context.Ctx.Start(s.ICommonServer)
 	return s.WServer.Start()
 }
 
@@ -48,9 +52,13 @@ func (s *Server) handleInitialConnection(conn *connection.WsConnection) {
 }
 
 func NewServer(identity roles.ICommonServer) *Server {
+	logger := context.Ctx.Logger()
+	logger.SetPrefix(fmt.Sprintf("[Server-%s]", identity.Id()))
+	wServer := wserver.NewWServer(wserver.NewServerConfig(identity.Id(), identity.Url(), identity.Port(), wserver.DefaultWsConnHandler()))
+	wServer.SetLogger(logger)
 	server := &Server{
-		WServer:           wserver.NewWServer(wserver.NewServerConfig(identity.Id(), identity.Url(), identity.Port(), wserver.DefaultWsConnHandler())),
-		IDescribableRole:  identity,
+		WServer:           wServer,
+		ICommonServer:     identity,
 		scheduleJobPool:   context.Ctx.TimedJobPool(),
 		messageParser:     messages.NewFBMessageParser(),
 		messageDispatcher: message_dispatcher.NewServerMessageDispatcher(),
@@ -61,6 +69,7 @@ func NewServer(identity roles.ICommonServer) *Server {
 	/*
 		onHttpRequest func(u func(w http.ResponseWriter, r *http.Handle) error, w http.ResponseWriter, r *http.Handle),
 	*/
+	context.Ctx.Logger().Println("server has been initiated.")
 	return server
 }
 

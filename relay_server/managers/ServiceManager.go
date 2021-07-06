@@ -217,11 +217,11 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 }
 
 func (s *ServiceManager) cancelTimedJob(jobId int64) bool {
-	return s.scheduleJobPool.CancelJob(jobId)
+	return s.scheduleJobPool.Cancel(jobId)
 }
 
 func (s *ServiceManager) scheduleTimeoutJob(job func()) int64 {
-	return s.scheduleJobPool.ScheduleAsyncTimeoutJob(job, service2.ServiceKillTimeout)
+	return s.scheduleJobPool.TimeoutJob(job, service2.ServiceKillTimeout)
 }
 
 func (s *ServiceManager) addUriRoute(service service2.IService, route string) (err error) {

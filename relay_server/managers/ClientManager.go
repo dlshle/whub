@@ -2,12 +2,13 @@ package managers
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
+	"wsdk/common/logger"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
+	"wsdk/relay_server/context"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 )
@@ -21,6 +22,7 @@ const ClientManagerId = "ClientManager"
 type ClientManager struct {
 	clients map[string]*client.Client
 	lock    *sync.RWMutex
+	logger  *logger.SimpleLogger
 }
 
 type IClientManager interface {
@@ -40,6 +42,7 @@ func NewClientManager() IClientManager {
 	manager := &ClientManager{
 		clients: make(map[string]*client.Client),
 		lock:    new(sync.RWMutex),
+		logger:  context.Ctx.Logger().WithPrefix("[ClientManager]"),
 	}
 	manager.initNotificationHandlers()
 	return manager
@@ -47,6 +50,7 @@ func NewClientManager() IClientManager {
 
 func (m *ClientManager) initNotificationHandlers() {
 	events.OnEvent(events.EventServerClosed, func(msg *messages.Message) {
+		m.logger.Println("received ServerClosed event, disconnecting all clients...")
 		m.DisconnectAllClients()
 	})
 }
@@ -75,6 +79,7 @@ func (m *ClientManager) AcceptClient(id string, client *client.Client) error {
 		m.clients[id] = client
 	})
 	m.handleClientAccepted(client)
+	m.logger.Printf("client (%s, %s) has been accepted", id, client.Address())
 	return nil
 }
 
@@ -94,8 +99,10 @@ func (m *ClientManager) initClientCallbackHandlers(client *client.Client) {
 
 func (m *ClientManager) DisconnectClient(id string) (err error) {
 	client := m.GetClient(id)
+	defer m.logger.Printf("error while disconnecting client %s due to %s", id, err)
 	if client == nil {
-		return servererror.NewClientNotConnectedError(id)
+		err = servererror.NewClientNotConnectedError(id)
+		return
 	}
 	err = client.Close()
 	m.withWrite(func() {
@@ -164,5 +171,5 @@ func (m *ClientManager) HandleClientConnectionClosed(c *client.Client, err error
 
 func (m *ClientManager) HandleClientError(c *client.Client, err error) {
 	// just log it
-	fmt.Println(c, err)
+	m.logger.Printf("client (%s, %s) on connection error %s", c.Id(), c.Address(), err.Error())
 }

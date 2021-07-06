@@ -44,7 +44,7 @@ func (h *HealthCheckHandler) StartHealthCheck() {
 		return
 	}
 	onRetry := false
-	h.healthCheckJobId = h.timedJobPool.ScheduleAsyncIntervalJob(func() {
+	h.healthCheckJobId = h.timedJobPool.IntervalJob(func() {
 		err := h.healthCheckExecutor()
 		if err != nil {
 			onRetry = true
@@ -63,7 +63,7 @@ func (h *HealthCheckHandler) StartHealthCheck() {
 
 func (h *HealthCheckHandler) StopHealthCheck() {
 	if h.healthCheckJobId != -1 {
-		h.timedJobPool.CancelJob(h.healthCheckJobId)
+		h.timedJobPool.Cancel(h.healthCheckJobId)
 		h.healthCheckJobId = 0
 	}
 }

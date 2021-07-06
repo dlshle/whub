@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"wsdk/common/logger"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
+	"wsdk/relay_server/context"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 )
@@ -21,6 +23,7 @@ const AnonymousClientManagerId = "AnonymousClientManager"
 type AnonymousClientManager struct {
 	clientMap map[string]*client.Client
 	lock      *sync.RWMutex
+	logger    *logger.SimpleLogger
 }
 
 type IAnonymousClientManager interface {
@@ -40,6 +43,7 @@ func NewAnonymousClientManager() IAnonymousClientManager {
 	m := &AnonymousClientManager{
 		clientMap: make(map[string]*client.Client),
 		lock:      new(sync.RWMutex),
+		logger:    context.Ctx.Logger().WithPrefix("[AnonymousClientManager]"),
 	}
 	m.initNotificationHandlers()
 	return m
@@ -47,7 +51,11 @@ func NewAnonymousClientManager() IAnonymousClientManager {
 
 func (m *AnonymousClientManager) initNotificationHandlers() {
 	events.OnEvent(events.EventServerClosed, func(msg *messages.Message) {
-		m.DisconnectAllClients()
+		m.logger.Println("ServerClosed event received, disconnecting all clients...")
+		err := m.DisconnectAllClients()
+		if err != nil {
+			m.logger.Println("error while disconnecting all clients: ", err.Error())
+		}
 	})
 }
 
@@ -81,16 +89,18 @@ func (m *AnonymousClientManager) WithAllClients(cb func(clients []*client.Client
 	cb(m.getAllClients())
 }
 
-func (m *AnonymousClientManager) DisconnectClient(id string) error {
+func (m *AnonymousClientManager) DisconnectClient(id string) (err error) {
 	client := m.GetClient(id)
+	defer m.logger.Println("error while disconnecting %s due to: ", err.Error())
 	if client == nil {
-		return errors.New(fmt.Sprintf("can not find anonymous client by id %s", id))
+		err = errors.New(fmt.Sprintf("can not find anonymous client by id %s", id))
+		return
 	}
-	err := client.Close()
+	err = client.Close()
 	m.withWrite(func() {
 		delete(m.clientMap, id)
 	})
-	return err
+	return
 }
 
 func (m *AnonymousClientManager) DisconnectClientByAddr(addr string) error {
@@ -122,6 +132,8 @@ func (m *AnonymousClientManager) AcceptClient(id string, client *client.Client) 
 	m.withWrite(func() {
 		m.clientMap[id] = client
 	})
+	m.handleClientAccepted(client)
+	m.logger.Printf("Anonymous client (%s, %s) has been accepted", id, client.Address())
 	return nil
 }
 
@@ -135,14 +147,12 @@ func (m *AnonymousClientManager) handleClientAccepted(client *client.Client) {
 }
 
 func (m *AnonymousClientManager) HandleClientConnectionClosed(c *client.Client, err error) {
-	m.withWrite(func() {
-		delete(m.clientMap, c.Address())
-	})
+	m.RemoveClient(c.Address())
 }
 
 func (m *AnonymousClientManager) HandleClientError(c *client.Client, err error) {
 	// log err
-	fmt.Println(err)
+	m.logger.Printf("client %s on connection error %s", c.Address(), err.Error())
 }
 
 func (m *AnonymousClientManager) RemoveClient(id string) bool {
@@ -152,5 +162,6 @@ func (m *AnonymousClientManager) RemoveClient(id string) bool {
 	m.withWrite(func() {
 		delete(m.clientMap, id)
 	})
+	m.logger.Printf("client %s has been removed", id)
 	return true
 }

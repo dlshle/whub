@@ -196,7 +196,7 @@ func (p *JobPool) transitJobStatus(uuid int64, status int) {
 	p.logger.Printf("Job[%d] Transiting job status from %s to %s.\n", uuid, statusStringMap[fromStatus], statusStringMap[status])
 	if transitHandler == nil {
 		p.logger.Printf("Job[%d] Invalid job status transit from %s to %s. Job will be canceled.\n", uuid, statusStringMap[fromStatus], statusStringMap[status])
-		p.CancelJob(uuid)
+		p.Cancel(uuid)
 		return
 	}
 	p.setStatus(uuid, status)
@@ -261,19 +261,20 @@ func (p *JobPool) ScheduleIntervalJob(Job func(), duration time.Duration) int64 
 	return p.scheduleJob(Job, duration, intervalExecutorStrategy, false)
 }
 
-func (p *JobPool) ScheduleAsyncTimeoutJob(Job func(), duration time.Duration) int64 {
+func (p *JobPool) TimeoutJob(Job func(), duration time.Duration) int64 {
 	return p.scheduleJob(Job, duration, timeoutExecutorStrategy, true)
 }
 
-func (p *JobPool) ScheduleAsyncIntervalJob(Job func(), duration time.Duration) int64 {
+func (p *JobPool) IntervalJob(Job func(), duration time.Duration) int64 {
 	return p.scheduleJob(Job, duration, intervalExecutorStrategy, true)
 }
 
-func (p *JobPool) CancelJob(uuid int64) bool {
+func (p *JobPool) Cancel(uuid int64) bool {
 	if !p.HasJob(uuid) {
 		p.logger.Printf("Can not find job %d\n", uuid)
 		return false
 	}
+	p.logger.Printf("cancel job %s", uuid)
 	p.transitJobStatus(uuid, JobStatusTerminating)
 	return true
 }
@@ -284,7 +285,7 @@ func RunTimeout(job func(), duration time.Duration) int64 {
 }
 
 func RunAsyncTimeout(job func(), duration time.Duration) int64 {
-	return globalPool.ScheduleAsyncTimeoutJob(job, duration)
+	return globalPool.TimeoutJob(job, duration)
 }
 
 func RunInterval(job func(), duration time.Duration) int64 {
@@ -292,9 +293,9 @@ func RunInterval(job func(), duration time.Duration) int64 {
 }
 
 func RunAsyncInterval(job func(), duration time.Duration) int64 {
-	return globalPool.ScheduleAsyncIntervalJob(job, duration)
+	return globalPool.IntervalJob(job, duration)
 }
 
 func Cancel(uuid int64) bool {
-	return globalPool.CancelJob(uuid)
+	return globalPool.Cancel(uuid)
 }

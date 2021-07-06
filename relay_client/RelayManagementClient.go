@@ -2,6 +2,7 @@ package relay_client
 
 import (
 	"errors"
+	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 )
@@ -26,14 +27,16 @@ type IServiceManagerClient interface {
 }
 
 type ServiceManagerClient struct {
-	clientId string
-	server   IServer
+	clientId   string
+	serverId   string
+	serverConn connection.IConnection
 }
 
-func NewServiceCenterClient(id string, server IServer) IServiceManagerClient {
+func NewServiceCenterClient(id string, serverId string, conn connection.IConnection) IServiceManagerClient {
 	return &ServiceManagerClient{
-		clientId: id,
-		server:   server,
+		clientId:   id,
+		serverId:   serverId,
+		serverConn: conn,
 	}
 }
 
@@ -46,7 +49,7 @@ func (c *ServiceManagerClient) draftDescriptorMessageWith(uri string, descriptor
 }
 
 func (c *ServiceManagerClient) requestMessage(message *messages.Message) (err error) {
-	resp, err := c.server.Request(message)
+	resp, err := c.serverConn.Request(message)
 	if resp != nil && resp.MessageType() == messages.MessageTypeError {
 		return errors.New((string)(resp.Payload()))
 	}
@@ -70,9 +73,9 @@ func (c *ServiceManagerClient) UpdateService(descriptor service.ServiceDescripto
 }
 
 func (c *ServiceManagerClient) Response(message *messages.Message) error {
-	return c.server.Send(message)
+	return c.serverConn.Send(message)
 }
 
 func (c *ServiceManagerClient) draftMessage(uri string, msgType int, payload []byte) *messages.Message {
-	return messages.DraftMessage(c.clientId, c.server.Id(), uri, msgType, payload)
+	return messages.DraftMessage(c.clientId, c.serverId, uri, msgType, payload)
 }

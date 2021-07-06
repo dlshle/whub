@@ -69,11 +69,11 @@ type WClient struct {
 	conn      *connection.WsConnection
 }
 
-func New(config *WClientConfig) *WClient {
+func New(config *WClientConfig) IWClient {
 	return &WClient{config.serverUrl, config.WClientConnectionHandler, logger.New(os.Stdout, "[wclient]", true), nil}
 }
 
-func NewClient(serverUrl string) *WClient {
+func NewClient(serverUrl string) IWClient {
 	return New(NewWClientConfig(serverUrl, nil, nil, nil, nil, nil))
 }
 
@@ -82,6 +82,7 @@ type IWClient interface {
 	Disconnect() error
 	Write(data []byte) error
 	Read() ([]byte, error)
+	SetOnConnectionEstablished(func(conn *connection.WsConnection))
 	SetOnDisconnect(func(error))
 	SetOnMessage(func([]byte))
 	SetOnError(func(error))
@@ -135,15 +136,15 @@ func (c *WClient) Read() ([]byte, error) {
 	return c.conn.Read()
 }
 
-func (c *WClient) OnDisconnected(cb func(error)) {
+func (c *WClient) SetOnDisconnect(cb func(error)) {
 	c.handler.onDisconnected = cb
 }
 
-func (c *WClient) OnMessage(cb func([]byte)) {
+func (c *WClient) SetOnMessage(cb func([]byte)) {
 	c.handler.onMessage = cb
 }
 
-func (c *WClient) OnError(cb func(error)) {
+func (c *WClient) SetOnError(cb func(error)) {
 	c.handler.onError = cb
 }
 
@@ -157,4 +158,8 @@ func (c *WClient) StopListenToMessage() {
 	if c.conn != nil {
 		c.conn.StopListening()
 	}
+}
+
+func (c *WClient) SetOnConnectionEstablished(cb func(conn *connection.WsConnection)) {
+	c.handler.onConnectionEstablished = cb
 }
