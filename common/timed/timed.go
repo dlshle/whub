@@ -5,9 +5,9 @@ import (
 	"os"
 	"sync"
 	"time"
-
 	"wsdk/common/async"
 	"wsdk/common/logger"
+	"wsdk/common/utils"
 )
 
 const (
@@ -97,7 +97,7 @@ func initPoolExecutorBuilder() {
 		return true
 	}
 	jobExecutorBuildingStrategies[timeoutExecutorStrategy] = func(p *JobPool, Job func(), duration time.Duration) *Job {
-		uuid := time.Now().Unix()
+		uuid := time.Now().Unix() + utils.Rando.Int63()
 		return NewJob(uuid, func() {
 			time.Sleep(duration)
 			if !transitWithTerminateCheck(p, uuid, JobStatusRunning) {
@@ -108,7 +108,7 @@ func initPoolExecutorBuilder() {
 		})
 	}
 	jobExecutorBuildingStrategies[intervalExecutorStrategy] = func(p *JobPool, Job func(), duration time.Duration) *Job {
-		uuid := time.Now().Unix()
+		uuid := time.Now().Unix() + utils.Rando.Int63()
 		return NewJob(uuid, func() {
 			for {
 				time.Sleep(duration)

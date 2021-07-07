@@ -49,6 +49,7 @@ func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn conne
 		handler := d.handlers[message.MessageType()]
 		if handler == nil {
 			handler = d.handlers[messages.MessageTypeUnknown]
+			return
 		}
 		err := handler.Handle(message, conn)
 		if err != nil {

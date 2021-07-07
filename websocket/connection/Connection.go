@@ -46,6 +46,7 @@ type IWsConnection interface {
 	OnClose(func(error))
 	State() int
 	StartListening()
+	ReadingLoop()
 	StopListening()
 	String() string
 }
@@ -95,24 +96,26 @@ func (c *WsConnection) Close() (err error) {
 }
 
 func (c *WsConnection) StartListening() {
+	go c.ReadingLoop()
+}
+
+func (c *WsConnection) ReadingLoop() {
 	if c.State() > StateIdle {
 		return
 	}
 	c.setState(StateReading)
-	go func() {
-		// c.conn.SetWriteDeadline(time.Now().Schedule(30 * time.Second))
-		for c.State() == StateReading {
-			// Read will handle error itself
-			msg, err := c.Read()
-			if err == nil && c.onMessage != nil {
-				c.onMessage(msg)
-			} else if err != nil {
-				break
-			}
+	c.conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
+	for c.State() == StateReading {
+		// Read will handle error itself
+		msg, err := c.Read()
+		if err == nil && c.onMessage != nil {
+			c.onMessage(msg)
+		} else if err != nil {
+			break
 		}
-		c.setState(StateStopped)
-		close(c.closeChannel)
-	}()
+	}
+	c.setState(StateStopped)
+	close(c.closeChannel)
 }
 
 func (c *WsConnection) StopListening() {

@@ -6,17 +6,19 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"wsdk/common/async"
 	"wsdk/common/logger"
 	"wsdk/websocket/connection"
 )
 
 type WServer struct {
-	name     string
-	address  string
-	listener net.Listener
-	upgrader *websocket.Upgrader
-	handler  *WsConnectionHandler
-	logger   *logger.SimpleLogger
+	name      string
+	address   string
+	listener  net.Listener
+	upgrader  *websocket.Upgrader
+	handler   *WsConnectionHandler
+	logger    *logger.SimpleLogger
+	asyncPool *async.AsyncPool
 }
 
 func NewWServer(config WsServerConfig) *WServer {
@@ -48,7 +50,11 @@ func NewWServer(config WsServerConfig) *WServer {
 
 func (ws *WServer) handleUpgrade(w http.ResponseWriter, r *http.Request) (err error) {
 	conn, err := ws.upgrader.Upgrade(w, r, nil)
-	go ws.handleNewConnection(conn)
+	if ws.asyncPool != nil {
+		ws.asyncPool.Schedule(func() { ws.handleNewConnection(conn) })
+	} else {
+		go ws.handleNewConnection(conn)
+	}
 	return
 }
 
@@ -107,4 +113,8 @@ func (ws *WServer) OnHttpRequest(cb func(upgradeFunc func(w http.ResponseWriter,
 
 func (ws *WServer) SetLogger(logger *logger.SimpleLogger) {
 	ws.logger = logger
+}
+
+func (ws *WServer) SetAsyncPool(pool *async.AsyncPool) {
+	ws.asyncPool = pool
 }

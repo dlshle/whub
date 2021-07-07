@@ -56,6 +56,7 @@ func NewServer(identity roles.ICommonServer) *Server {
 	logger.SetPrefix(fmt.Sprintf("[Server-%s]", identity.Id()))
 	wServer := wserver.NewWServer(wserver.NewServerConfig(identity.Id(), identity.Url(), identity.Port(), wserver.DefaultWsConnHandler()))
 	wServer.SetLogger(logger)
+	// wServer.SetAsyncPool(context.Ctx.AsyncTaskPool())
 	server := &Server{
 		WServer:           wServer,
 		ICommonServer:     identity,

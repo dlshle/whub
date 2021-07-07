@@ -1,7 +1,6 @@
 package context
 
 import (
-	"fmt"
 	"os"
 	"runtime"
 	"sync"
@@ -26,6 +25,7 @@ const (
 	defaultServicePoolSize         = 1024
 	defaultAsyncPoolWorkerFactor   = 32
 	defaultServicePoolWorkerFactor = 16
+	defaultMaxConcurrentConnection = 2048
 )
 
 type Context struct {
@@ -51,9 +51,11 @@ type IContext interface {
 }
 
 func NewContext() *Context {
-	asyncPool := async.NewAsyncPool(fmt.Sprintf("[ctx-async-pool]"), defaultAsyncPoolSize, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
+	// connHandlerPool := async.NewAsyncPool("[ctx-conn-handler-async-pool]", defaultAsyncPoolSize, defaultMaxConcurrentConnection)
+	// connHandlerPool.Verbose(false)
+	asyncPool := async.NewAsyncPool("[ctx-async-pool]", defaultAsyncPoolSize, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
 	asyncPool.Verbose(false)
-	servicePool := async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), defaultServicePoolSize, runtime.NumCPU()*defaultServicePoolWorkerFactor)
+	servicePool := async.NewAsyncPool("[ctx-service-pool]", defaultServicePoolSize, runtime.NumCPU()*defaultServicePoolWorkerFactor)
 	servicePool.Verbose(false)
 	jobPool := timed.NewJobPool("[ctx-timed-job-pool]", defaultTimedJobPoolSize, false)
 	jobPool.Verbose(false)

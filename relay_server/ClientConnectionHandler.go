@@ -45,7 +45,10 @@ func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispat
 
 func (h *ClientConnectionHandler) HandleConnectionEstablished(conn *connection.WsConnection) {
 	loggerPrefix := fmt.Sprintf("[conn-%s]", conn.Address())
-	rawConn := common_connection.NewConnection(context.Ctx.Logger().WithPrefix(loggerPrefix), conn, common_connection.DefaultTimeout, context.Ctx.MessageParser(), context.Ctx.NotificationEmitter(), context.Ctx.TimedJobPool())
+	rawConn := common_connection.NewConnection(context.Ctx.Logger().WithPrefix(loggerPrefix), conn, common_connection.DefaultTimeout, context.Ctx.MessageParser(), context.Ctx.NotificationEmitter())
+	p := context.Ctx.AsyncTaskPool().Schedule(func() {
+		rawConn.ReadingLoop()
+	})
 	h.logger.Printf("new connection %s received", rawConn.Address())
 	// any message from any connection needs to go through here
 	rawConn.OnIncomingMessage(func(message *messages.Message) {
@@ -54,11 +57,16 @@ func (h *ClientConnectionHandler) HandleConnectionEstablished(conn *connection.W
 	rawClient := client.NewAnonymousClient(rawConn)
 	h.anonymousClientManager.AcceptClient(rawClient.Address(), rawClient)
 	resp, err := rawClient.Request(rawClient.NewMessage(context.Ctx.Server().Id(), "", messages.MessageTypeServerDescriptor, ([]byte)(context.Ctx.Server().Describe().String())))
-	h.logger.Printf("initial server descriptor request sent, response: %v, %s", resp, err.Error())
+	if err != nil || resp == nil {
+		h.logger.Printf("initial server descriptor request sent, received error: %s", err.Error())
+	} else {
+		h.logger.Printf("initial server descriptor request sent, response: %v", resp)
+	}
 	// try to handle anonymous client upgrade
 	if err == nil && resp.MessageType() == messages.MessageTypeClientDescriptor {
 		h.handleClientPromotionMessage(rawClient, resp)
 	}
+	p.Wait()
 }
 
 func (h *ClientConnectionHandler) handleClientPromotionMessage(anonymousClient *client.Client, message *messages.Message) {

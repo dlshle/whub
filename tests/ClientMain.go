@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 	"wsdk/relay_client"
 )
 
@@ -10,5 +11,14 @@ func ClientTest() {
 	err := c.Connect()
 	if err != nil {
 		fmt.Println(err)
+	}
+	fmt.Println("connection done")
+	time.Sleep(70 * time.Second)
+	fmt.Println("client timeout done")
+}
+
+func RunMultipleClientTest(n int) {
+	for i := 0; i < n; i++ {
+		go ClientTest()
 	}
 }

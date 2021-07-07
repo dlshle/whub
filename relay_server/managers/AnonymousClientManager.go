@@ -147,6 +147,7 @@ func (m *AnonymousClientManager) handleClientAccepted(client *client.Client) {
 }
 
 func (m *AnonymousClientManager) HandleClientConnectionClosed(c *client.Client, err error) {
+	m.logger.Printf("anonymous client connection(%s) closed, err: %v", c.Address(), err)
 	m.RemoveClient(c.Address())
 }
 

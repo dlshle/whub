@@ -1,6 +1,16 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+	"time"
+)
+
+var Rando *rand.Rand
+
+func init() {
+	Rando = NewRand()
+}
 
 func ByteToUpperCase(b byte) byte {
 	if b > 96 && b < 123 {
@@ -72,4 +82,8 @@ func StringArrayToInterfaceArray(arr []string) []interface{} {
 		res[i] = arr[i]
 	}
 	return res
+}
+
+func NewRand() *rand.Rand {
+	return rand.New(rand.NewSource(time.Now().Unix()))
 }

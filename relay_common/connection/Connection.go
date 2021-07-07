@@ -4,15 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"wsdk/common/async"
+	"wsdk/common/ctimer"
 	"wsdk/common/logger"
-	"wsdk/common/timed"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/notification"
 	"wsdk/websocket/connection"
 )
 
 const DefaultTimeout = time.Second * 30
+const DefaultAlivenessTimeout = time.Minute
 
 type Connection struct {
 	ws                  connection.IWsConnection
@@ -22,12 +22,13 @@ type Connection struct {
 	notificationEmitter notification.IWRNotificationEmitter
 	messageCallback     func(*messages.Message)
 	logger              *logger.SimpleLogger
-	timedJobPool        *timed.JobPool
+	ttlTimedJob         ctimer.ICTimer
 }
 
 type IConnection interface {
 	Address() string
-	AsyncRequest(*messages.Message) (*async.StatefulBarrier, error)
+	StartListening()
+	ReadingLoop()
 	Request(*messages.Message) (*messages.Message, error)
 	RequestWithTimeout(*messages.Message, time.Duration) (*messages.Message, error)
 	Send(*messages.Message) error
@@ -46,20 +47,21 @@ func NewConnection(logger *logger.SimpleLogger,
 	timeout time.Duration,
 	messageParser messages.IMessageParser,
 	notifications notification.IWRNotificationEmitter,
-	timedPool *timed.JobPool,
 ) IConnection {
 	if timeout < time.Second*15 {
 		timeout = time.Second * 15
 	} else if timeout > time.Second*60 {
 		timeout = time.Second * 60
 	}
-	conn := &Connection{c, "", timeout, messageParser, notifications, nil, logger, timedPool}
+	conn := &Connection{c, "", timeout, messageParser, notifications, nil, logger, nil}
+	conn.ttlTimedJob = ctimer.New(DefaultAlivenessTimeout, conn.ttlJob)
 	conn.ws.OnError(func(err error) {
 		conn.ws.Close()
 	})
-	conn.ws.StartListening()
 	conn.ws.OnMessage(func(stream []byte) {
+		conn.ttlTimedJob.Reset()
 		msg, err := conn.messageParser.Deserialize(stream)
+		logger.Printf("message received from connection %s: %s", conn.Address(), msg)
 		if err == nil {
 			if notifications.HasEvent(msg.Id()) {
 				notifications.Notify(msg.Id(), msg)
@@ -70,6 +72,7 @@ func NewConnection(logger *logger.SimpleLogger,
 			logger.Println("unable to parse message ", stream)
 		}
 	})
+	conn.ttlTimedJob.Start()
 	return conn
 }
 
@@ -80,24 +83,12 @@ func (c *Connection) Address() string {
 	return c.address
 }
 
-// AsyncRequest DO NOT RECOMMEND DUE TO LACK OF ERROR HINTS
-func (c *Connection) AsyncRequest(message *messages.Message) (barrier *async.StatefulBarrier, err error) {
-	barrier = async.NewStatefulBarrier()
-	if err = c.Send(message); err != nil {
-		return
-	}
-	timeoutEvent := c.timedJobPool.TimeoutJob(func() {
-		barrier.OpenWith(messages.NewErrorMessage(message.Id(), message.From(), message.To(), message.Uri(), "Handle timeout"))
-	}, c.requestTimeout)
-	c.notificationEmitter.Once(message.Id(), func(msg *messages.Message) {
-		c.timedJobPool.Cancel(timeoutEvent)
-		if msg == nil {
-			barrier.OpenWith(messages.NewErrorMessage(message.Id(), message.From(), message.To(), message.Uri(), "invalid(nil) response for request "+message.Id()))
-		} else {
-			barrier.OpenWith(msg)
-		}
-	})
-	return
+func (c *Connection) StartListening() {
+	c.ws.StartListening()
+}
+
+func (c *Connection) ReadingLoop() {
+	c.ws.ReadingLoop()
 }
 
 // Request naive way to conduct async in Go to give better error hint
@@ -110,12 +101,12 @@ func (c *Connection) RequestWithTimeout(message *messages.Message, timeout time.
 	if err = c.Send(message); err != nil {
 		return
 	}
-	timeoutEvent := c.timedJobPool.TimeoutJob(func() {
-		close(waiter)
+	timeoutEvt := ctimer.New(timeout, func() {
 		err = errors.New(fmt.Sprintf("request timeout for message %s", message.Id()))
-	}, timeout)
+		close(waiter)
+	})
 	c.OnceMessage(message.Id(), func(msg *messages.Message) {
-		c.timedJobPool.Cancel(timeoutEvent)
+		timeoutEvt.Cancel()
 		if msg == nil {
 			err = errors.New("invalid(nil) response for request " + message.Id())
 		} else {
@@ -160,10 +151,14 @@ func (c *Connection) Close() error {
 }
 
 func (c *Connection) OnClose(cb func(error)) {
-	c.logger.Println("connection closed")
 	c.ws.OnClose(cb)
 }
 
 func (c *Connection) OnError(cb func(error)) {
 	c.ws.OnError(cb)
+}
+
+func (c *Connection) ttlJob() {
+	c.logger.Println("connection closed due to inactive timeout")
+	c.Close()
 }

@@ -48,6 +48,7 @@ type IContext interface {
 	AsyncTaskPool() *async.AsyncPool
 	MessageParser() messages.IMessageParser
 	ServiceTaskPool() *async.AsyncPool
+	Logger() *logger.SimpleLogger
 }
 
 func NewContext() IContext {
@@ -97,4 +98,8 @@ func (c *Context) NotificationEmitter() notification.IWRNotificationEmitter {
 
 func (c *Context) MessageParser() messages.IMessageParser {
 	return c.messageParser
+}
+
+func (c *Context) Logger() *logger.SimpleLogger {
+	return c.logger
 }
