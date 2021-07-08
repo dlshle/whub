@@ -34,11 +34,11 @@ func New(interval time.Duration, job func()) ICTimer {
 
 func (t *CTimer) Start() {
 	if t.status == StatusIdle {
-		go t.WaitAndRUn(t.interval)
+		go t.WaitAndRun(t.interval)
 	}
 }
 
-func (t *CTimer) WaitAndRUn(interval time.Duration) {
+func (t *CTimer) WaitAndRun(interval time.Duration) {
 	t.startTime = time.Now()
 	t.status = StatusWaiting
 	time.Sleep(interval)
@@ -47,7 +47,7 @@ func (t *CTimer) WaitAndRUn(interval time.Duration) {
 		return
 	}
 	if t.status == StatusReset && !t.resetTime.IsZero() {
-		t.WaitAndRUn(t.resetTime.Sub(t.startTime))
+		t.WaitAndRun(t.resetTime.Sub(t.startTime))
 		return
 	}
 	t.status = StatusRunning
@@ -57,6 +57,7 @@ func (t *CTimer) WaitAndRUn(interval time.Duration) {
 
 func (t *CTimer) Reset() {
 	if t.status == StatusWaiting {
+		t.status = StatusReset
 		t.resetTime = time.Now()
 		return
 	} else {
