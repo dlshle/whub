@@ -1,6 +1,8 @@
 package ctimer
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	StatusIdle = iota
@@ -17,11 +19,11 @@ type ICTimer interface {
 }
 
 type CTimer struct {
-	job       func()
-	startTime time.Time
-	resetTime time.Time
-	interval  time.Duration
-	status    uint8
+	job           func()
+	startTime     time.Time
+	resetInterval time.Duration
+	interval      time.Duration
+	status        uint8
 }
 
 func New(interval time.Duration, job func()) ICTimer {
@@ -39,6 +41,7 @@ func (t *CTimer) Start() {
 }
 
 func (t *CTimer) WaitAndRun(interval time.Duration) {
+	t.resetInterval = 0
 	t.startTime = time.Now()
 	t.status = StatusWaiting
 	time.Sleep(interval)
@@ -46,8 +49,8 @@ func (t *CTimer) WaitAndRun(interval time.Duration) {
 		t.status = StatusIdle
 		return
 	}
-	if t.status == StatusReset && !t.resetTime.IsZero() {
-		t.WaitAndRun(t.resetTime.Sub(t.startTime))
+	if t.status == StatusReset && t.resetInterval > 0 {
+		t.WaitAndRun(t.resetInterval)
 		return
 	}
 	t.status = StatusRunning
@@ -56,9 +59,11 @@ func (t *CTimer) WaitAndRun(interval time.Duration) {
 }
 
 func (t *CTimer) Reset() {
-	if t.status == StatusWaiting {
+	if t.status == StatusWaiting || t.status == StatusReset {
 		t.status = StatusReset
-		t.resetTime = time.Now()
+		previousTime := t.startTime
+		t.startTime = time.Now()
+		t.resetInterval = t.resetInterval + t.startTime.Sub(previousTime)
 		return
 	} else {
 		t.Start()

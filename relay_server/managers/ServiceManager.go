@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"wsdk/common/timed"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_common/uri"
 	"wsdk/relay_common/utils"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/context"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 	service2 "wsdk/relay_server/service"
@@ -25,10 +23,9 @@ const ServiceManagerId = "ServiceManager"
 
 type ServiceManager struct {
 	// need to use full uris here!
-	trieTree        *uri.TrieTree
-	serviceMap      map[string]service2.IService
-	scheduleJobPool *timed.JobPool
-	lock            *sync.RWMutex
+	trieTree   *uri.TrieTree
+	serviceMap map[string]service2.IService
+	lock       *sync.RWMutex
 }
 
 type IServiceManager interface {
@@ -50,10 +47,9 @@ type IServiceManager interface {
 
 func NewServiceManager() IServiceManager {
 	manager := &ServiceManager{
-		trieTree:        uri.NewTrieTree(),
-		serviceMap:      make(map[string]service2.IService),
-		scheduleJobPool: context.Ctx.TimedJobPool(),
-		lock:            new(sync.RWMutex),
+		trieTree:   uri.NewTrieTree(),
+		serviceMap: make(map[string]service2.IService),
+		lock:       new(sync.RWMutex),
 	}
 	manager.initNotificationHandlers()
 	return manager
@@ -214,14 +210,6 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 		}
 		return nil
 	})
-}
-
-func (s *ServiceManager) cancelTimedJob(jobId int64) bool {
-	return s.scheduleJobPool.Cancel(jobId)
-}
-
-func (s *ServiceManager) scheduleTimeoutJob(job func()) int64 {
-	return s.scheduleJobPool.TimeoutJob(job, service2.ServiceKillTimeout)
 }
 
 func (s *ServiceManager) addUriRoute(service service2.IService, route string) (err error) {

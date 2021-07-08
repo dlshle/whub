@@ -8,7 +8,6 @@ import (
 	"net/http"
 	urlpkg "net/url"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -59,7 +58,6 @@ func initRequestStatusErrorMaps() {
 func init() {
 	initRequestStatusErrorMaps()
 	initPoolStatusStringMap()
-	initGlobalPool()
 }
 
 // Errors
@@ -533,32 +531,4 @@ func (c *ClientPool) BatchRequestAsync(requests []*http.Request) []*TrackableReq
 
 func (c *ClientPool) Verbose(use bool) {
 	c.logger.Verbose(use)
-}
-
-// global client
-var globalPool *ClientPool
-
-func initGlobalPool() {
-	numCpu := runtime.NumCPU()
-	globalPool = NewPool("global", numCpu, numCpu*16, 30)
-}
-
-func DoRequest(request *http.Request) *Response {
-	return globalPool.Request(request)
-}
-
-func DoRequestAsync(request *http.Request) *TrackableRequest {
-	return globalPool.RequestAsync(request)
-}
-
-func DoBatchRequest(requests []*http.Request) []*Response {
-	return globalPool.BatchRequest(requests)
-}
-
-func DoBatchRequestAsync(requests []*http.Request) []*TrackableRequest {
-	return globalPool.BatchRequestAsync(requests)
-}
-
-func Status() int {
-	return globalPool.Status()
 }

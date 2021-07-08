@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 	"wsdk/common/logger"
-	"wsdk/common/timed"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
@@ -18,7 +17,6 @@ import (
 type Server struct {
 	*wserver.WServer
 	roles.ICommonServer
-	scheduleJobPool         *timed.JobPool
 	messageParser           messages.IMessageParser
 	messageDispatcher       message_actions.IMessageDispatcher
 	clientConnectionHandler IClientConnectionHandler
@@ -60,7 +58,6 @@ func NewServer(identity roles.ICommonServer) *Server {
 	server := &Server{
 		WServer:           wServer,
 		ICommonServer:     identity,
-		scheduleJobPool:   context.Ctx.TimedJobPool(),
 		messageParser:     messages.NewFBMessageParser(),
 		messageDispatcher: message_dispatcher.NewServerMessageDispatcher(),
 		lock:              new(sync.RWMutex),

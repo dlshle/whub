@@ -76,7 +76,6 @@ type IClientService interface {
 func (s *ClientService) init() {
 	s.status = service.ServiceStatusUnregistered
 	s.healthCheckHandler = health_check.NewHealthCheckHandler(
-		s.ctx.TimedJobPool(),
 		health_check.DefaultHealthCheckInterval,
 		s.HealthCheck,
 		s.onHealthCheckFailedInternalHandler,

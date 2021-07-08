@@ -2,7 +2,7 @@ package health_check
 
 import (
 	"time"
-	"wsdk/common/timed"
+	"wsdk/common/ctimer"
 )
 
 const (
@@ -12,18 +12,17 @@ const (
 )
 
 type HealthCheckHandler struct {
-	timedJobPool                  *timed.JobPool
-	healthCheckJobId              int64
+	healthCheckTimer              ctimer.ICTimer
+	onRetry                       bool
 	onHealthCheckFailedCallback   func()
 	onHealthCheckRestoredCallback func()
 	healthCheckExecutor           func() error
 	healthCheckInterval           time.Duration
 }
 
-func NewHealthCheckHandler(pool *timed.JobPool, interval time.Duration, executor func() error, onFailed func(), onRestored func()) *HealthCheckHandler {
+func NewHealthCheckHandler(interval time.Duration, executor func() error, onFailed func(), onRestored func()) *HealthCheckHandler {
 	return &HealthCheckHandler{
-		timedJobPool:                  pool,
-		healthCheckJobId:              -1,
+		onRetry:                       false,
 		onHealthCheckFailedCallback:   onFailed,
 		onHealthCheckRestoredCallback: onRestored,
 		healthCheckExecutor:           executor,
@@ -40,39 +39,35 @@ func (h *HealthCheckHandler) OnHealthCheckRestored(cb func()) {
 }
 
 func (h *HealthCheckHandler) StartHealthCheck() {
-	if h.healthCheckJobId != -1 {
-		return
+	if h.healthCheckTimer == nil {
+		h.healthCheckTimer = ctimer.New(h.healthCheckInterval, h.doHealthCheck)
 	}
-	onRetry := false
-	h.healthCheckJobId = h.timedJobPool.IntervalJob(func() {
-		err := h.healthCheckExecutor()
-		if err != nil {
-			onRetry = true
-			if h.onHealthCheckFailedCallback != nil {
-				h.onHealthCheckFailedCallback()
-			}
-		} else if onRetry {
-			// if err == nil && onRetry
-			if h.onHealthCheckRestoredCallback != nil {
-				h.onHealthCheckRestoredCallback()
-			}
-			onRetry = false
+	h.healthCheckTimer.Start()
+}
+
+func (h *HealthCheckHandler) doHealthCheck() {
+	err := h.healthCheckExecutor()
+	if err != nil {
+		h.onRetry = true
+		if h.onHealthCheckFailedCallback != nil {
+			h.onHealthCheckFailedCallback()
 		}
-	}, h.healthCheckInterval)
+	} else if h.onRetry {
+		// if err == nil && onRetry
+		if h.onHealthCheckRestoredCallback != nil {
+			h.onHealthCheckRestoredCallback()
+		}
+		h.onRetry = false
+	}
 }
 
 func (h *HealthCheckHandler) StopHealthCheck() {
-	if h.healthCheckJobId != -1 {
-		h.timedJobPool.Cancel(h.healthCheckJobId)
-		h.healthCheckJobId = 0
+	if h.healthCheckTimer != nil {
+		h.healthCheckTimer.Cancel()
 	}
 }
 
 func (h *HealthCheckHandler) RestartHealthCheck() {
-	if h.healthCheckJobId == -1 {
-		h.StartHealthCheck()
-		return
-	}
 	h.StopHealthCheck()
 	h.StartHealthCheck()
 }
@@ -88,7 +83,7 @@ func (h *HealthCheckHandler) UpdateHealthCheckInterval(interval time.Duration) {
 }
 
 func (h *HealthCheckHandler) IsJobScheduled() bool {
-	return h.healthCheckJobId > -1
+	return h.healthCheckTimer != nil
 }
 
 func (h *HealthCheckHandler) SetHealthCheckExecutor(executor func() error) {

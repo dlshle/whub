@@ -5,7 +5,6 @@ import (
 	"os"
 	"sync"
 	"time"
-	"wsdk/common/async"
 	"wsdk/common/logger"
 	"wsdk/common/utils"
 )
@@ -39,7 +38,6 @@ var jobPoolEvictStrategies = make(map[int]func(p *JobPool, uuid int64))
 var jobPoolTransitStrategies = make(map[int]func(p *JobPool, uuid int64))
 var jobExecutorBuildingStrategies = make(map[int]func(p *JobPool, Job func(), duration time.Duration) *Job)
 var statusStringMap = make(map[int]string)
-var globalPool = NewJobPool("default", 1024, true)
 
 func init() {
 	initPoolEvictStrategy()
@@ -246,7 +244,7 @@ func (p *JobPool) scheduleJob(Job func(), duration time.Duration, executorStrate
 	p.jobMap[uuid] = job
 	p.logger.Printf("Job %d has been scheduled\n", uuid)
 	if runAsync {
-		async.Schedule(job.executor)
+		go job.executor()
 	} else {
 		job.executor()
 	}
@@ -277,25 +275,4 @@ func (p *JobPool) Cancel(uuid int64) bool {
 	p.logger.Printf("cancel job %s", uuid)
 	p.transitJobStatus(uuid, JobStatusTerminating)
 	return true
-}
-
-// --------------- Static Functions --------------- //
-func RunTimeout(job func(), duration time.Duration) int64 {
-	return globalPool.ScheduleTimeoutJob(job, duration)
-}
-
-func RunAsyncTimeout(job func(), duration time.Duration) int64 {
-	return globalPool.TimeoutJob(job, duration)
-}
-
-func RunInterval(job func(), duration time.Duration) int64 {
-	return globalPool.ScheduleIntervalJob(job, duration)
-}
-
-func RunAsyncInterval(job func(), duration time.Duration) int64 {
-	return globalPool.IntervalJob(job, duration)
-}
-
-func Cancel(uuid int64) bool {
-	return globalPool.Cancel(uuid)
 }

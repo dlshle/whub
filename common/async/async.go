@@ -3,18 +3,10 @@ package async
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"sync"
 
 	"wsdk/common/logger"
 )
-
-var globalPool *AsyncPool
-
-func init() {
-	numCpu := runtime.NumCPU()
-	globalPool = NewAsyncPool("globalAsyncPool", numCpu*128, numCpu*4)
-}
 
 // TODO update pool size/worker size dynamically
 // channel has better performance, so used Barrier to replace Promise
@@ -187,16 +179,4 @@ func getInRangeInt(value, min, max int) int {
 	} else {
 		return value
 	}
-}
-
-func Schedule(task AsyncTask) *Barrier {
-	return globalPool.Schedule(task)
-}
-
-func ScheduleComputable(computableTask ComputableAsyncTask) *StatefulBarrier {
-	return globalPool.ScheduleComputable(computableTask)
-}
-
-func Verbose(use bool) {
-	globalPool.Verbose(use)
 }
