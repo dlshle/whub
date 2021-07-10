@@ -21,14 +21,11 @@ type TopicDescriptor struct {
 	Subscribers []string `json:"subscribers"`
 }
 
-func NewTopic(id string, creatorId string) *Topic {
-	topic := &Topic{
-		id:             id,
-		creator:        creatorId,
-		subscribersMap: make(map[string]bool),
-	}
-	topic.subscribersMap[creatorId] = true
-	return topic
+func (t *Topic) Init(id string, creatorId string) {
+	t.id = id
+	t.creator = creatorId
+	t.subscribersMap = make(map[string]bool)
+	t.subscribersMap[creatorId] = true
 }
 
 func (t *Topic) withWrite(cb func()) {
@@ -75,7 +72,7 @@ func (t *Topic) addSubscriber(subscriber string) {
 
 func (t *Topic) removeSubscriber(subscriber string) {
 	t.withWrite(func() {
-		t.subscribersMap[subscriber] = false
+		delete(t.subscribersMap, subscriber)
 	})
 }
 
@@ -91,8 +88,8 @@ func (t *Topic) CheckAndAddSubscriber(subscriber string) error {
 }
 
 func (t *Topic) CheckAndRemoveSubscriber(subscriber string) error {
-	if t.Creator() != subscriber {
-		return errors.New(fmt.Sprintf("subscriber %s is not the creator of the topic %s", subscriber, t.id))
+	if !t.subscribersMap[subscriber] {
+		return errors.New(fmt.Sprintf("client %s is not a subscriber of topic %s", subscriber, t.id))
 	}
 	t.removeSubscriber(subscriber)
 	return nil

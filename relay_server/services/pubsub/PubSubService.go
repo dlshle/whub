@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
@@ -26,22 +27,17 @@ type PubSubService struct {
 	*service.NativeService
 	topics        map[string]*Topic
 	clientManager managers.IClientManager
-}
-
-func New() *PubSubService {
-	service := &PubSubService{
-		NativeService: service.NewNativeService(ID, "message pub/sub service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionAsync),
-		topics:        make(map[string]*Topic),
-		clientManager: container.Container.GetById(managers.ClientManagerId).(managers.IClientManager),
-	}
-	service.initNotificationHandlers()
-	service.initRoutes()
-	return service
+	topicPool     *sync.Pool
 }
 
 func (s *PubSubService) Init() error {
 	s.NativeService = service.NewNativeService(ID, "message pub/sub service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionAsync)
 	s.topics = make(map[string]*Topic)
+	s.topicPool = &sync.Pool{
+		New: func() interface{} {
+			return new(Topic)
+		},
+	}
 	s.clientManager = container.Container.GetById(managers.ClientManagerId).(managers.IClientManager)
 	if s.clientManager == nil {
 		return errors.New("can not get clientManager from container")
@@ -122,7 +118,8 @@ func (s *PubSubService) Publish(request *service_common.ServiceRequest, pathPara
 	topicId := pathParams[":topic"]
 	topic := s.topics[topicId]
 	if topic == nil {
-		return errors.New(fmt.Sprintf("topic %s does not exist", topicId))
+		topic = s.topicPool.Get().(*Topic)
+		topic.Init(topicId, request.From())
 	}
 	subscribers := topic.Subscribers()
 	for _, subscriber := range subscribers {
@@ -167,9 +164,10 @@ func (s *PubSubService) Remove(request *service_common.ServiceRequest, pathParam
 	if topic == nil {
 		return errors.New(fmt.Sprintf("topic %s does not exist", topicId))
 	}
-	if err := topic.CheckAndRemoveSubscriber(client.Id()); err != nil {
-		return err
+	if topic.Creator() != request.From() {
+		return errors.New(fmt.Sprintf("can not remove the topic due to [client %s is not the creator of %s]", request.From(), topic.Id()))
 	}
 	s.notifySubscribersForTopicRemoval(topic, request.Message)
+	s.topicPool.Put(topic)
 	return nil
 }

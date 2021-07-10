@@ -13,6 +13,9 @@ type RelayService struct {
 
 type IRelayService interface {
 	IService
+	Init(descriptor service.ServiceDescriptor,
+		provider IServiceProvider,
+		executor service.IRequestExecutor)
 	RestoreExternally(reconnectedOwner *client.Client) error
 	Update(descriptor service.ServiceDescriptor) error
 }
@@ -24,6 +27,12 @@ func NewRelayService(
 	return &RelayService{
 		NewService(descriptor.Id, descriptor.Description, provider, executor, descriptor.ServiceUris, descriptor.ServiceType, descriptor.AccessType, descriptor.ExecutionType),
 	}
+}
+
+func (s *RelayService) Init(descriptor service.ServiceDescriptor,
+	provider IServiceProvider,
+	executor service.IRequestExecutor) {
+	s.Service = NewService(descriptor.Id, descriptor.Description, provider, executor, descriptor.ServiceUris, descriptor.ServiceType, descriptor.AccessType, descriptor.ExecutionType)
 }
 
 func (s *RelayService) RestoreExternally(reconnectedOwner *client.Client) (err error) {

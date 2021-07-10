@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 	"wsdk/common/logger"
-	utils2 "wsdk/common/utils"
+	common_utils "wsdk/common/utils"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_common/uri"
@@ -137,7 +137,7 @@ func (s *ServiceManager) RegisterService(clientId string, service service2.IServ
 }
 
 func (s *ServiceManager) registerService(clientId string, svc service2.IService) (err error) {
-	defer s.logger.Printf("register service %s from %s result: %s", svc.Id(), clientId, utils2.ConditionalPick(err != nil, err, "success"))
+	defer s.logger.Printf("register service %s from %s result: %s", svc.Id(), clientId, common_utils.ConditionalPick(err != nil, err, "success"))
 	s.logger.Printf("register service %s from %s", svc.Id(), clientId)
 	if s.serviceCountByClientId(clientId) >= service2.MaxServicePerClient {
 		err = servererror.NewClientExceededMaxServiceCountError(clientId, service2.MaxServicePerClient)

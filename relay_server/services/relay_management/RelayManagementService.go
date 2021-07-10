@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"wsdk/common/utils"
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
@@ -12,7 +13,7 @@ import (
 	"wsdk/relay_server/events"
 	"wsdk/relay_server/managers"
 	"wsdk/relay_server/service"
-	utils2 "wsdk/relay_server/utils"
+	server_utils "wsdk/relay_server/utils"
 )
 
 const (
@@ -28,11 +29,17 @@ type RelayManagementService struct {
 	*service.NativeService
 	clientManager  managers.IClientManager
 	serviceManager managers.IServiceManager
+	servicePool    *sync.Pool
 }
 
 func (s *RelayManagementService) Init() error {
 	s.NativeService = service.NewNativeService(ID, "relay management service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync)
 	s.clientManager = container.Container.GetById(managers.ClientManagerId).(managers.IClientManager)
+	s.servicePool = &sync.Pool{
+		New: func() interface{} {
+			return new(service.RelayService)
+		},
+	}
 	if s.clientManager == nil {
 		return errors.New("can not get clientManager from container")
 	}
@@ -95,11 +102,13 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 	defer s.Logger().Printf("service %v registration result: %s",
 		utils.ConditionalPick(request != nil, request.Message, nil),
 		utils.ConditionalPick(err != nil, err, "success"))
+
 	s.Logger().Println("register service: ", utils.ConditionalPick(request != nil, request.Message, nil))
-	if err := s.validateClient(request.From()); err != nil {
+
+	if err = s.validateClient(request.From()); err != nil {
 		return err
 	}
-	descriptor, err := utils2.ParseServiceDescriptor(request.Payload())
+	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
 	if err != nil {
 		return err
 	}
@@ -107,7 +116,8 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 	if client == nil {
 		return errors.New("unable to find the client by providerId " + descriptor.Provider.Id)
 	}
-	service := service.NewRelayService(*descriptor, client, client.MessageRelayExecutor())
+	service := s.servicePool.Get().(service.IRelayService)
+	service.Init(*descriptor, client, client.MessageRelayExecutor())
 	err = s.serviceManager.RegisterService(descriptor.Id, service)
 	if err != nil {
 		return err
@@ -123,17 +133,26 @@ func (s *RelayManagementService) UnregisterService(request *service_common.Servi
 	if err = s.validateClient(request.From()); err != nil {
 		return err
 	}
-	descriptor, err := utils2.ParseServiceDescriptor(request.Payload())
+	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
 	if err != nil {
 		return err
 	}
 	if descriptor.Provider.Id != request.From() {
 		return errors.New(fmt.Sprintf("descriptor provider id(%s) does not match client id(%s)", descriptor.Provider.Id, request.From()))
 	}
+	service := s.serviceManager.GetService(descriptor.Id)
+	if service == nil {
+		return servererror.NewNoSuchServiceError(descriptor.Id)
+	}
+	if service.Provider().Id() != request.From() {
+		return errors.New(fmt.Sprintf("actual service provider id(%s) does not match client id(%s)", service.Provider().Id(), request.From()))
+	}
 	err = s.serviceManager.UnregisterService(descriptor.Id)
 	if err != nil {
 		return err
 	}
+	// free service
+	s.servicePool.Put(service)
 	return s.ResolveByAck(request)
 }
 
@@ -141,7 +160,7 @@ func (s *RelayManagementService) UpdateService(request *service_common.ServiceRe
 	if err := s.validateClient(request.From()); err != nil {
 		return err
 	}
-	descriptor, err := utils2.ParseServiceDescriptor(request.Payload())
+	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
 	if err != nil {
 		return err
 	}
