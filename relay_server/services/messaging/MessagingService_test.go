@@ -5,13 +5,10 @@ import (
 	"wsdk/common/test_utils"
 	"wsdk/common/utils"
 	"wsdk/relay_common/messages"
-	"wsdk/relay_server/context"
-	"wsdk/relay_server/managers"
 )
 
 func TestMessagingService(t *testing.T) {
-	ctx := context.MockCtx
-	service := New(managers.NewClientManager(ctx))
+	service := New()
 	test_utils.NewTestGroup("MessagingService", "").Cases([]*test_utils.Assertion{
 		test_utils.NewTestCase("test service uris", "", func() bool {
 			uris := utils.StringArrayToInterfaceArray(service.ServiceUris())

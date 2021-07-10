@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"wsdk/common/utils"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 )
@@ -26,6 +27,8 @@ func NewRelayService(
 }
 
 func (s *RelayService) RestoreExternally(reconnectedOwner *client.Client) (err error) {
+	defer s.Logger().Println("restoring result: ", utils.ConditionalPick(err != nil, err, "success"))
+	s.Logger().Println("restoring externally...")
 	if s.Status() != service.ServiceStatusDead {
 		err = NewInvalidServiceStatusError(s.Id(), s.Status(), fmt.Sprintf(" status should be %d to be restored externally", service.ServiceStatusDead))
 		return
@@ -52,6 +55,8 @@ func (s *RelayService) RestoreExternally(reconnectedOwner *client.Client) (err e
 }
 
 func (s *Service) Update(descriptor service.ServiceDescriptor) (err error) {
+	defer s.Logger().Println("update result: ", utils.ConditionalPick(err != nil, err, "success"))
+	s.Logger().Println("update with descriptor: ", descriptor.Description)
 	oldDescriptor := s.Describe()
 	s.update(descriptor)
 	if descriptor.Status == service.ServiceStatusStarting {

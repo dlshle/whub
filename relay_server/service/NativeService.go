@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"strings"
+	"wsdk/common/utils"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/request"
@@ -17,6 +18,7 @@ type INativeService interface {
 	IService
 	RegisterRoute(shortUri string, handler service.RequestHandler) (err error)
 	UnregisterRoute(shortUri string) (err error)
+	Init() error
 }
 
 func NewNativeService(id, description string, serviceType, accessType, exeType int) *NativeService {
@@ -28,9 +30,11 @@ func NewNativeService(id, description string, serviceType, accessType, exeType i
 }
 
 func (s *NativeService) RegisterRoute(shortUri string, handler service.RequestHandler) (err error) {
+	defer s.Logger().Println(shortUri, "registration result: ", utils.ConditionalPick(err != nil, err, "success"))
 	if strings.HasPrefix(shortUri, s.uriPrefix) {
 		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
 	}
+	s.Logger().Println("registering new route: ", shortUri)
 	s.withWrite(func() {
 		s.serviceUris = append(s.serviceUris, shortUri)
 		err = s.handler.Register(shortUri, handler)
@@ -39,6 +43,8 @@ func (s *NativeService) RegisterRoute(shortUri string, handler service.RequestHa
 }
 
 func (s *NativeService) UnregisterRoute(shortUri string) (err error) {
+	defer s.Logger().Println("route un-registration result: ", utils.ConditionalPick(err != nil, err, "success"))
+	s.Logger().Println("un-registering route: ", shortUri)
 	uriIndex := -1
 	for i, uri := range s.ServiceUris() {
 		if uri == shortUri {
@@ -55,4 +61,8 @@ func (s *NativeService) UnregisterRoute(shortUri string) (err error) {
 		err = s.handler.Unregister(shortUri)
 	})
 	return
+}
+
+func (s *NativeService) Init() error {
+	return errors.New("native service does not have initializer")
 }

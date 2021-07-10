@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"wsdk/common/logger"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
@@ -32,6 +33,7 @@ type Service struct {
 	status        int
 	lock          *sync.RWMutex
 	serviceQueue  service.IServiceTaskQueue
+	logger        *logger.SimpleLogger
 
 	onStartedCallback func(baseService service.IBaseService)
 	onStoppedCallback func(baseService service.IBaseService)
@@ -44,6 +46,7 @@ type IService interface {
 	Kill() error
 	UriPrefix() string
 	ResolveByAck(request *service.ServiceRequest) error
+	Logger() *logger.SimpleLogger
 }
 
 func NewService(id string, description string, provider IServiceProvider, executor service.IRequestExecutor, serviceUris []string, serviceType int, accessType int, exeType int) *Service {
@@ -61,6 +64,7 @@ func NewService(id string, description string, provider IServiceProvider, execut
 		status:        service.ServiceStatusIdle,
 		lock:          new(sync.RWMutex),
 		serviceQueue:  service.NewServiceTaskQueue(context.Ctx.Server().Id(), executor, context.Ctx.ServiceTaskPool()),
+		logger:        context.Ctx.Logger().WithPrefix(fmt.Sprintf("[Service-%s]", id)),
 	}
 }
 
@@ -114,11 +118,14 @@ func (s *Service) CTime() time.Time {
 
 func (s *Service) Start() error {
 	if s.Status() != service.ServiceStatusIdle {
+		s.logger.Printf("service can not be started with current status [%s]", service.ServiceStatusStringMap[s.Status()])
 		return NewInvalidServiceStatusTransitionError(s.Id(), s.Status(), service.ServiceStatusStarting)
 	}
 	s.setStatus(service.ServiceStatusStarting)
+	s.logger.Println("service is starting")
 	s.serviceQueue.Start()
 	s.setStatus(service.ServiceStatusRunning)
+	s.logger.Println("service is running")
 	if s.onStartedCallback != nil {
 		s.onStartedCallback(s)
 	}
@@ -127,12 +134,15 @@ func (s *Service) Start() error {
 
 func (s *Service) Stop() error {
 	if !(s.Status() > service.ServiceStatusIdle || s.Status() < service.ServiceStatusStopping) {
+		s.logger.Printf("service can not be stopped with current status [%s]", service.ServiceStatusStringMap[s.Status()])
 		return NewInvalidServiceStatusTransitionError(s.Id(), s.Status(), service.ServiceStatusStopping)
 	}
 	s.setStatus(service.ServiceStatusStopping)
+	s.logger.Println("service is stopping")
 	s.serviceQueue.Stop()
 	// after pool is stopped
 	s.setStatus(service.ServiceStatusIdle)
+	s.logger.Println("service has stopped, current status is ", service.ServiceStatusStringMap[s.Status()])
 	if s.onStoppedCallback != nil {
 		s.onStoppedCallback(s)
 	}
@@ -158,6 +168,7 @@ func (s *Service) Handle(message *messages.Message) *messages.Message {
 		message = message.SetUri(strings.TrimPrefix(message.Uri(), s.uriPrefix))
 	}
 	serviceRequest := service.NewServiceRequest(message)
+	s.logger.Println("handle new request ", message)
 	s.serviceQueue.Schedule(serviceRequest)
 	if s.ExecutionType() == service.ServiceExecutionAsync {
 		return nil
@@ -167,14 +178,17 @@ func (s *Service) Handle(message *messages.Message) *messages.Message {
 }
 
 func (s *Service) Cancel(messageId string) error {
+	s.logger.Println("cancel request ", messageId)
 	return s.serviceQueue.Cancel(messageId)
 }
 
 func (s *Service) KillAllProcessingJobs() error {
+	s.logger.Println("kill all processing jobs")
 	return s.serviceQueue.KillAll()
 }
 
 func (s *Service) CancelAllPendingJobs() error {
+	s.logger.Println("cancel all pending jobs")
 	return s.serviceQueue.CancelAll()
 }
 
@@ -215,6 +229,7 @@ func (s *Service) FullServiceUris() []string {
 }
 
 func (s *Service) Kill() error {
+	s.logger.Println("killing service...")
 	s.setStatus(service.ServiceStatusDead)
 	return s.KillAllProcessingJobs()
 }
@@ -233,4 +248,8 @@ func (s *Service) UriPrefix() string {
 
 func (s *Service) ResolveByAck(request *service.ServiceRequest) error {
 	return request.Resolve(messages.NewACKMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri()))
+}
+
+func (s *Service) Logger() *logger.SimpleLogger {
+	return s.logger
 }

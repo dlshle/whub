@@ -10,6 +10,7 @@ import (
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/events"
 	"wsdk/relay_server/message_dispatcher"
+	"wsdk/relay_server/services"
 	"wsdk/websocket/connection"
 	"wsdk/websocket/wserver"
 )
@@ -37,6 +38,11 @@ func (s *Server) withWrite(cb func()) {
 
 func (s *Server) Start() error {
 	context.Ctx.Start(s.ICommonServer)
+	err := services.InitNativeServices()
+	if err != nil {
+		s.logger.Fatalln("unable to init native services due to ", err)
+		return err
+	}
 	return s.WServer.Start()
 }
 

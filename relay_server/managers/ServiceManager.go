@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"wsdk/common/logger"
+	utils2 "wsdk/common/utils"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_common/uri"
 	"wsdk/relay_common/utils"
 	"wsdk/relay_server/container"
+	"wsdk/relay_server/context"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 	service2 "wsdk/relay_server/service"
@@ -26,6 +29,7 @@ type ServiceManager struct {
 	trieTree   *uri.TrieTree
 	serviceMap map[string]service2.IService
 	lock       *sync.RWMutex
+	logger     *logger.SimpleLogger
 }
 
 type IServiceManager interface {
@@ -50,6 +54,7 @@ func NewServiceManager() IServiceManager {
 		trieTree:   uri.NewTrieTree(),
 		serviceMap: make(map[string]service2.IService),
 		lock:       new(sync.RWMutex),
+		logger:     context.Ctx.Logger().WithPrefix("[ServiceManager]"),
 	}
 	manager.initNotificationHandlers()
 	return manager
@@ -63,11 +68,12 @@ func (m *ServiceManager) initNotificationHandlers() {
 
 func (m *ServiceManager) withWrite(cb func()) {
 	m.lock.Lock()
-	defer m.lock.RUnlock()
+	defer m.lock.Unlock()
 	cb()
 }
 
 func (s *ServiceManager) UnregisterAllServices() error {
+	s.logger.Println("unregister all services")
 	errMsgBuilder := strings.Builder{}
 	s.withWrite(func() {
 		for _, service := range s.serviceMap {
@@ -85,7 +91,7 @@ func (s *ServiceManager) GetService(id string) service2.IService {
 }
 
 func (s *ServiceManager) HasService(id string) bool {
-	return s.HasService(id)
+	return s.GetService(id) != nil
 }
 
 func (s *ServiceManager) WithServicesFromClientId(clientId string, cb func([]service2.IService)) error {
@@ -95,6 +101,7 @@ func (s *ServiceManager) WithServicesFromClientId(clientId string, cb func([]ser
 }
 
 func (s *ServiceManager) UnregisterAllServicesFromClientId(clientId string) error {
+	s.logger.Println("unregister all services from client ", clientId)
 	return s.WithServicesFromClientId(clientId, func(services []service2.IService) {
 		for i, _ := range services {
 			if services[i] != nil {
@@ -129,9 +136,12 @@ func (s *ServiceManager) RegisterService(clientId string, service service2.IServ
 	return s.registerService(clientId, service)
 }
 
-func (s *ServiceManager) registerService(clientId string, svc service2.IService) error {
+func (s *ServiceManager) registerService(clientId string, svc service2.IService) (err error) {
+	defer s.logger.Printf("register service %s from %s result: %s", svc.Id(), clientId, utils2.ConditionalPick(err != nil, err, "success"))
+	s.logger.Printf("register service %s from %s", svc.Id(), clientId)
 	if s.serviceCountByClientId(clientId) >= service2.MaxServicePerClient {
-		return servererror.NewClientExceededMaxServiceCountError(clientId, service2.MaxServicePerClient)
+		err = servererror.NewClientExceededMaxServiceCountError(clientId, service2.MaxServicePerClient)
+		return
 	}
 	s.withWrite(func() {
 		s.serviceMap[svc.Id()] = svc
@@ -144,7 +154,8 @@ func (s *ServiceManager) registerService(clientId string, svc service2.IService)
 			}
 		})
 	})
-	return nil
+	err = nil
+	return
 }
 
 func (s *ServiceManager) UnregisterService(serviceId string) error {
@@ -153,13 +164,15 @@ func (s *ServiceManager) UnregisterService(serviceId string) error {
 
 func (s *ServiceManager) unregisterService(serviceId string) error {
 	if !s.HasService(serviceId) {
-		// TODO use predefined service errors
-		return errors.New("no such service " + serviceId)
+		err := servererror.NewNoSuchServiceError(serviceId)
+		s.logger.Println("unregister service ", serviceId, " failed due to ", err.Error())
+		return err
 	}
 	s.withWrite(func() {
 		s.serviceMap[serviceId].Stop()
 		delete(s.serviceMap, serviceId)
 	})
+	s.logger.Println("unregister service ", serviceId, " succeeded")
 	return nil
 }
 

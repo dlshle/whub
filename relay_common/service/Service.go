@@ -17,6 +17,10 @@ import (
  *  ClientX -request-> Server -request-> servicePool -request-> serverRequestExecutor -request-> Client -request-> servicePool -request-> clientRequestExecutor -request-> clientServiceHandler -response-> Server -response-> ClientX
  */
 
+func init() {
+	initServiceStatusStrMap()
+}
+
 const (
 	ServicePrefix = "/service"
 )
@@ -52,6 +56,20 @@ const (
 	ServiceStatusDead         = 5 // health check fails
 	ServiceStatusStopping     = 6
 )
+
+var ServiceStatusStringMap map[int]string
+
+func initServiceStatusStrMap() {
+	ServiceStatusStringMap = make(map[int]string)
+	ServiceStatusStringMap[ServiceStatusUnregistered] = "unregistered"
+	ServiceStatusStringMap[ServiceStatusIdle] = "idle"
+	ServiceStatusStringMap[ServiceStatusRegistered] = "registered"
+	ServiceStatusStringMap[ServiceStatusStarting] = "starting"
+	ServiceStatusStringMap[ServiceStatusRunning] = "running"
+	ServiceStatusStringMap[ServiceStatusBlocked] = "blocked"
+	ServiceStatusStringMap[ServiceStatusDead] = "dead"
+	ServiceStatusStringMap[ServiceStatusStopping] = "stopping"
+}
 
 // Service Uri should always be /service/serviceId/uri/params
 

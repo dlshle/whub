@@ -1,4 +1,4 @@
-package relay_server
+package utils
 
 import (
 	"encoding/json"

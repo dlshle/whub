@@ -6,6 +6,7 @@ import (
 	"strings"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/client"
+	"wsdk/relay_server/container"
 	"wsdk/relay_server/managers"
 	"wsdk/relay_server/service"
 )
@@ -19,16 +20,30 @@ const (
 type MessagingService struct {
 	*service.NativeService
 	managers.IClientManager
+	// logger *logger.SimpleLogger
 }
 
-func New(manager managers.IClientManager) service.INativeService {
+func New() service.INativeService {
 	messagingService := &MessagingService{
 		service.NewNativeService(ID, "basic messaging service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
-		manager,
+		container.Container.GetById(managers.ClientManagerId).(managers.IClientManager),
 	}
 	messagingService.RegisterRoute(RouteSend, messagingService.Send)
 	messagingService.RegisterRoute(RouteBroadcast, messagingService.Broadcast)
 	return messagingService
+}
+
+func (s *MessagingService) Init() (err error) {
+	s.NativeService = service.NewNativeService(ID, "basic messaging service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync)
+	s.IClientManager = container.Container.GetById(managers.ClientManagerId).(managers.IClientManager)
+	if s.IClientManager == nil {
+		return errors.New("can not get clientManager from container")
+	}
+	err = s.RegisterRoute(RouteSend, s.Send)
+	if err != nil {
+		return
+	}
+	return s.RegisterRoute(RouteBroadcast, s.Broadcast)
 }
 
 func (s *MessagingService) Send(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {

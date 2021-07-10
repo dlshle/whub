@@ -14,8 +14,8 @@ type MessageListener func(*messages.Message)
 type Disposable func()
 
 type WRNotificationEmitter struct {
-	ap map[string][]MessageListener
-	lock *sync.RWMutex
+	listeners                map[string][]MessageListener
+	lock                     *sync.RWMutex
 	maxNumOfMessageListeners int
 }
 
@@ -45,12 +45,12 @@ func (e *WRNotificationEmitter) withWrite(cb func()) {
 func (e *WRNotificationEmitter) getMessageListeners(eventId string) []MessageListener {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
-	return e.ap[eventId]
+	return e.listeners[eventId]
 }
 
 func (e *WRNotificationEmitter) addMessageListener(eventId string, listener MessageListener) (err error) {
 	e.withWrite(func() {
-		listeners := e.ap[eventId]
+		listeners := e.listeners[eventId]
 		if listeners == nil {
 			listeners = make([]MessageListener, 0, e.maxNumOfMessageListeners)
 		} else if len(listeners) >= e.maxNumOfMessageListeners {
@@ -59,7 +59,7 @@ func (e *WRNotificationEmitter) addMessageListener(eventId string, listener Mess
 				", please use SetMaxMessageListenerCount to top maxMessageListenerCount.")
 			return
 		}
-		e.ap[eventId] = append(listeners, listener)
+		e.listeners[eventId] = append(listeners, listener)
 	})
 	return
 }
@@ -68,10 +68,10 @@ func (e *WRNotificationEmitter) indexOfMessageListener(eventId string, listener 
 	listenerPtr := reflect.ValueOf(listener).Pointer()
 	e.lock.RLock()
 	defer e.lock.RUnlock()
-	if e.ap[eventId] == nil {
+	if e.listeners[eventId] == nil {
 		return -1
 	}
-	for i, f := range e.ap[eventId] {
+	for i, f := range e.listeners[eventId] {
 		currPtr := reflect.ValueOf(f).Pointer()
 		if listenerPtr == currPtr {
 			return i
@@ -85,15 +85,15 @@ func (e *WRNotificationEmitter) removeIthMessageListener(eventId string, listene
 		return
 	}
 	e.withWrite(func() {
-		allMessageListeners := e.ap[eventId]
-		e.ap[eventId] = append(allMessageListeners[:listenerIdx], allMessageListeners[listenerIdx+1:]...)
+		allMessageListeners := e.listeners[eventId]
+		e.listeners[eventId] = append(allMessageListeners[:listenerIdx], allMessageListeners[listenerIdx+1:]...)
 	})
 }
 
 func (e *WRNotificationEmitter) HasEvent(eventId string) bool {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
-	return e.ap[eventId] != nil
+	return e.listeners[eventId] != nil
 }
 
 func (e *WRNotificationEmitter) Notify(eventId string, payload *messages.Message) {
@@ -101,7 +101,7 @@ func (e *WRNotificationEmitter) Notify(eventId string, payload *messages.Message
 		return
 	}
 	e.lock.RLock()
-	listeners := e.ap[eventId]
+	listeners := e.listeners[eventId]
 	e.lock.RUnlock()
 	// defer e.lock.RUnlock()
 	var wg sync.WaitGroup
@@ -120,10 +120,10 @@ func (e *WRNotificationEmitter) Notify(eventId string, payload *messages.Message
 func (e *WRNotificationEmitter) MessageListenerCount(eventId string) int {
 	e.lock.RLock()
 	defer e.lock.RUnlock()
-	if e.ap[eventId] == nil {
+	if e.listeners[eventId] == nil {
 		return 0
 	}
-	return len(e.ap[eventId])
+	return len(e.listeners[eventId])
 }
 
 func (e *WRNotificationEmitter) On(eventId string, listener MessageListener) (Disposable, error) {
@@ -176,6 +176,6 @@ func (e *WRNotificationEmitter) OffAll(eventId string) {
 		return
 	}
 	e.withWrite(func() {
-		e.ap[eventId] = nil
+		e.listeners[eventId] = nil
 	})
 }

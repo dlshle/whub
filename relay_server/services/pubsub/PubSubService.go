@@ -39,12 +39,36 @@ func New() *PubSubService {
 	return service
 }
 
-func (s *PubSubService) initRoutes() {
-	s.RegisterRoute(RouteSub, s.Subscribe)
-	s.RegisterRoute(RouteUnSub, s.Unsubscribe)
-	s.RegisterRoute(RoutePub, s.Publish)
-	s.RegisterRoute(RouteRemove, s.Remove)
-	s.RegisterRoute(RouteTopics, s.Topics)
+func (s *PubSubService) Init() error {
+	s.NativeService = service.NewNativeService(ID, "message pub/sub service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionAsync)
+	s.topics = make(map[string]*Topic)
+	s.clientManager = container.Container.GetById(managers.ClientManagerId).(managers.IClientManager)
+	if s.clientManager == nil {
+		return errors.New("can not get clientManager from container")
+	}
+	s.initNotificationHandlers()
+	return s.initRoutes()
+}
+
+func (s *PubSubService) initRoutes() (err error) {
+	err = s.RegisterRoute(RouteSub, s.Subscribe)
+	if err != nil {
+		return
+	}
+	err = s.RegisterRoute(RouteUnSub, s.Unsubscribe)
+	if err != nil {
+		return
+	}
+	err = s.RegisterRoute(RoutePub, s.Publish)
+	if err != nil {
+		return
+	}
+	err = s.RegisterRoute(RouteRemove, s.Remove)
+	if err != nil {
+		return
+	}
+	err = s.RegisterRoute(RouteTopics, s.Topics)
+	return
 }
 
 func (s *PubSubService) initNotificationHandlers() {
