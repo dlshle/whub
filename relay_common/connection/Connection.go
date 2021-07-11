@@ -12,7 +12,7 @@ import (
 )
 
 const DefaultTimeout = time.Second * 30
-const DefaultAlivenessTimeout = time.Minute
+const DefaultAlivenessTimeout = time.Minute * 5
 
 type Connection struct {
 	ws                  connection.IWsConnection
@@ -61,6 +61,7 @@ func NewConnection(logger *logger.SimpleLogger,
 	conn.ws.OnMessage(func(stream []byte) {
 		conn.ttlTimedJob.Reset()
 		msg, err := conn.messageParser.Deserialize(stream)
+		// TODO remove later
 		logger.Printf("message received from connection %s: %s", conn.Address(), msg)
 		if err == nil {
 			if notifications.HasEvent(msg.Id()) {
@@ -105,6 +106,7 @@ func (c *Connection) RequestWithTimeout(message *messages.Message, timeout time.
 		err = errors.New(fmt.Sprintf("request timeout for message %s", message.Id()))
 		close(waiter)
 	})
+	timeoutEvt.Start()
 	c.OnceMessage(message.Id(), func(msg *messages.Message) {
 		timeoutEvt.Cancel()
 		if msg == nil {

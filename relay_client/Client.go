@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
-	"time"
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
@@ -45,10 +44,13 @@ type IWRClient interface {
 	OnMessage(string, func())
 	OffMessage(string, func())
 	OffAllMessage(string)
+	Role() roles.ICommonClient
 }
 
 func (c *Client) Connect() error {
-	return c.wclient.Connect()
+	err := c.wclient.Connect()
+	c.wclient.ListenToMessage()
+	return err
 }
 
 func (c *Client) onConnected(rawConn *ws_connection.WsConnection) {
@@ -60,15 +62,19 @@ func (c *Client) onConnected(rawConn *ws_connection.WsConnection) {
 	err := conn.Send(messages.NewMessage("hello", c.client.Id(), "123", "", messages.MessageTypeACK, ([]byte)("aaa")))
 	c.logger.Println("greeting message has been sent")
 	conn.OnIncomingMessage(func(msg *messages.Message) {
-		conn.Send(messages.NewMessage(msg.Id(), conn.Address(), msg.From(), msg.Uri(), messages.MessageTypeACK, nil))
+		// conn.Send(messages.NewMessage(msg.Id(), conn.Address(), msg.From(), msg.Uri(), messages.MessageTypeACK, nil))
+		c.logger.Println("recv msg: ", msg)
 	})
 	if err != nil {
 		c.logger.Panicln("greeting error !", err.Error())
 		panic(err)
 	}
-	time.Sleep(time.Minute * 1)
 }
 
 func (c *Client) Request(message *messages.Message) (*messages.Message, error) {
 	return c.client.Connection().Request(message)
+}
+
+func (c *Client) Role() roles.ICommonClient {
+	return c.client
 }

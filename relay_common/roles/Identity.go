@@ -44,7 +44,9 @@ type CommonRole struct {
 type ICommonRole interface {
 	Id() string
 	Description() string
+	SetDescription(description string)
 	Type() int
+	SetType(rtype int)
 }
 
 func NewCommonRole(id, description string, rType int) *CommonRole {
@@ -59,8 +61,16 @@ func (c *CommonRole) Description() string {
 	return c.description
 }
 
+func (c *CommonRole) SetDescription(description string) {
+	c.description = description
+}
+
 func (c *CommonRole) Type() int {
 	return c.rType
+}
+
+func (c *CommonRole) SetType(rtype int) {
+	c.rType = rtype
 }
 
 type IDescribableRole interface {
@@ -89,13 +99,22 @@ type CommonClient struct {
 	descriptor *RoleDescriptor
 }
 
+type ClientExtraInfoDescriptor struct {
+	PScope int    `json:"pScope"`
+	CKey   string `json:"cKey"`
+	CType  int    `json:"cType"`
+}
+
 type ICommonClient interface {
 	ICommonRole
 	Connection() connection.IConnection
+	SetPScope(pscope int)
 	Scopes() []int
 	HasScope(int) bool
 	CKey() string
+	SetCKey(ckey string)
 	CType() int
+	SetCType(ctype int)
 	Describe() RoleDescriptor
 }
 
@@ -115,12 +134,24 @@ func (c *CommonClient) HasScope(scope int) bool {
 	return (c.pScope & scope) != 0
 }
 
+func (c *CommonClient) SetPScope(pscope int) {
+	c.pScope = pscope
+}
+
 func (c *CommonClient) CKey() string {
 	return c.cKey
 }
 
+func (c *CommonClient) SetCKey(ckey string) {
+	c.cKey = ckey
+}
+
 func (c *CommonClient) CType() int {
 	return c.cType
+}
+
+func (c *CommonClient) SetCType(ctype int) {
+	c.cType = ctype
 }
 
 func (c *CommonClient) Describe() RoleDescriptor {
@@ -138,10 +169,6 @@ func (c *CommonClient) Describe() RoleDescriptor {
 
 func NewClient(conn connection.IConnection, id string, description string, cType int, cKey string, pScope int) *CommonClient {
 	return &CommonClient{IConnection: conn, CommonRole: NewCommonRole(id, description, RoleTypeClient), pScope: pScope, cKey: cKey, cType: cType}
-}
-
-func CreateClient(conn connection.IConnection, role IDescribableRole, cKey string, pScope int) *CommonClient {
-	return NewClient(conn, role.Id(), role.Description(), role.Type(), cKey, pScope)
 }
 
 type CommonServer struct {

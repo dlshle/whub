@@ -31,5 +31,6 @@ func (h *ServiceRequestMessageHandler) Handle(message *messages.Message, conn co
 		conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(), err.Error()))
 		return err
 	}
-	return conn.Send(svc.Handle(message))
+	response := svc.Handle(message)
+	return conn.Send(response)
 }

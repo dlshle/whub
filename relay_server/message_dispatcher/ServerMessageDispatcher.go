@@ -1,7 +1,6 @@
 package message_dispatcher
 
 import (
-	"fmt"
 	"sync"
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
@@ -17,11 +16,13 @@ type ServerMessageDispatcher struct {
 }
 
 func NewServerMessageDispatcher() *ServerMessageDispatcher {
-	return &ServerMessageDispatcher{
+	md := &ServerMessageDispatcher{
 		handlers: make(map[int]message_actions.IMessageHandler),
 		logger:   context.Ctx.Logger().WithPrefix("[ServerMessageDispatcher]"),
 		lock:     new(sync.RWMutex),
 	}
+	md.init()
+	return md
 }
 
 func (d *ServerMessageDispatcher) withWrite(cb func()) {
@@ -34,27 +35,31 @@ func (d *ServerMessageDispatcher) init() {
 	// register common message handlers
 	d.RegisterHandler(message_actions.NewPingMessageHandler(context.Ctx.Server()))
 	d.RegisterHandler(message_actions.NewInvalidMessageHandler(context.Ctx.Server()))
+	d.RegisterHandler(NewClientDescriptorMessageHandler())
 	d.RegisterHandler(NewServiceRequestMessageHandler())
 }
 
 func (d *ServerMessageDispatcher) RegisterHandler(handler message_actions.IMessageHandler) {
+	d.logger.Printf("handler for message type %d has been registered", handler.Type())
 	d.withWrite(func() {
 		d.handlers[handler.Type()] = handler
 	})
 }
 
 func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn connection.IConnection) {
-	d.logger.Printf("receive message %s", message.String())
+	if message == nil {
+		return
+	}
+	d.logger.Printf("receive message %s from %s", message.String(), conn.Address())
 	context.Ctx.AsyncTaskPool().Schedule(func() {
 		handler := d.handlers[message.MessageType()]
 		if handler == nil {
+			d.logger.Println("can not find handler for message: ", message.String(), " will use respond with invalid message error")
 			handler = d.handlers[messages.MessageTypeUnknown]
-			return
 		}
 		err := handler.Handle(message, conn)
 		if err != nil {
-			// TODO do something
-			fmt.Println("handler error ", err)
+			d.logger.Printf("message %s handler error due to %s", message.String(), err.Error())
 		}
 	})
 }

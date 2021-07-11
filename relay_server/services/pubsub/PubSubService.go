@@ -90,7 +90,8 @@ func (s *PubSubService) Subscribe(request *service_common.ServiceRequest, pathPa
 	if err != nil {
 		return err
 	}
-	return s.ResolveByAck(request)
+	s.ResolveByAck(request)
+	return nil
 }
 
 func (s *PubSubService) Unsubscribe(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
@@ -107,7 +108,8 @@ func (s *PubSubService) Unsubscribe(request *service_common.ServiceRequest, path
 	if err != nil {
 		return err
 	}
-	return s.ResolveByAck(request)
+	s.ResolveByAck(request)
+	return nil
 }
 
 func (s *PubSubService) Publish(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
@@ -127,7 +129,8 @@ func (s *PubSubService) Publish(request *service_common.ServiceRequest, pathPara
 			c.Send(request.Message)
 		}
 	}
-	return s.ResolveByAck(request)
+	s.ResolveByAck(request)
+	return nil
 }
 
 func (s *PubSubService) Topics(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
@@ -142,7 +145,8 @@ func (s *PubSubService) Topics(request *service_common.ServiceRequest, pathParam
 	if err != nil {
 		return err
 	}
-	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, marshalled))
+	request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, marshalled))
+	return nil
 }
 
 func (s *PubSubService) notifySubscribersForTopicRemoval(topic *Topic, message *messages.Message) {
@@ -169,5 +173,6 @@ func (s *PubSubService) Remove(request *service_common.ServiceRequest, pathParam
 	}
 	s.notifySubscribersForTopicRemoval(topic, request.Message)
 	s.topicPool.Put(topic)
+	s.ResolveByAck(request)
 	return nil
 }

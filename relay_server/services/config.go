@@ -13,6 +13,7 @@ import (
 
 var serviceInstances map[string]service.INativeService
 
+// new services need to be defined here to be registered
 func init() {
 	serviceInstances = make(map[string]service.INativeService)
 	serviceInstances[messaging.ID] = new(messaging.MessagingService)

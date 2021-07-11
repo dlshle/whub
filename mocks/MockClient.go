@@ -11,6 +11,6 @@ func StartClient() {
 	MockClient = WSClient.NewClient("127.0.0.1:14719")
 	err := MockClient.Connect()
 	if err != nil {
-		panic("MockClient Init Failed")
+		panic("MockClient init Failed")
 	}
 }

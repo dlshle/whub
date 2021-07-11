@@ -106,6 +106,9 @@ func (t *Message) SetPayload(payload []byte) *Message {
 }
 
 func (t *Message) String() string {
+	if t == nil {
+		return "nil"
+	}
 	return fmt.Sprintf("{id: \"%s\", from: \"%s\", to: \"%s\", uri: \"%s\", messageType: %d, payload: \"%s\"}", t.id, t.from, t.to, t.uri, t.messageType, t.payload)
 }
 
@@ -143,4 +146,8 @@ func NewACKMessage(id string, from string, to string, uri string) *Message {
 
 func NewNotification(id string, message string) *Message {
 	return &Message{id: id, messageType: MessageTypeInternalNotification, payload: ([]byte)(message)}
+}
+
+func NewErrorResponseMessage(request *Message, from string, errMsg string) *Message {
+	return &Message{id: request.id, from: from, to: request.from, uri: request.uri, messageType: MessageTypeError, payload: ([]byte)(errMsg)}
 }

@@ -51,10 +51,16 @@ func (s *MessagingService) Send(request *service_common.ServiceRequest, pathPara
 	if recv == nil {
 		return errors.New(fmt.Sprintf("client %s is not online", request.Message.To()))
 	}
-	return recv.Send(request.Message)
+	err := recv.Send(request.Message)
+	if err != nil {
+		return err
+	}
+	s.ResolveByAck(request)
+	return nil
 }
 
-func (s *MessagingService) Broadcast(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *MessagingService) Broadcast(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	defer s.Logger().Printf("%s broadcast result: %v", request.Message.String(), err)
 	errMsg := strings.Builder{}
 	s.WithAllClients(func(clients []*client.Client) {
 		for _, c := range clients {
@@ -68,5 +74,6 @@ func (s *MessagingService) Broadcast(request *service_common.ServiceRequest, pat
 	if errMsg.Len() > 0 {
 		return errors.New(errMsg.String())
 	}
+	s.ResolveByAck(request)
 	return nil
 }

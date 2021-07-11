@@ -37,7 +37,6 @@ func (s *Server) withWrite(cb func()) {
 }
 
 func (s *Server) Start() error {
-	context.Ctx.Start(s.ICommonServer)
 	err := services.InitNativeServices()
 	if err != nil {
 		s.logger.Fatalln("unable to init native services due to ", err)
@@ -58,6 +57,7 @@ func (s *Server) handleInitialConnection(conn *connection.WsConnection) {
 func NewServer(identity roles.ICommonServer) *Server {
 	logger := context.Ctx.Logger()
 	logger.SetPrefix(fmt.Sprintf("[Server-%s]", identity.Id()))
+	context.Ctx.Start(identity)
 	wServer := wserver.NewWServer(wserver.NewServerConfig(identity.Id(), identity.Url(), identity.Port(), wserver.DefaultWsConnHandler()))
 	wServer.SetLogger(logger)
 	// wServer.SetAsyncPool(context.Ctx.AsyncTaskPool())

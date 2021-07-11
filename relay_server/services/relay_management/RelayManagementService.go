@@ -122,7 +122,8 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 	if err != nil {
 		return err
 	}
-	return s.ResolveByAck(request)
+	s.ResolveByAck(request)
+	return nil
 }
 
 func (s *RelayManagementService) UnregisterService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
@@ -153,7 +154,8 @@ func (s *RelayManagementService) UnregisterService(request *service_common.Servi
 	}
 	// free service
 	s.servicePool.Put(service)
-	return s.ResolveByAck(request)
+	s.ResolveByAck(request)
+	return nil
 }
 
 func (s *RelayManagementService) UpdateService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
@@ -172,7 +174,8 @@ func (s *RelayManagementService) UpdateService(request *service_common.ServiceRe
 		// log error
 		return err
 	}
-	return s.ResolveByAck(request)
+	s.ResolveByAck(request)
+	return nil
 }
 
 func (s *RelayManagementService) GetServiceByClientId(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
@@ -185,7 +188,8 @@ func (s *RelayManagementService) GetServiceByClientId(request *service_common.Se
 	if err != nil {
 		return err
 	}
-	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, marshalled))
+	request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, marshalled))
+	return nil
 }
 
 func (s *RelayManagementService) tryToRestoreDeadServicesFromReconnectedClient(clientId string) (err error) {
