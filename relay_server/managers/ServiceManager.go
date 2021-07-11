@@ -163,14 +163,19 @@ func (s *ServiceManager) UnregisterService(serviceId string) error {
 }
 
 func (s *ServiceManager) unregisterService(serviceId string) error {
-	if !s.HasService(serviceId) {
+	svc := s.GetService(serviceId)
+	if svc == nil {
 		err := servererror.NewNoSuchServiceError(serviceId)
 		s.logger.Println("unregister service ", serviceId, " failed due to ", err.Error())
 		return err
 	}
 	s.withWrite(func() {
+		uris := svc.ServiceUris()
 		s.serviceMap[serviceId].Stop()
 		delete(s.serviceMap, serviceId)
+		for _, uri := range uris {
+			s.removeUriRoute(uri)
+		}
 	})
 	s.logger.Println("unregister service ", serviceId, " succeeded")
 	return nil
