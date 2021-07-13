@@ -3,11 +3,11 @@ package main
 import "time"
 
 func main() {
-	role := "Server"
+	role := "x"
 	if role == "Server" {
 		ServerTest()
 	} else {
-		go RunMultipleClientTest(1)
+		go RunMultipleClientTest(10)
 	}
 	time.Sleep(time.Minute * 10)
 }

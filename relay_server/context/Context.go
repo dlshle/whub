@@ -20,7 +20,6 @@ func init() {
 }
 
 const (
-	defaultTimedJobPoolSize        = 4096
 	defaultMaxListenerCount        = 1024
 	defaultAsyncPoolSize           = 2048
 	defaultServicePoolSize         = 1024
@@ -34,7 +33,6 @@ type Context struct {
 	server              roles.ICommonServer
 	asyncTaskPool       *async.AsyncPool
 	serviceTaskPool     *async.AsyncPool
-	timedJobPool        *timed.JobPool
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
 	startBarrier        *async.Barrier
@@ -52,17 +50,15 @@ type IContext interface {
 }
 
 func NewContext() *Context {
+	// TODO use config values from container
 	asyncPool := async.NewAsyncPool("[ctx-async-pool]", defaultAsyncPoolSize, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
 	asyncPool.Verbose(false)
 	servicePool := async.NewAsyncPool("[ctx-service-pool]", defaultServicePoolSize, runtime.NumCPU()*defaultServicePoolWorkerFactor)
 	servicePool.Verbose(false)
-	jobPool := timed.NewJobPool("[ctx-timed-job-pool]", defaultTimedJobPoolSize, false)
-	jobPool.Verbose(false)
 	return &Context{
 		messageParser:       messages.NewFBMessageParser(),
 		asyncTaskPool:       asyncPool,
 		serviceTaskPool:     servicePool,
-		timedJobPool:        jobPool,
 		notificationEmitter: notification.New(defaultMaxListenerCount),
 		lock:                new(sync.Mutex),
 		startBarrier:        async.NewBarrier(),
@@ -88,19 +84,12 @@ func (c *Context) Server() roles.IDescribableRole {
 	return c.server
 }
 
-func (c *Context) TimedJobPool() *timed.JobPool {
-	c.withLock(func() {
-		if c.timedJobPool == nil {
-			c.timedJobPool = timed.NewJobPool("Context", defaultTimedJobPoolSize, false)
-		}
-	})
-	return c.timedJobPool
-}
-
 func (c *Context) AsyncTaskPool() *async.AsyncPool {
 	c.withLock(func() {
 		if c.asyncTaskPool == nil {
-			c.asyncTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-async-pool]"), 2048, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
+			workerSize := runtime.NumCPU() * defaultAsyncPoolWorkerFactor
+			c.logger.Printf("async pool initialized with maxPoolSize %d and workerSize %d", defaultAsyncPoolSize, workerSize)
+			c.asyncTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-async-pool]"), defaultAsyncPoolSize, workerSize)
 		}
 	})
 	return c.asyncTaskPool
@@ -109,7 +98,9 @@ func (c *Context) AsyncTaskPool() *async.AsyncPool {
 func (c *Context) ServiceTaskPool() *async.AsyncPool {
 	c.withLock(func() {
 		if c.serviceTaskPool == nil {
-			c.serviceTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), 1024, runtime.NumCPU()*defaultServicePoolWorkerFactor)
+			workerSize := runtime.NumCPU() * defaultServicePoolWorkerFactor
+			c.logger.Printf("service async pool initialized with maxPoolSize %d and workerSize %d", defaultServicePoolSize, workerSize)
+			c.serviceTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), defaultServicePoolSize, workerSize)
 		}
 	})
 	return c.serviceTaskPool
@@ -118,6 +109,7 @@ func (c *Context) ServiceTaskPool() *async.AsyncPool {
 func (c *Context) NotificationEmitter() notification.IWRNotificationEmitter {
 	c.withLock(func() {
 		if c.notificationEmitter == nil {
+			c.logger.Printf("notificationEmitter has been initialized with maxListenerCount %d", defaultMaxListenerCount)
 			c.notificationEmitter = notification.New(defaultMaxListenerCount)
 		}
 	})

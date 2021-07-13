@@ -48,4 +48,5 @@ func (h *ClientConnectionHandler) HandleConnectionEstablished(conn *connection.W
 	rawClient := client.NewAnonymousClient(rawConn)
 	h.anonymousClientManager.AcceptClient(rawClient.Address(), rawClient)
 	p.Wait()
+	h.logger.Printf("connection %s cycle done", conn.Address())
 }
