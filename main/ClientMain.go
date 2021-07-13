@@ -1,4 +1,4 @@
-package WSDK
+package main
 
 import (
 	"fmt"
