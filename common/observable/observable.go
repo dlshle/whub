@@ -108,7 +108,7 @@ func (o *SafeObservable) Set(v interface{}) {
 func (o *SafeObservable) On(observer func(interface{})) func() {
 	o.rwLock.Lock()
 	defer o.rwLock.Unlock()
-	disposer := o.On(observer)
+	disposer := o.o.On(observer)
 	return func() {
 		o.rwLock.Lock()
 		defer o.rwLock.Unlock()

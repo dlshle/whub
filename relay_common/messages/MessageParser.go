@@ -5,7 +5,7 @@ import (
 	"fmt"
 	flatbuffers "github.com/google/flatbuffers/go"
 	"strconv"
-	FBMessage "wsdk/flatbuffers/WR/Message"
+	Message2 "wsdk/relay_common/flatbuffers/WR/Message"
 )
 
 type IMessageParser interface {
@@ -85,7 +85,7 @@ func (p *FBMessageParser) Serialize(message *Message) ([]byte, error) {
 	builder := flatbuffers.NewBuilder(16)
 	payload := message.Payload()
 	lPayload := len(payload)
-	FBMessage.MessageStartPayloadVector(builder, lPayload)
+	Message2.MessageStartPayloadVector(builder, lPayload)
 	for i := range payload {
 		builder.PrependByte(payload[lPayload-i-1])
 	}
@@ -94,14 +94,14 @@ func (p *FBMessageParser) Serialize(message *Message) ([]byte, error) {
 	fromOffset := builder.CreateString(message.From())
 	toOffset := builder.CreateString(message.To())
 	uriOffset := builder.CreateString(message.Uri())
-	FBMessage.MessageStart(builder)
-	FBMessage.MessageAddId(builder, idOffset)
-	FBMessage.MessageAddFrom(builder, fromOffset)
-	FBMessage.MessageAddTo(builder, toOffset)
-	FBMessage.MessageAddUri(builder, uriOffset)
-	FBMessage.MessageAddMessageType(builder, (int32)(message.messageType))
-	FBMessage.MessageAddPayload(builder, payloadOffset)
-	offset := FBMessage.MessageEnd(builder)
+	Message2.MessageStart(builder)
+	Message2.MessageAddId(builder, idOffset)
+	Message2.MessageAddFrom(builder, fromOffset)
+	Message2.MessageAddTo(builder, toOffset)
+	Message2.MessageAddUri(builder, uriOffset)
+	Message2.MessageAddMessageType(builder, (int32)(message.messageType))
+	Message2.MessageAddPayload(builder, payloadOffset)
+	offset := Message2.MessageEnd(builder)
 	builder.Finish(offset)
 	return builder.Bytes[builder.Head():], nil
 }
@@ -110,7 +110,7 @@ func (p *FBMessageParser) Deserialize(buffer []byte) (*Message, error) {
 	if len(buffer) < 1 {
 		return nil, errors.New("invalid buffer format")
 	}
-	fbMessage := FBMessage.GetRootAsMessage(buffer, 0)
+	fbMessage := Message2.GetRootAsMessage(buffer, 0)
 	id := (string)(fbMessage.Id())
 	from := (string)(fbMessage.From())
 	to := (string)(fbMessage.To())

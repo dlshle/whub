@@ -1,6 +1,7 @@
 package context
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 	"sync"
@@ -29,13 +30,13 @@ const (
 )
 
 type Context struct {
+	lock                *sync.Mutex
 	server              roles.ICommonServer
 	asyncTaskPool       *async.AsyncPool
 	serviceTaskPool     *async.AsyncPool
 	timedJobPool        *timed.JobPool
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
-	lock                *sync.RWMutex
 	startBarrier        *async.Barrier
 	logger              *logger.SimpleLogger
 }
@@ -51,8 +52,6 @@ type IContext interface {
 }
 
 func NewContext() *Context {
-	// connHandlerPool := async.NewAsyncPool("[ctx-conn-handler-async-pool]", defaultAsyncPoolSize, defaultMaxConcurrentConnection)
-	// connHandlerPool.Verbose(false)
 	asyncPool := async.NewAsyncPool("[ctx-async-pool]", defaultAsyncPoolSize, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
 	asyncPool.Verbose(false)
 	servicePool := async.NewAsyncPool("[ctx-service-pool]", defaultServicePoolSize, runtime.NumCPU()*defaultServicePoolWorkerFactor)
@@ -65,20 +64,20 @@ func NewContext() *Context {
 		serviceTaskPool:     servicePool,
 		timedJobPool:        jobPool,
 		notificationEmitter: notification.New(defaultMaxListenerCount),
-		lock:                new(sync.RWMutex),
+		lock:                new(sync.Mutex),
 		startBarrier:        async.NewBarrier(),
 		logger:              logger.New(os.Stdout, "[WServer]", true),
 	}
 }
 
-func (c *Context) withWrite(cb func()) {
+func (c *Context) withLock(cb func()) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	cb()
 }
 
 func (c *Context) Start(server roles.ICommonServer) {
-	c.withWrite(func() {
+	c.withLock(func() {
 		c.server = server
 		c.startBarrier.Open()
 	})
@@ -90,18 +89,38 @@ func (c *Context) Server() roles.IDescribableRole {
 }
 
 func (c *Context) TimedJobPool() *timed.JobPool {
+	c.withLock(func() {
+		if c.timedJobPool == nil {
+			c.timedJobPool = timed.NewJobPool("Context", defaultTimedJobPoolSize, false)
+		}
+	})
 	return c.timedJobPool
 }
 
 func (c *Context) AsyncTaskPool() *async.AsyncPool {
+	c.withLock(func() {
+		if c.asyncTaskPool == nil {
+			c.asyncTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-async-pool]"), 2048, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
+		}
+	})
 	return c.asyncTaskPool
 }
 
 func (c *Context) ServiceTaskPool() *async.AsyncPool {
+	c.withLock(func() {
+		if c.serviceTaskPool == nil {
+			c.serviceTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), 1024, runtime.NumCPU()*defaultServicePoolWorkerFactor)
+		}
+	})
 	return c.serviceTaskPool
 }
 
 func (c *Context) NotificationEmitter() notification.IWRNotificationEmitter {
+	c.withLock(func() {
+		if c.notificationEmitter == nil {
+			c.notificationEmitter = notification.New(defaultMaxListenerCount)
+		}
+	})
 	return c.notificationEmitter
 }
 

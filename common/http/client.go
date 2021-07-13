@@ -365,7 +365,6 @@ type IClientPool interface {
 	batchRequest(requests []*http.Request) []*TrackableRequest
 	BatchRequest(requests []*http.Request) []*Response
 	Verbose(use bool)
-	// or channel?
 	BatchRequestAsync(requests []*http.Request) []*TrackableRequest
 	Status() int
 	setStatus(status int)

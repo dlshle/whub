@@ -137,11 +137,13 @@ func (c *WsConnection) Read() ([]byte, error) {
 }
 
 func (c *WsConnection) Write(stream []byte) (err error) {
-	t := time.Now()
-	err = c.conn.WriteMessage(1, stream)
-	if err != nil {
-		c.lastSendTime = t
-	}
+	c.withWrite(func() {
+		t := time.Now()
+		err = c.conn.WriteMessage(1, stream)
+		if err != nil {
+			c.lastSendTime = t
+		}
+	})
 	return
 }
 

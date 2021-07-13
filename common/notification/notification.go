@@ -1,3 +1,4 @@
+// please don't use, deprecated
 package notification
 
 import (
@@ -8,12 +9,6 @@ import (
 )
 
 const DefaultMaxListeners = 1024
-
-var globalEmitter INotificationEmitter
-
-func init() {
-	globalEmitter = New(DefaultMaxListeners)
-}
 
 type Listener func(interface{})
 type Disposable func()
@@ -183,32 +178,4 @@ func (e *NotificationEmitter) OffAll(eventId string) {
 	e.withWrite(func() {
 		e.notificationMap[eventId] = nil
 	})
-}
-
-func HasEvent(eventId string) bool {
-	return globalEmitter.HasEvent(eventId)
-}
-
-func Notify(eventId string, payload interface{}) {
-	globalEmitter.Notify(eventId, payload)
-}
-
-func ListenerCount(eventId string) int {
-	return globalEmitter.ListenerCount(eventId)
-}
-
-func On(eventId string, listener Listener) (Disposable, error) {
-	return globalEmitter.On(eventId, listener)
-}
-
-func Once(eventId string, listener Listener) (Disposable, error) {
-	return globalEmitter.Once(eventId, listener)
-}
-
-func Off(eventId string, listener Listener) {
-	globalEmitter.Off(eventId, listener)
-}
-
-func OffAll(eventId string) {
-	globalEmitter.OffAll(eventId)
 }

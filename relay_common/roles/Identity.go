@@ -87,7 +87,7 @@ type RoleDescriptor struct {
 }
 
 func (rd RoleDescriptor) String() string {
-	return fmt.Sprintf("{id:\"%s\",description:\"%s\",roleType:\"%s\",extraInfo:\"%s\"}", rd.Id, rd.Description, rd.RoleType, rd.ExtraInfo)
+	return fmt.Sprintf("{\"id\":\"%s\",\"description\":\"%s\",\"roleType\":\"%s\",\"extraInfo\":\"%s\"}", rd.Id, rd.Description, rd.RoleType, rd.ExtraInfo)
 }
 
 type CommonClient struct {
@@ -160,7 +160,7 @@ func (c *CommonClient) Describe() RoleDescriptor {
 			c.Id(),
 			c.Description(),
 			RoleTypeClientStr,
-			fmt.Sprintf("{pScope: %d, cKey: \"%s\", cType: %d}", c.pScope, c.cKey, c.cType),
+			fmt.Sprintf("{\\\"pScope\\\": %d, \\\"cKey\\\": \\\"%s\\\", \\\"cType\\\": %d}", c.pScope, c.cKey, c.cType),
 			c.Address(),
 		}
 	}

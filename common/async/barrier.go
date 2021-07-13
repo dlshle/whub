@@ -1,24 +1,29 @@
 package async
 
 import (
+	"sync"
 	"sync/atomic"
 )
 
 type Barrier struct {
-	c      chan bool
+	cond   *sync.Cond
 	isOpen atomic.Value
 }
 
 func (b *Barrier) Open() {
-	close(b.c)
-	b.isOpen.Store(true)
+	if !b.IsOpen() {
+		b.isOpen.Store(true)
+		b.cond.Broadcast()
+	}
 }
 
 func (b *Barrier) Wait() {
 	if b.IsOpen() {
 		return
 	}
-	<-b.c
+	b.cond.L.Lock()
+	b.cond.Wait()
+	b.cond.L.Unlock()
 }
 
 func (b *Barrier) IsOpen() bool {
@@ -27,7 +32,7 @@ func (b *Barrier) IsOpen() bool {
 
 func NewBarrier() *Barrier {
 	b := &Barrier{
-		make(chan bool),
+		sync.NewCond(&sync.Mutex{}),
 		atomic.Value{},
 	}
 	b.isOpen.Store(false)

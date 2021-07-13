@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"wsdk/common/async"
 	"wsdk/common/ctimer"
 	"wsdk/common/logger"
 	"wsdk/relay_common/messages"
@@ -61,8 +62,6 @@ func NewConnection(logger *logger.SimpleLogger,
 	conn.ws.OnMessage(func(stream []byte) {
 		conn.ttlTimedJob.Reset()
 		msg, err := conn.messageParser.Deserialize(stream)
-		// TODO remove later
-		logger.Printf("message received from connection %s: %s", conn.Address(), msg)
 		if err == nil {
 			if notifications.HasEvent(msg.Id()) {
 				notifications.Notify(msg.Id(), msg)
@@ -98,13 +97,13 @@ func (c *Connection) Request(message *messages.Message) (response *messages.Mess
 }
 
 func (c *Connection) RequestWithTimeout(message *messages.Message, timeout time.Duration) (response *messages.Message, err error) {
-	waiter := make(chan bool)
+	barrier := async.NewBarrier()
 	if err = c.Send(message); err != nil {
 		return
 	}
 	timeoutEvt := ctimer.New(timeout, func() {
 		err = errors.New(fmt.Sprintf("request timeout for message %s", message.Id()))
-		close(waiter)
+		barrier.Open()
 	})
 	timeoutEvt.Start()
 	c.OnceMessage(message.Id(), func(msg *messages.Message) {
@@ -114,9 +113,9 @@ func (c *Connection) RequestWithTimeout(message *messages.Message, timeout time.
 		} else {
 			response = msg
 		}
-		close(waiter)
+		barrier.Open()
 	})
-	<-waiter
+	barrier.Wait()
 	return
 }
 

@@ -79,7 +79,7 @@ func (m *ClientManager) AcceptClient(id string, client *client.Client) error {
 		m.clients[id] = client
 	})
 	m.handleClientAccepted(client)
-	m.logger.Printf("client (%s, %s) has been accepted", id, client.Address())
+	m.logger.Printf("client (%s, %s) has been accepted %v", id, client.Address(), client.Describe())
 	return nil
 }
 
@@ -99,7 +99,7 @@ func (m *ClientManager) initClientCallbackHandlers(client *client.Client) {
 
 func (m *ClientManager) DisconnectClient(id string) (err error) {
 	client := m.GetClient(id)
-	defer m.logger.Printf("error while disconnecting client %s due to %s", id, err)
+	defer m.logger.Printf("error while disconnecting client %s due to %v", id, err)
 	if client == nil {
 		err = servererror.NewClientNotConnectedError(id)
 		return

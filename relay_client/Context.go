@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sync"
 	"wsdk/common/async"
 	"wsdk/common/logger"
 	"wsdk/common/timed"
@@ -28,6 +29,7 @@ const (
 )
 
 type Context struct {
+	lock                *sync.Mutex
 	identity            roles.IDescribableRole
 	server              roles.ICommonServer
 	asyncTaskPool       *async.AsyncPool
@@ -52,17 +54,18 @@ type IContext interface {
 }
 
 func NewContext() IContext {
-	asyncPool := async.NewAsyncPool(fmt.Sprintf("[ctx-async-pool]"), 2048, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
-	servicePool := async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), 1024, runtime.NumCPU()*defaultServicePoolWorkerFactor)
 	return &Context{
-		messageParser:       messages.NewFBMessageParser(),
-		asyncTaskPool:       asyncPool,
-		serviceTaskPool:     servicePool,
-		timedJobPool:        timed.NewJobPool("Context", defaultTimedJobPoolSize, false),
-		notificationEmitter: notification.New(defaultMaxListenerCount),
-		logger:              logger.New(os.Stdout, "[WClient]", true),
-		barrier:             async.NewBarrier(),
+		lock:          new(sync.Mutex),
+		messageParser: messages.NewFBMessageParser(),
+		logger:        logger.New(os.Stdout, "[WClient]", true),
+		barrier:       async.NewBarrier(),
 	}
+}
+
+func (c *Context) withLock(cb func()) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	cb()
 }
 
 func (c *Context) Start(identity roles.IDescribableRole, server roles.ICommonServer) {
@@ -81,18 +84,38 @@ func (c *Context) Server() roles.ICommonServer {
 }
 
 func (c *Context) TimedJobPool() *timed.JobPool {
+	c.withLock(func() {
+		if c.timedJobPool == nil {
+			c.timedJobPool = timed.NewJobPool("Context", defaultTimedJobPoolSize, false)
+		}
+	})
 	return c.timedJobPool
 }
 
 func (c *Context) AsyncTaskPool() *async.AsyncPool {
+	c.withLock(func() {
+		if c.asyncTaskPool == nil {
+			c.asyncTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-async-pool]"), 2048, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
+		}
+	})
 	return c.asyncTaskPool
 }
 
 func (c *Context) ServiceTaskPool() *async.AsyncPool {
+	c.withLock(func() {
+		if c.serviceTaskPool == nil {
+			c.serviceTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), 1024, runtime.NumCPU()*defaultServicePoolWorkerFactor)
+		}
+	})
 	return c.serviceTaskPool
 }
 
 func (c *Context) NotificationEmitter() notification.IWRNotificationEmitter {
+	c.withLock(func() {
+		if c.notificationEmitter == nil {
+			c.notificationEmitter = notification.New(defaultMaxListenerCount)
+		}
+	})
 	return c.notificationEmitter
 }
 

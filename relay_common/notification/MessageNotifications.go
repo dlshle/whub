@@ -81,12 +81,19 @@ func (e *WRNotificationEmitter) indexOfMessageListener(eventId string, listener 
 }
 
 func (e *WRNotificationEmitter) removeIthMessageListener(eventId string, listenerIdx int) {
-	if e.MessageListenerCount(eventId) < listenerIdx {
+	if listenerIdx == -1 || e.MessageListenerCount(eventId) == 0 {
 		return
 	}
 	e.withWrite(func() {
 		allMessageListeners := e.listeners[eventId]
-		e.listeners[eventId] = append(allMessageListeners[:listenerIdx], allMessageListeners[listenerIdx+1:]...)
+		if len(allMessageListeners) == 0 {
+			return
+		}
+		if len(allMessageListeners) == 1 {
+			delete(e.listeners, eventId)
+		} else {
+			e.listeners[eventId] = append(allMessageListeners[:listenerIdx], allMessageListeners[listenerIdx+1:]...)
+		}
 	})
 }
 
