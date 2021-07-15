@@ -43,7 +43,7 @@ func (w *silentWriter) Write(p []byte) (n int, err error) {
 	return 0, nil
 }
 
-var sw *silentWriter = &silentWriter{}
+var sw = &silentWriter{}
 
 func New(out io.Writer, prefix string, verbose bool) *SimpleLogger {
 	l := &SimpleLogger{log.New(sw, prefix, log.Ldate|log.Ltime), out, verbose}

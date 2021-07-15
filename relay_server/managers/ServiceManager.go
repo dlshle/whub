@@ -6,10 +6,10 @@ import (
 	"strings"
 	"sync"
 	"wsdk/common/logger"
+	uri2 "wsdk/common/uri"
 	common_utils "wsdk/common/utils"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
-	"wsdk/relay_common/uri"
 	"wsdk/relay_common/utils"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
@@ -26,7 +26,7 @@ const ServiceManagerId = "ServiceManager"
 
 type ServiceManager struct {
 	// need to use full uris here!
-	trieTree   *uri.TrieTree
+	trieTree   *uri2.TrieTree
 	serviceMap map[string]service2.IService
 	lock       *sync.RWMutex
 	logger     *logger.SimpleLogger
@@ -51,7 +51,7 @@ type IServiceManager interface {
 
 func NewServiceManager() IServiceManager {
 	manager := &ServiceManager{
-		trieTree:   uri.NewTrieTree(),
+		trieTree:   uri2.NewTrieTree(),
 		serviceMap: make(map[string]service2.IService),
 		lock:       new(sync.RWMutex),
 		logger:     context.Ctx.Logger().WithPrefix("[ServiceManager]"),
