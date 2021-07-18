@@ -27,23 +27,22 @@ const (
 
 type RelayManagementService struct {
 	*service.NativeService
-	clientManager  managers.IClientManager
-	serviceManager managers.IServiceManager
+	clientManager  managers.IClientManager  `$inject:""`
+	serviceManager managers.IServiceManager `$inject:""`
 	servicePool    *sync.Pool
 }
 
 func (s *RelayManagementService) Init() error {
 	s.NativeService = service.NewNativeService(ID, "relay management service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync)
-	s.clientManager = container.Container.GetById(managers.ClientManagerId).(managers.IClientManager)
 	s.servicePool = &sync.Pool{
 		New: func() interface{} {
 			return new(service.RelayService)
 		},
 	}
+	container.Container.Fill(s)
 	if s.clientManager == nil {
 		return errors.New("can not get clientManager from container")
 	}
-	s.serviceManager = container.Container.GetById(managers.ServiceManagerId).(managers.IServiceManager)
 	if s.serviceManager == nil {
 		return errors.New("can not get serviceManager from container")
 	}

@@ -11,13 +11,16 @@ import (
 )
 
 type ServiceRequestMessageHandler struct {
-	manager managers.IServiceManager
+	manager managers.IServiceManager `$inject:""`
 }
 
 func NewServiceRequestMessageHandler() message_actions.IMessageHandler {
-	return &ServiceRequestMessageHandler{
-		manager: container.Container.GetById(managers.ServiceManagerId).(managers.IServiceManager),
+	handler := &ServiceRequestMessageHandler{}
+	err := container.Container.Fill(handler)
+	if err != nil {
+		panic(err)
 	}
+	return handler
 }
 
 func (h *ServiceRequestMessageHandler) Type() int {

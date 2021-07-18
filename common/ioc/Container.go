@@ -3,219 +3,279 @@ package ioc
 import (
 	"errors"
 	"fmt"
-	rawReflect "reflect"
-	"strings"
-	"sync"
-	"wsdk/common/reflect"
+	"reflect"
+	"unsafe"
+	"wsdk/common/utils"
 )
 
 const (
-	TypeComponentPrefix = "$type-"
-	AutoWireTagPrefix   = "$autowire"
-	InjectTagPrefix     = "$inject:"
+	TagInject          = "$inject"
+	setterMethodPrefix = "Set"
 )
 
+// binding keeps a binding resolver and an instance (for singleton bindings).
+type binding struct {
+	resolver interface{} // resolver function that creates the appropriate implementation of the related abstraction
+	instance interface{} // instance stored for reusing in singleton bindings
+}
+
+// resolve will create the appropriate implementation of the related abstraction
+func (b binding) resolve(c *Container) (interface{}, error) {
+	if b.instance != nil {
+		return b.instance, nil
+	}
+
+	return c.invoke(b.resolver)
+}
+
+// TypeContainer is the repository of bindings
+type TypeContainer map[reflect.Type]binding
+type IdContainer map[string]binding
 type Container struct {
-	components map[string]interface{} // byTypePrefix
-	tagPrefix  string                 // prefix: xxx
-	lock       *sync.RWMutex
+	typeContainer TypeContainer
+	idContainer   IdContainer
 }
 
-func NewContainer() *Container {
+// New creates a new instance of TypeContainer
+func New() *Container {
 	return &Container{
-		components: make(map[string]interface{}),
-		lock:       new(sync.RWMutex),
+		typeContainer: make(TypeContainer),
+		idContainer:   make(IdContainer),
 	}
 }
 
-func (c *Container) withWrite(cb func()) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	cb()
+func (c *Container) checkAndGetResolverReflect(resolver interface{}) (reflect.Type, error) {
+	reflectedResolver := reflect.TypeOf(resolver)
+	if reflectedResolver.Kind() != reflect.Func {
+		return nil, errors.New("container: the resolver must be a function")
+	}
+	return reflectedResolver, nil
 }
 
-func (c *Container) GetById(id string) interface{} {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	return c.components[id]
-}
-
-func (c *Container) GetByType(typeName string) interface{} {
-	return c.GetById(c.assembleTypeId(typeName))
-}
-
-func (c *Container) registerComponent(id string, component interface{}) bool {
-	notExist := c.GetById(id) == nil
-	c.withWrite(func() {
-		c.components[id] = component
-	})
-	return notExist
-}
-
-func (c *Container) assembleTypeId(typeName string) string {
-	return fmt.Sprintf("%s-%s", TypeComponentPrefix, typeName)
-}
-
-func (c *Container) assembleTypedComponentId(component interface{}) string {
-	return c.assembleTypeId(reflect.GetObjectType(component))
-}
-
-// register by type, will replace the last component registered under the same type
-func (c *Container) RegisterByComponentType(component interface{}) bool {
-	return c.registerComponent(c.assembleTypedComponentId(component), component)
-}
-
-// register by fieldName
-func (c *Container) RegisterFieldByType(object interface{}, fieldName string) (bool, error) {
-	value, err := reflect.GetValueByField(object, fieldName)
+// bindById will map an id to a concrete
+func (c *Container) bindById(id string, resolver interface{}) error {
+	reflectedResolver, err := c.checkAndGetResolverReflect(resolver)
 	if err != nil {
-		return false, err
+		return err
 	}
-	return c.RegisterComponent(fieldName, value.Interface()), nil
+	if reflectedResolver.NumOut() != 1 {
+		return errors.New("container: the resolver for id binding must has only 1 output value")
+	}
+	c.idContainer[id] = binding{resolver: resolver}
+
+	return nil
 }
 
-func (c *Container) RegisterComponent(id string, component interface{}) bool {
-	return c.registerComponent(id, component)
+// bindByType will map an abstraction to a concrete
+func (c *Container) bindByType(resolver interface{}) error {
+	reflectedResolver, err := c.checkAndGetResolverReflect(resolver)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < reflectedResolver.NumOut(); i++ {
+		c.typeContainer[reflectedResolver.Out(i)] = binding{resolver: resolver}
+	}
+
+	return nil
 }
 
-func (c *Container) getComponentWithTagCheck(object interface{}, fieldName, prefix string) (interface{}, error) {
-	tag, err := reflect.GetTagByField(object, fieldName)
+// invoke will call the given function and return its returned value.
+// It only works for functions that return a single value.
+func (c *Container) invoke(function interface{}) (interface{}, error) {
+	args, err := c.arguments(function)
 	if err != nil {
 		return nil, err
 	}
-	if !strings.HasPrefix(tag, prefix) {
-		return nil, errors.New(fmt.Sprintf("prefix(%s) is not found at tag %s in field %s", prefix, tag, fieldName))
-	}
-	id := strings.TrimPrefix(tag, prefix)
-	component := c.GetById(id)
-	if component == nil {
-		return nil, errors.New(fmt.Sprintf("assign failed for field %s as component with id %s does not exist", fieldName, id))
-	}
-	return component, nil
+
+	return reflect.ValueOf(function).Call(args)[0].Interface(), nil
 }
 
-// $inject: xxx
-func (c *Container) injectFieldById(object interface{}, fieldName string, tag string) error {
-	if !strings.HasPrefix(tag, InjectTagPrefix) {
-		return errors.New(fmt.Sprintf("inject prefix(%s) is not found at tag %s in field %s", InjectTagPrefix, tag, fieldName))
+// arguments will return resolved arguments of the given function.
+func (c *Container) arguments(function interface{}) ([]reflect.Value, error) {
+	reflectedFunction := reflect.TypeOf(function)
+	argumentsCount := reflectedFunction.NumIn()
+	arguments := make([]reflect.Value, argumentsCount)
+
+	for i := 0; i < argumentsCount; i++ {
+		abstraction := reflectedFunction.In(i)
+
+		if concrete, ok := c.typeContainer[abstraction]; ok {
+			instance, err := concrete.resolve(c)
+			if err != nil {
+				return nil, err
+			}
+
+			arguments[i] = reflect.ValueOf(instance)
+		} else {
+			return nil, errors.New("container: no concrete found for: " + abstraction.String())
+		}
 	}
-	id := strings.TrimPrefix(tag, InjectTagPrefix)
-	component := c.GetById(id)
-	fmt.Println("component: ", component)
-	if component == nil {
-		return errors.New(fmt.Sprintf("injection failed for field %s as component with id %s does not exist", fieldName, id))
-	}
-	return reflect.SetValueOnField(object, fieldName, component)
+
+	return arguments, nil
 }
 
-func (c *Container) InjectField(object interface{}, fieldName string) error {
-	tag, err := reflect.GetTagByField(object, fieldName)
-	if err != nil {
-		return err
-	}
-	return c.injectFieldById(object, fieldName, tag)
+// Singleton will bindByType an abstraction to a concrete for further singleton resolves.
+// It takes a resolver function which returns the concrete and its return type matches the abstraction (interface).
+// The resolver function can have arguments of abstraction that have bound already in TypeContainer.
+func (c *Container) Singleton(resolver interface{}) error {
+	return c.bindByType(resolver)
 }
 
-func (c *Container) InjectFields(object interface{}) error {
-	ftMap, err := reflect.GetFieldsAndTags(object)
-	if err != nil {
-		return err
+func (c *Container) RegisterSingleton(id string, resolver interface{}) error {
+	return c.bindById(id, resolver)
+}
+
+// Reset will reset the container and remove all the existing bindings.
+func (c Container) Reset() {
+	for k := range c.typeContainer {
+		delete(c.typeContainer, k)
 	}
-	for k, v := range ftMap {
-		if err = c.injectFieldById(object, k, v); err != nil {
+	for k := range c.idContainer {
+		delete(c.idContainer, k)
+	}
+}
+
+func (c *Container) GetById(id string) (interface{}, error) {
+	concrete, ok := c.idContainer[id]
+	if !ok {
+		return nil, errors.New("can not find concrete by id " + id)
+	}
+	return concrete.resolve(c)
+}
+
+// Make will resolve the dependency and return a appropriate concrete of the given abstraction.
+// It can take an abstraction (interface reference) and fill it with the related implementation.
+// It also can takes a function (receiver) with one or more arguments of the abstractions (interfaces) that need to be
+// resolved, TypeContainer will invoke the receiver function and pass the related implementations.
+// Deprecated: Make is deprecated.
+func (c *Container) Make(receiver interface{}) error {
+	receiverType := reflect.TypeOf(receiver)
+	if receiverType == nil {
+		return errors.New("container: cannot detect type of the receiver")
+	}
+
+	if receiverType.Kind() == reflect.Ptr {
+		return c.Bind(receiver)
+	} else if receiverType.Kind() == reflect.Func {
+		return c.Call(receiver)
+	}
+
+	return errors.New("container: the receiver must be either a reference or a callback")
+}
+
+// Call takes a function with one or more arguments of the abstractions (interfaces) that need to be
+// resolved, TypeContainer will invoke the receiver function and pass the related implementations.
+func (c *Container) Call(function interface{}) error {
+	receiverType := reflect.TypeOf(function)
+	if receiverType == nil {
+		return errors.New("container: invalid function")
+	}
+
+	if receiverType.Kind() == reflect.Func {
+		arguments, err := c.arguments(function)
+		if err != nil {
 			return err
 		}
+
+		reflect.ValueOf(function).Call(arguments)
+
+		return nil
 	}
-	return nil
+
+	return errors.New("container: invalid function")
 }
 
-// $autowire
-// first by type and then by name
-func (c *Container) autowireFieldByField(object interface{}, field rawReflect.StructField) error {
-	tag := string(field.Tag)
-	if tag != AutoWireTagPrefix {
-		return errors.New(fmt.Sprintf("incorrect tag(%s) for AutoWiring(%s)", tag, AutoWireTagPrefix))
+// Bind takes an abstraction (interface reference) and fill it with the related implementation.
+func (c *Container) Bind(abstraction interface{}) error {
+	receiverType := reflect.TypeOf(abstraction)
+	if receiverType == nil {
+		return errors.New("container: invalid abstraction")
 	}
-	typeName := field.Type.Name()
-	if typeName == "" {
-		// special case for struct { *AnotherStructName }
-		typeName = field.Type.Elem().Name()
-		if typeName == "" {
-			typeName = field.Name
+
+	if receiverType.Kind() == reflect.Ptr {
+		elem := receiverType.Elem()
+
+		if concrete, ok := c.typeContainer[elem]; ok {
+			instance, err := concrete.resolve(c)
+			if err != nil {
+				return err
+			}
+
+			reflect.ValueOf(abstraction).Elem().Set(reflect.ValueOf(instance))
+
+			return nil
+		}
+
+		return errors.New("container: no concrete found for: " + elem.String())
+	}
+
+	return errors.New("container: invalid abstraction")
+}
+
+// Fill takes a struct and fills the fields with the tag `container:"inject"`
+func (c *Container) Fill(structure interface{}) error {
+	receiverType := reflect.TypeOf(structure)
+	if receiverType == nil {
+		return errors.New("container: invalid structure")
+	}
+
+	if receiverType.Kind() == reflect.Ptr {
+		elem := receiverType.Elem()
+		if elem.Kind() == reflect.Struct {
+			s := reflect.ValueOf(structure).Elem()
+			for i := 0; i < s.NumField(); i++ {
+				f := s.Field(i)
+
+				if t, ok := s.Type().Field(i).Tag.Lookup(TagInject); ok {
+					var concrete binding
+					var exist bool
+					if len(t) > 0 {
+						// e.g. $inject: "idGenerator"
+						concrete, exist = c.idContainer[t]
+					} else {
+						// e.g. $inject
+						concrete, exist = c.typeContainer[f.Type()]
+					}
+
+					if exist {
+						instance, err := concrete.resolve(c)
+						if err != nil {
+							return err
+						}
+
+						ptr := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
+						if ptr.CanSet() {
+							ptr.Set(reflect.ValueOf(instance))
+							continue
+						}
+						// try to use setter
+						success := tryToGetSetterAndSet(ptr, f.Type().Name(), reflect.ValueOf(instance))
+						if !success {
+							return errors.New(fmt.Sprintf("container: cannot resolve %v field. please expose the field or make a setter for the field.", s.Type().Field(i).Name))
+						}
+						continue
+					}
+					return errors.New(fmt.Sprintf("container: cannot resolve %v field", s.Type().Field(i).Name))
+				}
+			}
+
+			return nil
 		}
 	}
-	component := c.GetByType(typeName)
-	if component == nil {
-		component = c.GetById(field.Name)
-		if component == nil {
-			return errors.New(fmt.Sprintf("autowiring failed for field %s as component could not be found by type(%s) or id(%s)",
-				field.Name,
-				c.assembleTypeId(field.Type.Name()),
-				field.Name))
-		}
-	}
-	return reflect.SetValueOnField(object, field.Name, component)
+
+	return errors.New("container: invalid structure")
 }
 
-func (c *Container) AutoWireFieldByType(object interface{}, fieldName string) error {
-	field, err := reflect.GetFieldByName(object, fieldName)
-	if err != nil {
-		return err
-	}
-	return c.autowireFieldByField(object, field)
-}
-
-func (c *Container) AutoWireFieldsByType(object interface{}) error {
-	fields, err := reflect.GetFields(object)
-	if err != nil {
-		return err
-	}
-	for i := range fields {
-		if err = c.autowireFieldByField(object, fields[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *Container) handleFieldInjection(object interface{}, field rawReflect.StructField) error {
-	tag := string(field.Tag)
-	if strings.HasPrefix(tag, InjectTagPrefix) {
-		return c.injectFieldById(object, field.Name, tag)
-	} else if strings.HasPrefix(tag, AutoWireTagPrefix) {
-		return c.autowireFieldByField(object, field)
-	}
-	return nil
-}
-
-func (c *Container) InjectFieldComponentsToObject(object interface{}) error {
-	fields, err := reflect.GetFields(object)
-	if err != nil {
-		return err
-	}
-	for i := range fields {
-		if err = c.handleFieldInjection(object, fields[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *Container) UnregisterById(id string) bool {
-	notExist := c.GetById(id) == nil
-	if notExist {
+func tryToGetSetterAndSet(object reflect.Value, fieldName string, value interface{}) bool {
+	// maybe try setXXX too?
+	setterMethodName := fmt.Sprintf("%s%s", setterMethodPrefix, utils.ToPascalCase(fieldName))
+	mv := object.MethodByName(setterMethodName)
+	if !(mv.IsValid() && mv.Kind() == reflect.Func) {
 		return false
 	}
-	c.withWrite(func() {
-		delete(c.components, id)
-	})
+	mv.Call([]reflect.Value{reflect.ValueOf(value)})
+	if recover() != nil {
+		return false
+	}
 	return true
-}
-
-func (c *Container) Clear() {
-	c.withWrite(func() {
-		for k := range c.components {
-			delete(c.components, k)
-		}
-	})
 }

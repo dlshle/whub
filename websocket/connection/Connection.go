@@ -137,6 +137,7 @@ func (c *WsConnection) Read() ([]byte, error) {
 }
 
 func (c *WsConnection) Write(stream []byte) (err error) {
+	// use write lock to prevent concurrent write
 	c.withWrite(func() {
 		t := time.Now()
 		err = c.conn.WriteMessage(1, stream)

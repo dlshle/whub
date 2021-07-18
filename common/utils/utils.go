@@ -19,7 +19,18 @@ func ByteToUpperCase(b byte) byte {
 	return b
 }
 
+func ByteToLowerCase(b byte) byte {
+	if b > 64 && b < 91 {
+		return b + 32
+	}
+	return b
+}
+
 func ToCamelCase(name string) string {
+	return fmt.Sprintf("%c%s", ByteToLowerCase(name[0]), name[1:])
+}
+
+func ToPascalCase(name string) string {
 	return fmt.Sprintf("%c%s", ByteToUpperCase(name[0]), name[1:])
 }
 

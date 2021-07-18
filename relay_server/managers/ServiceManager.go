@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	container.Container.RegisterComponent(ServiceManagerId, NewServiceManager())
+	container.Container.Singleton(func() IServiceManager { return NewServiceManager() })
 }
 
 const ServiceManagerId = "ServiceManager"

@@ -26,7 +26,7 @@ const (
 type PubSubService struct {
 	*service.NativeService
 	topics        map[string]*Topic
-	clientManager managers.IClientManager
+	clientManager managers.IClientManager `$inject:""`
 	topicPool     *sync.Pool
 }
 
@@ -38,7 +38,7 @@ func (s *PubSubService) Init() error {
 			return new(Topic)
 		},
 	}
-	s.clientManager = container.Container.GetById(managers.ClientManagerId).(managers.IClientManager)
+	container.Container.Fill(s)
 	if s.clientManager == nil {
 		return errors.New("can not get clientManager from container")
 	}

@@ -62,6 +62,27 @@ func GetFields(o interface{}) ([]reflect.StructField, error) {
 	return fields, nil
 }
 
+func GetFieldsAndValues(o interface{}) (map[string]interface{}, error) {
+	t := getReflectKind(o)
+	v := reflect.ValueOf(o)
+	if t.Kind() != reflect.Struct {
+		return nil, errors.New("object is not of struct kind")
+	}
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return nil, errors.New("object is not of struct kind")
+	}
+	res := make(map[string]interface{})
+	numFields := t.NumField()
+	for k := 0; k < numFields; k++ {
+		fName := t.Field(k).Name
+		res[fName] = v.FieldByName(fName).Interface()
+	}
+	return res, nil
+}
+
 func GetValueByField(o interface{}, field string) (reflect.Value, error) {
 	v := reflect.ValueOf(o)
 	if v.Kind() == reflect.Ptr {
@@ -79,7 +100,7 @@ func GetValueByField(o interface{}, field string) (reflect.Value, error) {
 
 // setter = SetX
 func tryToGetSetterAndSet(object reflect.Value, fieldName string, value interface{}) bool {
-	setterMethodName := fmt.Sprintf("%s%s", setterMethodPrefix, utils.ToCamelCase(fieldName))
+	setterMethodName := fmt.Sprintf("%s%s", setterMethodPrefix, utils.ToPascalCase(fieldName))
 	mv := object.MethodByName(setterMethodName)
 	if !(mv.IsValid() && mv.Kind() == reflect.Func) {
 		return false

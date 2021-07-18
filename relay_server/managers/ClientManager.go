@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	container.Container.RegisterComponent(ClientManagerId, NewClientManager())
+	container.Container.Singleton(func() IClientManager { return NewClientManager() })
 }
 
 const ClientManagerId = "ClientManager"

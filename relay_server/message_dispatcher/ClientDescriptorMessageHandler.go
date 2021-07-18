@@ -17,17 +17,20 @@ import (
 )
 
 type ClientDescriptorMessageHandler struct {
-	anonymousClientManager managers.IAnonymousClientManager
-	clientManager          managers.IClientManager
+	anonymousClientManager managers.IAnonymousClientManager `$inject:""`
+	clientManager          managers.IClientManager          `$inject:""`
 	logger                 *logger.SimpleLogger
 }
 
 func NewClientDescriptorMessageHandler() message_actions.IMessageHandler {
-	return &ClientDescriptorMessageHandler{
-		anonymousClientManager: container.Container.GetById(managers.AnonymousClientManagerId).(managers.IAnonymousClientManager),
-		clientManager:          container.Container.GetById(managers.ClientManagerId).(managers.IClientManager),
-		logger:                 context.Ctx.Logger().WithPrefix("[ClientDescriptorMessageHandler]"),
+	handler := &ClientDescriptorMessageHandler{
+		logger: context.Ctx.Logger().WithPrefix("[ClientDescriptorMessageHandler]"),
 	}
+	err := container.Container.Fill(handler)
+	if err != nil {
+		panic(err)
+	}
+	return handler
 }
 
 func (h *ClientDescriptorMessageHandler) Type() int {

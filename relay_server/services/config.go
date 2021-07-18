@@ -1,8 +1,6 @@
 package services
 
 import (
-	"errors"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/managers"
 	"wsdk/relay_server/service"
@@ -21,11 +19,7 @@ func init() {
 	serviceInstances[relay_management.ID] = new(relay_management.RelayManagementService)
 }
 
-func InitNativeServices() error {
-	serviceManager := container.Container.GetById(managers.ServiceManagerId).(managers.IServiceManager)
-	if serviceManager == nil {
-		return errors.New("unable to get serviceManager")
-	}
+func InitNativeServices(serviceManager managers.IServiceManager) error {
 	for k, v := range serviceInstances {
 		err := v.Init()
 		if err != nil {

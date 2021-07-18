@@ -7,5 +7,5 @@ import (
 var Container *ioc.Container
 
 func init() {
-	Container = ioc.NewContainer()
+	Container = ioc.New()
 }

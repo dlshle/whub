@@ -15,7 +15,7 @@ import (
 )
 
 func init() {
-	container.Container.RegisterComponent(AnonymousClientManagerId, NewAnonymousClientManager())
+	container.Container.Singleton(func() IAnonymousClientManager { return NewAnonymousClientManager() })
 }
 
 const AnonymousClientManagerId = "AnonymousClientManager"

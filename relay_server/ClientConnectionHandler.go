@@ -15,8 +15,8 @@ import (
 
 type ClientConnectionHandler struct {
 	messageDispatcher      message_actions.IMessageDispatcher
-	clientManager          managers.IClientManager
-	anonymousClientManager managers.IAnonymousClientManager
+	clientManager          managers.IClientManager          `$inject:""`
+	anonymousClientManager managers.IAnonymousClientManager `$inject:""`
 	logger                 *logger.SimpleLogger
 }
 
@@ -26,10 +26,12 @@ type IClientConnectionHandler interface {
 
 func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispatcher) IClientConnectionHandler {
 	h := &ClientConnectionHandler{
-		messageDispatcher:      messageDispatcher,
-		clientManager:          container.Container.GetById(managers.ClientManagerId).(managers.IClientManager),
-		anonymousClientManager: container.Container.GetById(managers.AnonymousClientManagerId).(managers.IAnonymousClientManager),
-		logger:                 context.Ctx.Logger().WithPrefix("[ClientConnectionHandler]"),
+		messageDispatcher: messageDispatcher,
+		logger:            context.Ctx.Logger().WithPrefix("[ClientConnectionHandler]"),
+	}
+	err := container.Container.Fill(h)
+	if err != nil {
+		panic(err)
 	}
 	return h
 }

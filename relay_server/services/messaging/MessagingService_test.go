@@ -5,9 +5,12 @@ import (
 	"wsdk/common/test_utils"
 	"wsdk/common/utils"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/roles"
+	"wsdk/relay_server/context"
 )
 
 func TestMessagingService(t *testing.T) {
+	context.Ctx.Start(roles.NewServer("123", "asd", "qwe", 123))
 	service := New()
 	test_utils.NewTestGroup("MessagingService", "").Cases([]*test_utils.Assertion{
 		test_utils.NewTestCase("test service uris", "", func() bool {
@@ -20,6 +23,10 @@ func TestMessagingService(t *testing.T) {
 			msg := service.Handle(messages.NewMessage("x", "client", "server", "/service/messaging/send", messages.MessageTypeServiceRequest, ([]byte)("asdasd")))
 			t.Log("msg: ", msg)
 			return msg.MessageType() == messages.MessageTypeError
+		}),
+		test_utils.NewTestCase("test ioc", "", func() bool {
+			ms := service.(*MessagingService)
+			return ms.IClientManager != nil
 		}),
 	}).Do(t)
 }

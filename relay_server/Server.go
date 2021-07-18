@@ -7,6 +7,7 @@ import (
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
+	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/events"
 	"wsdk/relay_server/message_dispatcher"
@@ -37,7 +38,8 @@ func (s *Server) withWrite(cb func()) {
 }
 
 func (s *Server) Start() error {
-	err := services.InitNativeServices()
+	// dependency inject to deal w/ IServiceManager
+	err := container.Container.Call(services.InitNativeServices)
 	if err != nil {
 		s.logger.Fatalln("unable to init native services due to ", err)
 		return err
@@ -67,6 +69,7 @@ func NewServer(identity roles.ICommonServer) *Server {
 		messageParser:     messages.NewFBMessageParser(),
 		messageDispatcher: message_dispatcher.NewServerMessageDispatcher(),
 		lock:              new(sync.RWMutex),
+		logger:            logger,
 	}
 	server.OnClientConnected(server.handleInitialConnection)
 	server.clientConnectionHandler = NewClientConnectionHandler(server.messageDispatcher)

@@ -19,14 +19,17 @@ const (
 
 type MessagingService struct {
 	*service.NativeService
-	managers.IClientManager
+	managers.IClientManager `$inject:""`
 	// logger *logger.SimpleLogger
 }
 
 func New() service.INativeService {
 	messagingService := &MessagingService{
-		service.NewNativeService(ID, "basic messaging service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
-		container.Container.GetById(managers.ClientManagerId).(managers.IClientManager),
+		NativeService: service.NewNativeService(ID, "basic messaging service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
+	}
+	err := container.Container.Fill(messagingService)
+	if err != nil {
+		messagingService.Logger().Println(err)
 	}
 	messagingService.RegisterRoute(RouteSend, messagingService.Send)
 	messagingService.RegisterRoute(RouteBroadcast, messagingService.Broadcast)
@@ -35,7 +38,10 @@ func New() service.INativeService {
 
 func (s *MessagingService) Init() (err error) {
 	s.NativeService = service.NewNativeService(ID, "basic messaging service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync)
-	s.IClientManager = container.Container.GetById(managers.ClientManagerId).(managers.IClientManager)
+	err = container.Container.Fill(s)
+	if err != nil {
+		return err
+	}
 	if s.IClientManager == nil {
 		return errors.New("can not get clientManager from container")
 	}

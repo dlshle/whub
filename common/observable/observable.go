@@ -23,11 +23,11 @@ type SafeObservable struct {
 	rwLock *sync.RWMutex
 }
 
-func NewSafeObservable() *SafeObservable {
+func NewSafeObservable() IObservable {
 	return &SafeObservable{NewObservable(), new(sync.RWMutex)}
 }
 
-func NewSafeObservableWith(v interface{}) *SafeObservable {
+func NewSafeObservableWith(v interface{}) IObservable {
 	return &SafeObservable{NewObservableWith(v), new(sync.RWMutex)}
 }
 
@@ -38,7 +38,6 @@ type IObservable interface {
 	Once(func(interface{})) func() //returns disposer function
 	Off(string) bool
 	Dispose()
-	deleteIfExist(id string)
 }
 
 func (o *Observable) deleteIfExist(id string) {

@@ -3,8 +3,8 @@ package main
 import "time"
 
 func main() {
-	role := "x"
-	if role == "Server" {
+	role := "server"
+	if role == "server" {
 		ServerTest()
 	} else {
 		go RunMultipleClientTest(10)
