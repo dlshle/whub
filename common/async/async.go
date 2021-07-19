@@ -1,6 +1,7 @@
 package async
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -35,12 +36,16 @@ const (
 )
 
 type AsyncPool struct {
-	id         string
-	rwLock     *sync.RWMutex
-	channel    chan AsyncTask
-	numWorkers int
-	status     int
-	logger     *logger.SimpleLogger
+	id            string
+	context       context.Context
+	cancelFunc    func()
+	stopWaitGroup sync.WaitGroup
+	rwLock        *sync.RWMutex
+	channel       chan AsyncTask
+	numWorkers    int
+	numBusyWorker int
+	status        int
+	logger        *logger.SimpleLogger
 }
 
 type IAsyncPool interface {
@@ -57,14 +62,25 @@ type IAsyncPool interface {
 }
 
 func NewAsyncPool(id string, maxPoolSize, workerSize int) *AsyncPool {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &AsyncPool{
 		id,
+		ctx,
+		cancel,
+		sync.WaitGroup{},
 		new(sync.RWMutex),
 		make(chan AsyncTask, getInRangeInt(maxPoolSize, 16, 2048)),
 		getInRangeInt(workerSize, 2, 1024),
 		0,
+		0,
 		logger.New(os.Stdout, fmt.Sprintf("AsyncPool[pool-%s]", id), false),
 	}
+}
+
+func (p *AsyncPool) withWrite(cb func()) {
+	p.rwLock.Lock()
+	defer p.rwLock.Unlock()
+	cb()
 }
 
 func (p *AsyncPool) getStatus() int {
@@ -95,33 +111,50 @@ func (p *AsyncPool) isRunning() bool {
 	return p.status == RUNNING
 }
 
+func (p *AsyncPool) incrementNumBusyWorkers() {
+	p.withWrite(func() {
+		p.numBusyWorker++
+	})
+}
+
+func (p *AsyncPool) decrementNumBusyWorkers() {
+	p.withWrite(func() {
+		p.numBusyWorker--
+	})
+}
+
 func (p *AsyncPool) Start() {
 	if p.getStatus() > IDLE {
 		return
 	}
 	go func() {
 		// worker manager routine
-		var wg sync.WaitGroup
 		for i := 0; i < p.numWorkers; i++ {
-			wg.Add(1)
+			p.stopWaitGroup.Add(1)
 			go func(wi int) {
 				// worker routine
-				for p.isRunning() {
-					// simply take task and work on it sequentially
-					task, isOpen := <-p.channel
-					if isOpen {
-						p.logger.Printf("Worker %d has acquired task %p\n", wi, task)
-						task()
-					} else {
+				for {
+					select {
+					case task, isOpen := <-p.channel:
+						// simply take task and work on it sequentially
+						if isOpen {
+							p.logger.Printf("Worker %d has acquired task %p\n", wi, task)
+							p.incrementNumBusyWorkers()
+							task()
+						} else {
+							break
+						}
+						p.decrementNumBusyWorkers()
+					case <-p.context.Done():
 						break
 					}
 				}
 				p.logger.Printf("Worker %d terminated\n", wi)
-				wg.Done()
+				p.stopWaitGroup.Done()
 			}(i)
 		}
 		// wait till all workers terminated
-		wg.Wait()
+		p.stopWaitGroup.Wait()
 		p.setStatus(TERMINATED)
 		p.logger.Printf("All worker has been terminated\n")
 	}()
@@ -134,9 +167,9 @@ func (p *AsyncPool) Stop() {
 		return
 	}
 	close(p.channel)
+	p.cancelFunc()
 	p.setStatus(TERMINATING)
-	for p.getStatus() != TERMINATED {
-	}
+	p.stopWaitGroup.Wait()
 }
 
 func (p *AsyncPool) schedule(task AsyncTask) {

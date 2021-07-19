@@ -9,8 +9,8 @@ import (
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/controllers"
 	"wsdk/relay_server/events"
-	"wsdk/relay_server/managers"
 	"wsdk/relay_server/service"
 )
 
@@ -26,7 +26,7 @@ const (
 type PubSubService struct {
 	*service.NativeService
 	topics        map[string]*Topic
-	clientManager managers.IClientManager `$inject:""`
+	clientManager controllers.IClientManager `$inject:""`
 	topicPool     *sync.Pool
 }
 

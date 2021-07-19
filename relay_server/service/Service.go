@@ -46,6 +46,7 @@ type IService interface {
 	Kill() error
 	UriPrefix() string
 	ResolveByAck(request *service.ServiceRequest) error
+	ResolveByResponse(request *service.ServiceRequest, responseData []byte) error
 	Logger() *logger.SimpleLogger
 }
 
@@ -248,6 +249,10 @@ func (s *Service) UriPrefix() string {
 
 func (s *Service) ResolveByAck(request *service.ServiceRequest) error {
 	return request.Resolve(messages.NewACKMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri()))
+}
+
+func (s *Service) ResolveByResponse(request *service.ServiceRequest, responseData []byte) error {
+	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, responseData))
 }
 
 func (s *Service) Logger() *logger.SimpleLogger {

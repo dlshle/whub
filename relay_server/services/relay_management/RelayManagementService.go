@@ -9,9 +9,9 @@ import (
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
+	"wsdk/relay_server/controllers"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
-	"wsdk/relay_server/managers"
 	"wsdk/relay_server/service"
 	server_utils "wsdk/relay_server/utils"
 )
@@ -27,8 +27,8 @@ const (
 
 type RelayManagementService struct {
 	*service.NativeService
-	clientManager  managers.IClientManager  `$inject:""`
-	serviceManager managers.IServiceManager `$inject:""`
+	clientManager  controllers.IClientManager  `$inject:""`
+	serviceManager controllers.IServiceManager `$inject:""`
 	servicePool    *sync.Pool
 }
 

@@ -13,12 +13,12 @@ import (
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/managers"
+	"wsdk/relay_server/controllers"
 )
 
 type ClientDescriptorMessageHandler struct {
-	anonymousClientManager managers.IAnonymousClientManager `$inject:""`
-	clientManager          managers.IClientManager          `$inject:""`
+	anonymousClientManager controllers.IAnonymousClientManager `$inject:""`
+	clientManager          controllers.IClientManager          `$inject:""`
 	logger                 *logger.SimpleLogger
 }
 
