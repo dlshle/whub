@@ -36,16 +36,16 @@ const (
 )
 
 type AsyncPool struct {
-	id            string
-	context       context.Context
-	cancelFunc    func()
-	stopWaitGroup sync.WaitGroup
-	rwLock        *sync.RWMutex
-	channel       chan AsyncTask
-	numWorkers    int
-	numBusyWorker int
-	status        int
-	logger        *logger.SimpleLogger
+	id             string
+	context        context.Context
+	cancelFunc     func()
+	stopWaitGroup  sync.WaitGroup
+	rwLock         *sync.RWMutex
+	channel        chan AsyncTask
+	numWorkers     int
+	numBusyWorkers int
+	status         int
+	logger         *logger.SimpleLogger
 }
 
 type IAsyncPool interface {
@@ -59,6 +59,9 @@ type IAsyncPool interface {
 	Schedule(task AsyncTask) *Barrier
 	ScheduleComputable(computableTask ComputableAsyncTask) *StatefulBarrier
 	Verbose(use bool)
+	NumWorkers() int
+	NumPendingTasks() int
+	NumBusyWorkers() int
 }
 
 func NewAsyncPool(id string, maxPoolSize, workerSize int) *AsyncPool {
@@ -113,13 +116,13 @@ func (p *AsyncPool) isRunning() bool {
 
 func (p *AsyncPool) incrementNumBusyWorkers() {
 	p.withWrite(func() {
-		p.numBusyWorker++
+		p.numBusyWorkers++
 	})
 }
 
 func (p *AsyncPool) decrementNumBusyWorkers() {
 	p.withWrite(func() {
-		p.numBusyWorker--
+		p.numBusyWorkers--
 	})
 }
 
@@ -201,6 +204,26 @@ func (p *AsyncPool) ScheduleComputable(computableTask ComputableAsyncTask) *Stat
 
 func (p *AsyncPool) Verbose(use bool) {
 	p.logger.Verbose(use)
+}
+
+func (p *AsyncPool) NumWorkers() int {
+	return p.numWorkers
+}
+
+func (p *AsyncPool) NumPendingTasks() int {
+	if p.getStatus() == RUNNING {
+		return len(p.channel)
+	}
+	return 0
+}
+
+func (p *AsyncPool) NumBusyWorkers() int {
+	if p.getStatus() == RUNNING {
+		p.rwLock.RLock()
+		defer p.rwLock.RUnlock()
+		return p.numBusyWorkers
+	}
+	return 0
 }
 
 // utils

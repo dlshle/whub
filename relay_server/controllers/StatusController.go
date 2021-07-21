@@ -23,6 +23,18 @@ func (s SystemStat) JsonByte() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+// TODO get pool stat here as well
+type AsyncPoolStat struct {
+	Status          string `json:"status"`
+	NumWorkers      int    `json:"numWorkers"`
+	NumPendingTasks int    `json:"numPendingTasks"`
+	NumBusyWorkers  int    `json:"numBusyWorkers"`
+}
+
+func (s AsyncPoolStat) JsonByte() ([]byte, error) {
+	return json.Marshal(s)
+}
+
 type SystemStatusController struct {
 	statReadTimer  ctimer.ICTimer
 	observableStat observable.IObservable // observable with system stat
@@ -42,7 +54,7 @@ func NewSystemStatusController() ISystemStatusController {
 	}
 	controller.readAndUpdateSystemStat()
 	controller.statReadTimer = ctimer.New(DefaultStatReadInterval, controller.readAndUpdateSystemStat)
-	controller.statReadTimer.Start()
+	controller.statReadTimer.Repeat()
 	return controller
 }
 

@@ -10,12 +10,15 @@ const (
 	StatusReset
 	StatusCancelled
 	StatusRunning
+	StatusRepeatWaiting
+	StatusRepeatRunning
 )
 
 type ICTimer interface {
 	Start()
 	Reset()
 	Cancel()
+	Repeat()
 }
 
 type CTimer struct {
@@ -36,11 +39,26 @@ func New(interval time.Duration, job func()) ICTimer {
 
 func (t *CTimer) Start() {
 	if t.status == StatusIdle {
-		go t.WaitAndRun(t.interval)
+		go t.waitAndRun(t.interval)
 	}
 }
 
-func (t *CTimer) WaitAndRun(interval time.Duration) {
+func (t *CTimer) Repeat() {
+	if t.status == StatusIdle {
+		go t.repeatWaitAndRun(t.interval)
+	}
+}
+
+func (t *CTimer) repeatWaitAndRun(interval time.Duration) {
+	for t.status != StatusCancelled {
+		t.waitAndRun(interval)
+	}
+}
+
+func (t *CTimer) waitAndRun(interval time.Duration) {
+	if t.status == StatusCancelled {
+		return
+	}
 	t.resetInterval = 0
 	t.startTime = time.Now()
 	t.status = StatusWaiting
@@ -50,7 +68,7 @@ func (t *CTimer) WaitAndRun(interval time.Duration) {
 		return
 	}
 	if t.status == StatusReset && t.resetInterval > 0 {
-		t.WaitAndRun(t.resetInterval)
+		t.waitAndRun(t.resetInterval)
 		return
 	}
 	t.status = StatusRunning
@@ -71,7 +89,7 @@ func (t *CTimer) Reset() {
 }
 
 func (t *CTimer) Cancel() {
-	if t.status == StatusWaiting {
+	if t.status == StatusWaiting || t.status == StatusRepeatWaiting {
 		t.status = StatusCancelled
 	}
 }
