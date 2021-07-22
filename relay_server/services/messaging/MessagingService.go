@@ -7,7 +7,7 @@ import (
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/controllers"
+	client2 "wsdk/relay_server/controllers/client"
 	"wsdk/relay_server/service"
 )
 
@@ -19,7 +19,7 @@ const (
 
 type MessagingService struct {
 	*service.NativeService
-	controllers.IClientManager `$inject:""`
+	client2.IClientManager `$inject:""`
 	// logger *logger.SimpleLogger
 }
 

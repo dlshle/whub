@@ -3,7 +3,10 @@ package status
 import (
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/controllers"
+	"wsdk/relay_server/controllers/anonymous_client"
+	"wsdk/relay_server/controllers/client"
+	service2 "wsdk/relay_server/controllers/service"
+	"wsdk/relay_server/controllers/status"
 	"wsdk/relay_server/service"
 )
 
@@ -14,10 +17,10 @@ const (
 
 type StatusService struct {
 	service.INativeService
-	systemStatusController controllers.ISystemStatusController `$inject:""`
-	serviceManager         controllers.IServiceManager         `$inject:""`
-	clientManager          controllers.IClientManager          `$inject:""`
-	anonymousClientManager controllers.IAnonymousClientManager `$inject:""`
+	systemStatusController status.ISystemStatusController           `$inject:""`
+	serviceManager         service2.IServiceManager                 `$inject:""`
+	clientManager          client.IClientManager                    `$inject:""`
+	anonymousClientManager anonymous_client.IAnonymousClientManager `$inject:""`
 }
 
 func (s *StatusService) Init() error {

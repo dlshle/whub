@@ -1,4 +1,4 @@
-package controllers
+package anonymous_client
 
 import (
 	"errors"

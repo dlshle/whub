@@ -16,6 +16,8 @@ const (
 	EventServerStarted = "EServerStarted"
 	EventServerClosed  = "EServerClosed"
 	EventServerError   = "EServerDown"
+
+	EventTopicRemoval = "ETopicRemoval"
 )
 
 func EmitEvent(eventId string, message string) {

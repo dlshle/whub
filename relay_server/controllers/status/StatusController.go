@@ -1,4 +1,4 @@
-package controllers
+package status
 
 import (
 	"encoding/json"
@@ -13,10 +13,18 @@ import (
 
 const DefaultStatReadInterval = time.Second * 30
 
+// log.Printf("\nAlloc = %v\nTotalAlloc = %v\nSysAlloc = %v\nNumGC = %v\n\n", m.Alloc / 1024, m.TotalAlloc / 1024, m.SysAlloc / 1024, m.NumGC)
+type MemStats struct {
+	runtime.MemStats
+}
+
 type SystemStat struct {
-	NumCpus       int              `json:"numCpus"`
-	NumGoroutines int              `json:"numGoroutines"`
-	MemStat       runtime.MemStats `json:"memStat"`
+	NumCpus       int    `json:"numCpus"`
+	NumGoroutines int    `json:"numGoroutines"`
+	Alloc         uint64 `json:"alloc"`
+	TotalAlloc    uint64 `json:"totalAlloc"`
+	SysAlloc      uint64 `json:"sysAlloc"`
+	NumGC         uint32 `json:"numGC"`
 }
 
 func (s SystemStat) JsonByte() ([]byte, error) {
@@ -60,9 +68,14 @@ func NewSystemStatusController() ISystemStatusController {
 
 func (c *SystemStatusController) readAndUpdateSystemStat() {
 	stat := c.observableStat.Get().(*SystemStat)
+	var memStat runtime.MemStats
 	stat.NumCpus = runtime.NumCPU()
 	stat.NumGoroutines = runtime.NumGoroutine()
-	runtime.ReadMemStats(&stat.MemStat)
+	runtime.ReadMemStats(&memStat)
+	stat.Alloc = memStat.Alloc / 1024
+	stat.TotalAlloc = memStat.TotalAlloc / 1024
+	stat.SysAlloc = memStat.Sys / 1024
+	stat.NumGC = memStat.NumGC
 	c.observableStat.Set(stat)
 	c.lastUpdateTime = time.Now()
 	jsonByte, _ := stat.JsonByte()

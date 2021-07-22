@@ -9,7 +9,8 @@ import (
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers"
+	"wsdk/relay_server/controllers/client"
+	"wsdk/relay_server/controllers/topic"
 	"wsdk/relay_server/events"
 	"wsdk/relay_server/service"
 )
@@ -25,17 +26,17 @@ const (
 
 type PubSubService struct {
 	*service.NativeService
-	topics        map[string]*Topic
-	clientManager controllers.IClientManager `$inject:""`
+	topics        map[string]*topic.Topic
+	clientManager client.IClientManager `$inject:""`
 	topicPool     *sync.Pool
 }
 
 func (s *PubSubService) Init() error {
 	s.NativeService = service.NewNativeService(ID, "message pub/sub service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionAsync)
-	s.topics = make(map[string]*Topic)
+	s.topics = make(map[string]*topic.Topic)
 	s.topicPool = &sync.Pool{
 		New: func() interface{} {
-			return new(Topic)
+			return new(topic.Topic)
 		},
 	}
 	container.Container.Fill(s)
@@ -120,7 +121,7 @@ func (s *PubSubService) Publish(request *service_common.ServiceRequest, pathPara
 	topicId := pathParams[":topic"]
 	topic := s.topics[topicId]
 	if topic == nil {
-		topic = s.topicPool.Get().(*Topic)
+		topic = s.topicPool.Get().(*topic.Topic)
 		topic.Init(topicId, request.From())
 	}
 	subscribers := topic.Subscribers()
@@ -137,7 +138,7 @@ func (s *PubSubService) Topics(request *service_common.ServiceRequest, pathParam
 	if !s.clientManager.HasClient(request.From()) {
 		return errors.New(fmt.Sprintf("can not find client by id %s", request.From()))
 	}
-	topics := make([]TopicDescriptor, 0, len(s.topics))
+	topics := make([]topic.TopicDescriptor, 0, len(s.topics))
 	for _, t := range s.topics {
 		topics = append(topics, t.Describe())
 	}
@@ -149,7 +150,7 @@ func (s *PubSubService) Topics(request *service_common.ServiceRequest, pathParam
 	return nil
 }
 
-func (s *PubSubService) notifySubscribersForTopicRemoval(topic *Topic, message *messages.Message) {
+func (s *PubSubService) notifySubscribersForTopicRemoval(topic *topic.Topic, message *messages.Message) {
 	subscribers := topic.Subscribers()
 	for _, subscriber := range subscribers {
 		if c := s.clientManager.GetClient(subscriber); c != nil {

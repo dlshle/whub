@@ -1,4 +1,4 @@
-package controllers
+package client
 
 import (
 	"errors"

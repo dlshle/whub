@@ -6,12 +6,12 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers"
+	service2 "wsdk/relay_server/controllers/service"
 	"wsdk/relay_server/service"
 )
 
 type ServiceRequestMessageHandler struct {
-	manager controllers.IServiceManager `$inject:""`
+	manager service2.IServiceManager `$inject:""`
 }
 
 func NewServiceRequestMessageHandler() message_actions.IMessageHandler {

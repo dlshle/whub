@@ -2,7 +2,7 @@ package services
 
 import (
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers"
+	service2 "wsdk/relay_server/controllers/service"
 	"wsdk/relay_server/service"
 	"wsdk/relay_server/services/messaging"
 	"wsdk/relay_server/services/pubsub"
@@ -37,7 +37,7 @@ func resetInstances() {
 	instantiateInstances()
 }
 
-func InitNativeServices(serviceManager controllers.IServiceManager) (err error) {
+func InitNativeServices(serviceManager service2.IServiceManager) (err error) {
 	for k, v := range serviceInstances {
 		err = v.Init()
 		if err != nil {
