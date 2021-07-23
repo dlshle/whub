@@ -6,8 +6,8 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	service2 "wsdk/relay_server/controllers/service"
-	"wsdk/relay_server/service"
+	service2 "wsdk/relay_server/controllers/service_manager"
+	"wsdk/relay_server/service_base"
 )
 
 type ServiceRequestMessageHandler struct {
@@ -30,7 +30,7 @@ func (h *ServiceRequestMessageHandler) Type() int {
 func (h *ServiceRequestMessageHandler) Handle(message *messages.Message, conn connection.IConnection) (err error) {
 	svc := h.manager.FindServiceByUri(message.Uri())
 	if svc == nil {
-		err = service.NewCanNotFindServiceError(message.Uri())
+		err = service_base.NewCanNotFindServiceError(message.Uri())
 		conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(), err.Error()))
 		return err
 	}

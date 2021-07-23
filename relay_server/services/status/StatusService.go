@@ -3,28 +3,28 @@ package status
 import (
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/controllers/anonymous_client"
-	"wsdk/relay_server/controllers/client"
-	service2 "wsdk/relay_server/controllers/service"
+	"wsdk/relay_server/controllers/anonymous_client_manager"
+	"wsdk/relay_server/controllers/client_manager"
+	service2 "wsdk/relay_server/controllers/service_manager"
 	"wsdk/relay_server/controllers/status"
-	"wsdk/relay_server/service"
+	"wsdk/relay_server/service_base"
 )
 
 const (
 	ID             = "status"
-	RouteGetStatus = "/get" // payload = service descriptor
+	RouteGetStatus = "/get" // payload = service_manager descriptor
 )
 
 type StatusService struct {
-	service.INativeService
-	systemStatusController status.ISystemStatusController           `$inject:""`
-	serviceManager         service2.IServiceManager                 `$inject:""`
-	clientManager          client.IClientManager                    `$inject:""`
-	anonymousClientManager anonymous_client.IAnonymousClientManager `$inject:""`
+	service_base.INativeService
+	systemStatusController status.ISystemStatusController                   `$inject:""`
+	serviceManager         service2.IServiceManager                         `$inject:""`
+	clientManager          client_manager.IClientManager                    `$inject:""`
+	anonymousClientManager anonymous_client_manager.IAnonymousClientManager `$inject:""`
 }
 
 func (s *StatusService) Init() error {
-	s.INativeService = service.NewNativeService(ID,
+	s.INativeService = service_base.NewNativeService(ID,
 		"server status",
 		service_common.ServiceTypeInternal,
 		service_common.ServiceAccessTypeSocket,

@@ -7,8 +7,8 @@ import (
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
-	client2 "wsdk/relay_server/controllers/client"
-	"wsdk/relay_server/service"
+	client2 "wsdk/relay_server/controllers/client_manager"
+	"wsdk/relay_server/service_base"
 )
 
 const (
@@ -18,14 +18,14 @@ const (
 )
 
 type MessagingService struct {
-	*service.NativeService
+	*service_base.NativeService
 	client2.IClientManager `$inject:""`
 	// logger *logger.SimpleLogger
 }
 
-func New() service.INativeService {
+func New() service_base.INativeService {
 	messagingService := &MessagingService{
-		NativeService: service.NewNativeService(ID, "basic messaging service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
+		NativeService: service_base.NewNativeService(ID, "basic messaging service_manager", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
 	}
 	err := container.Container.Fill(messagingService)
 	if err != nil {
@@ -37,7 +37,7 @@ func New() service.INativeService {
 }
 
 func (s *MessagingService) Init() (err error) {
-	s.NativeService = service.NewNativeService(ID, "basic messaging service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync)
+	s.NativeService = service_base.NewNativeService(ID, "basic messaging service_manager", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync)
 	err = container.Container.Fill(s)
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (s *MessagingService) Init() (err error) {
 func (s *MessagingService) Send(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	recv := s.GetClient(request.Message.To())
 	if recv == nil {
-		return errors.New(fmt.Sprintf("client %s is not online", request.Message.To()))
+		return errors.New(fmt.Sprintf("client_manager %s is not online", request.Message.To()))
 	}
 	err := recv.Send(request.Message)
 	if err != nil {

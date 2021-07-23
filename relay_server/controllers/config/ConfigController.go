@@ -66,7 +66,7 @@ func checkConfigKey(key string) error {
 	return nil
 }
 
-type ServerConfigManager struct {
+type ServerConfigController struct {
 	configMap            map[string]interface{}
 	observableUpdatedKey observable.IObservable
 	logger               *logger.SimpleLogger
@@ -80,19 +80,19 @@ type IServerConfigManager interface {
 	OnConfigChange(key string, cb func(value interface{}))
 }
 
-func NewServerConfigManager() IServerConfigManager {
-	return &ServerConfigManager{
+func NewServerConfigController() IServerConfigManager {
+	return &ServerConfigController{
 		configMap:            make(map[string]interface{}),
 		observableUpdatedKey: observable.NewSafeObservable(),
-		logger:               context.Ctx.Logger().WithPrefix("[ServerConfigManager]"),
+		logger:               context.Ctx.Logger().WithPrefix("[ServerConfigController]"),
 	}
 }
 
-func (m *ServerConfigManager) notifyConfigChange(key string) {
+func (m *ServerConfigController) notifyConfigChange(key string) {
 	m.observableUpdatedKey.Set(key)
 }
 
-func (m *ServerConfigManager) UpdateConfigsByJson(configJson string) error {
+func (m *ServerConfigController) UpdateConfigsByJson(configJson string) error {
 	var newConfig ServerConfig
 	err := json.Unmarshal(([]byte)(configJson), &newConfig)
 	if err != nil {
@@ -101,7 +101,7 @@ func (m *ServerConfigManager) UpdateConfigsByJson(configJson string) error {
 	return m.UpdateConfigs(newConfig)
 }
 
-func (m *ServerConfigManager) UpdateConfigs(config ServerConfig) error {
+func (m *ServerConfigController) UpdateConfigs(config ServerConfig) error {
 	fvMap, err := reflect.GetFieldsAndValues(config)
 	m.logger.Println("update configs with map", fvMap)
 	if err != nil {
@@ -117,7 +117,7 @@ func (m *ServerConfigManager) UpdateConfigs(config ServerConfig) error {
 	return nil
 }
 
-func (m *ServerConfigManager) UpdateConfig(key string, value interface{}) error {
+func (m *ServerConfigController) UpdateConfig(key string, value interface{}) error {
 	if err := checkConfigKey(key); err != nil {
 		m.logger.Println(err)
 		// return err
@@ -128,11 +128,11 @@ func (m *ServerConfigManager) UpdateConfig(key string, value interface{}) error 
 	return nil
 }
 
-func (m *ServerConfigManager) GetConfig(key string) interface{} {
+func (m *ServerConfigController) GetConfig(key string) interface{} {
 	return m.configMap[key]
 }
 
-func (m *ServerConfigManager) OnConfigChange(key string, cb func(value interface{})) {
+func (m *ServerConfigController) OnConfigChange(key string, cb func(value interface{})) {
 	m.observableUpdatedKey.On(func(configKey interface{}) {
 		ckey := configKey.(string)
 		if ckey != key {
@@ -154,7 +154,7 @@ func init() {
 		MaxServicePerClient:          defaultMaxServicePerClient,
 		GreetingMessage:              defaultGreetingMessage,
 	}
-	configManager := NewServerConfigManager()
+	configManager := NewServerConfigController()
 	configManager.UpdateConfigs(defaultConfig)
 	container.Container.Singleton(func() IServerConfigManager {
 		return configManager

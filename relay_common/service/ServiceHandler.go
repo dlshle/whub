@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	uri2 "wsdk/common/uri"
+	uri2 "wsdk/common/uri_trie"
 )
 
-// ServiceHandler handles service requests
+// ServiceHandler handles service_manager requests
 type ServiceHandler struct {
 	trieTree *uri2.TrieTree
 	lock     *sync.RWMutex
@@ -41,7 +41,7 @@ func (m *ServiceHandler) SupportsUri(uri string) bool {
 
 func (m *ServiceHandler) Register(uri string, handler RequestHandler) (err error) {
 	if m.SupportsUri(uri) {
-		return errors.New(fmt.Sprintf("uri %s has already been registered", uri))
+		return errors.New(fmt.Sprintf("uri_trie %s has already been registered", uri))
 	}
 	m.withWrite(func() {
 		err = m.trieTree.Add(uri, handler, false)
@@ -55,7 +55,7 @@ func (m *ServiceHandler) Unregister(uri string) (err error) {
 		success = m.trieTree.Remove(uri)
 	})
 	if !success {
-		err = errors.New(fmt.Sprintf("unable to remove uri %s as it's not registered into service handler", uri))
+		err = errors.New(fmt.Sprintf("unable to remove uri_trie %s as it's not registered into service_manager handler", uri))
 	}
 	return err
 }

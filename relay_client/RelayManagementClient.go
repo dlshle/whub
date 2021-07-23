@@ -13,9 +13,9 @@ const (
 
 // ServerServiceManager
 const (
-	ServiceManagerRegisterService   = ServerServiceManagerUri + "/register"   // payload = service descriptor
-	ServiceManagerUnregisterService = ServerServiceManagerUri + "/unregister" // payload = service descriptor
-	ServiceManagerUpdateService     = ServerServiceManagerUri + "/update"     // payload = service descriptor
+	ServiceManagerRegisterService   = ServerServiceManagerUri + "/register"   // payload = service_manager descriptor
+	ServiceManagerUnregisterService = ServerServiceManagerUri + "/unregister" // payload = service_manager descriptor
+	ServiceManagerUpdateService     = ServerServiceManagerUri + "/update"     // payload = service_manager descriptor
 )
 
 type IServiceManagerClient interface {

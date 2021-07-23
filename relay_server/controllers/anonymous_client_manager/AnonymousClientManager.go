@@ -1,4 +1,4 @@
-package anonymous_client
+package anonymous_client_manager
 
 import (
 	"errors"
@@ -93,7 +93,7 @@ func (m *AnonymousClientManager) DisconnectClient(id string) (err error) {
 	client := m.GetClient(id)
 	defer m.logger.Println("error while disconnecting %s due to: ", err.Error())
 	if client == nil {
-		err = errors.New(fmt.Sprintf("can not find anonymous client by id %s", id))
+		err = errors.New(fmt.Sprintf("can not find anonymous client_manager by id %s", id))
 		return
 	}
 	err = client.Close()
@@ -133,7 +133,7 @@ func (m *AnonymousClientManager) AcceptClient(id string, client *client.Client) 
 		m.clientMap[id] = client
 	})
 	m.handleClientAccepted(client)
-	m.logger.Printf("Anonymous client (%s, %s) has been accepted", id, client.Address())
+	m.logger.Printf("Anonymous client_manager (%s, %s) has been accepted", id, client.Address())
 	return nil
 }
 
@@ -147,13 +147,13 @@ func (m *AnonymousClientManager) handleClientAccepted(client *client.Client) {
 }
 
 func (m *AnonymousClientManager) HandleClientConnectionClosed(c *client.Client, err error) {
-	m.logger.Printf("anonymous client connection(%s) closed, err: %v", c.Address(), err)
+	m.logger.Printf("anonymous client_manager connection(%s) closed, err: %v", c.Address(), err)
 	m.RemoveClient(c.Address())
 }
 
 func (m *AnonymousClientManager) HandleClientError(c *client.Client, err error) {
 	// log err
-	m.logger.Printf("client %s on connection error %s", c.Address(), err.Error())
+	m.logger.Printf("client_manager %s on connection error %s", c.Address(), err.Error())
 }
 
 func (m *AnonymousClientManager) RemoveClient(id string) bool {
@@ -163,6 +163,6 @@ func (m *AnonymousClientManager) RemoveClient(id string) bool {
 	m.withWrite(func() {
 		delete(m.clientMap, id)
 	})
-	m.logger.Printf("client %s has been removed", id)
+	m.logger.Printf("client_manager %s has been removed", id)
 	return true
 }

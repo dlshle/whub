@@ -9,15 +9,15 @@ import (
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/anonymous_client"
-	client2 "wsdk/relay_server/controllers/client"
+	"wsdk/relay_server/controllers/anonymous_client_manager"
+	client2 "wsdk/relay_server/controllers/client_manager"
 	"wsdk/websocket/connection"
 )
 
 type ClientConnectionHandler struct {
 	messageDispatcher      message_actions.IMessageDispatcher
-	clientManager          client2.IClientManager                   `$inject:""`
-	anonymousClientManager anonymous_client.IAnonymousClientManager `$inject:""`
+	clientManager          client2.IClientManager                           `$inject:""`
+	anonymousClientManager anonymous_client_manager.IAnonymousClientManager `$inject:""`
 	logger                 *logger.SimpleLogger
 }
 

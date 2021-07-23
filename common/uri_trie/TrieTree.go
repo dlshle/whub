@@ -1,4 +1,4 @@
-package uri
+package uri_trie
 
 import (
 	"errors"
@@ -46,7 +46,7 @@ func splitRemaining(remaining string) (string, string) {
 		return "", ""
 	}
 	i := 0
-	// special case when url starts with '/' (e.g. /service/xx/yy)
+	// special case when url starts with '/' (e.g. /service_manager/xx/yy)
 	if remaining[0] == '/' {
 		i = 1
 	}

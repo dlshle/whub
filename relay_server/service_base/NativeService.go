@@ -1,4 +1,4 @@
-package service
+package service_base
 
 import (
 	"errors"
@@ -64,5 +64,5 @@ func (s *NativeService) UnregisterRoute(shortUri string) (err error) {
 }
 
 func (s *NativeService) Init() error {
-	return errors.New("native service does not have initializer")
+	return errors.New("native service_manager does not have initializer")
 }

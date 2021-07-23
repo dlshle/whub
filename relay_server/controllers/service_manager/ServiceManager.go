@@ -1,4 +1,4 @@
-package service
+package service_manager
 
 import (
 	"errors"
@@ -6,16 +6,16 @@ import (
 	"strings"
 	"sync"
 	"wsdk/common/logger"
-	uri2 "wsdk/common/uri"
+	"wsdk/common/uri_trie"
 	common_utils "wsdk/common/utils"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_common/utils"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	servererror "wsdk/relay_server/errors"
+	server_errors "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
-	service2 "wsdk/relay_server/service"
+	server_service "wsdk/relay_server/service_base"
 )
 
 func init() {
@@ -26,24 +26,24 @@ const ServiceManagerId = "ServiceManager"
 
 type ServiceManager struct {
 	// need to use full uris here!
-	trieTree   *uri2.TrieTree
-	serviceMap map[string]service2.IService
+	trieTree   *uri_trie.TrieTree
+	serviceMap map[string]server_service.IService
 	lock       *sync.RWMutex
 	logger     *logger.SimpleLogger
 }
 
 type IServiceManager interface {
 	HasService(id string) bool
-	GetService(id string) service2.IService
-	GetServicesByClientId(clientId string) []service2.IService
-	RegisterService(string, service2.IService) error
+	GetService(id string) server_service.IService
+	GetServicesByClientId(clientId string) []server_service.IService
+	RegisterService(string, server_service.IService) error
 	UnregisterService(string) error
 
 	UnregisterAllServices() error
 	UnregisterAllServicesFromClientId(string) error
-	WithServicesFromClientId(clientId string, cb func([]service2.IService)) error
+	WithServicesFromClientId(clientId string, cb func([]server_service.IService)) error
 
-	FindServiceByUri(uri string) service2.IService
+	FindServiceByUri(uri string) server_service.IService
 	SupportsUri(uri string) bool
 
 	UpdateService(descriptor service.ServiceDescriptor) error
@@ -51,8 +51,8 @@ type IServiceManager interface {
 
 func NewServiceManager() IServiceManager {
 	manager := &ServiceManager{
-		trieTree:   uri2.NewTrieTree(),
-		serviceMap: make(map[string]service2.IService),
+		trieTree:   uri_trie.NewTrieTree(),
+		serviceMap: make(map[string]server_service.IService),
 		lock:       new(sync.RWMutex),
 		logger:     context.Ctx.Logger().WithPrefix("[ServiceManager]"),
 	}
@@ -84,7 +84,7 @@ func (s *ServiceManager) UnregisterAllServices() error {
 	return errors.New(errMsgBuilder.String())
 }
 
-func (s *ServiceManager) GetService(id string) service2.IService {
+func (s *ServiceManager) GetService(id string) server_service.IService {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return s.serviceMap[id]
@@ -94,15 +94,15 @@ func (s *ServiceManager) HasService(id string) bool {
 	return s.GetService(id) != nil
 }
 
-func (s *ServiceManager) WithServicesFromClientId(clientId string, cb func([]service2.IService)) error {
+func (s *ServiceManager) WithServicesFromClientId(clientId string, cb func([]server_service.IService)) error {
 	services := s.GetServicesByClientId(clientId)
 	cb(services)
 	return nil
 }
 
 func (s *ServiceManager) UnregisterAllServicesFromClientId(clientId string) error {
-	s.logger.Println("unregister all services from client ", clientId)
-	return s.WithServicesFromClientId(clientId, func(services []service2.IService) {
+	s.logger.Println("unregister all services from client_manager ", clientId)
+	return s.WithServicesFromClientId(clientId, func(services []server_service.IService) {
 		for i, _ := range services {
 			if services[i] != nil {
 				s.UnregisterService(services[i].Id())
@@ -111,15 +111,15 @@ func (s *ServiceManager) UnregisterAllServicesFromClientId(clientId string) erro
 	})
 }
 
-// nil -> no such client, [] -> no service
-func (s *ServiceManager) GetServicesByClientId(id string) []service2.IService {
+// nil -> no such client_manager, [] -> no service_manager
+func (s *ServiceManager) GetServicesByClientId(id string) []server_service.IService {
 	return s.getServicesByClientId(id)
 }
 
-func (s *ServiceManager) getServicesByClientId(id string) []service2.IService {
+func (s *ServiceManager) getServicesByClientId(id string) []server_service.IService {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-	var services []service2.IService
+	var services []server_service.IService
 	for _, v := range s.serviceMap {
 		if v.ProviderInfo().Id == id {
 			services = append(services, v)
@@ -132,15 +132,15 @@ func (s *ServiceManager) serviceCountByClientId(id string) int {
 	return len(s.GetServicesByClientId(id))
 }
 
-func (s *ServiceManager) RegisterService(clientId string, service service2.IService) error {
+func (s *ServiceManager) RegisterService(clientId string, service server_service.IService) error {
 	return s.registerService(clientId, service)
 }
 
-func (s *ServiceManager) registerService(clientId string, svc service2.IService) (err error) {
-	defer s.logger.Printf("register service %s from %s result: %s", svc.Id(), clientId, common_utils.ConditionalPick(err != nil, err, "success"))
-	s.logger.Printf("register service %s from %s", svc.Id(), clientId)
-	if s.serviceCountByClientId(clientId) >= service2.MaxServicePerClient {
-		err = servererror.NewClientExceededMaxServiceCountError(clientId, service2.MaxServicePerClient)
+func (s *ServiceManager) registerService(clientId string, svc server_service.IService) (err error) {
+	defer s.logger.Printf("register service_manager %s from %s result: %s", svc.Id(), clientId, common_utils.ConditionalPick(err != nil, err, "success"))
+	s.logger.Printf("register service_manager %s from %s", svc.Id(), clientId)
+	if s.serviceCountByClientId(clientId) >= server_service.MaxServicePerClient {
+		err = server_errors.NewClientExceededMaxServiceCountError(clientId, server_service.MaxServicePerClient)
 		return
 	}
 	s.withWrite(func() {
@@ -165,8 +165,8 @@ func (s *ServiceManager) UnregisterService(serviceId string) error {
 func (s *ServiceManager) unregisterService(serviceId string) error {
 	svc := s.GetService(serviceId)
 	if svc == nil {
-		err := servererror.NewNoSuchServiceError(serviceId)
-		s.logger.Println("unregister service ", serviceId, " failed due to ", err.Error())
+		err := server_errors.NewNoSuchServiceError(serviceId)
+		s.logger.Println("unregister service_manager ", serviceId, " failed due to ", err.Error())
 		return err
 	}
 	s.withWrite(func() {
@@ -177,18 +177,18 @@ func (s *ServiceManager) unregisterService(serviceId string) error {
 			s.removeUriRoute(uri)
 		}
 	})
-	s.logger.Println("unregister service ", serviceId, " succeeded")
+	s.logger.Println("unregister service_manager ", serviceId, " succeeded")
 	return nil
 }
 
-func (s *ServiceManager) FindServiceByUri(uri string) service2.IService {
+func (s *ServiceManager) FindServiceByUri(uri string) server_service.IService {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	matchContext, err := s.trieTree.Match(uri)
 	if matchContext == nil || err != nil {
 		return nil
 	}
-	return matchContext.Value.(service2.IService)
+	return matchContext.Value.(server_service.IService)
 }
 
 func (s *ServiceManager) SupportsUri(uri string) bool {
@@ -203,7 +203,7 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 		return errors.New(fmt.Sprintf("tService %s can not be found", descriptor.Id))
 	}
 	return utils.ProcessWithErrors(func() error {
-		return tService.(service2.RelayService).Update(descriptor)
+		return tService.(server_service.RelayService).Update(descriptor)
 	}, func() error {
 		// TODO how to update uris here???
 		fullUris := tService.FullServiceUris()
@@ -214,7 +214,7 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 		for _, shortUri := range descriptor.ServiceUris {
 			fullUri := fmt.Sprintf("%s/%s", service.ServicePrefix, shortUri)
 			if !currentUriSet[fullUri] {
-				// add uri
+				// add uri_trie
 				err := s.addUriRoute(tService, fullUri)
 				// TODO should do atomic transaction here? revert previous steps?
 				if err != nil {
@@ -230,7 +230,7 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 	})
 }
 
-func (s *ServiceManager) addUriRoute(service service2.IService, route string) (err error) {
+func (s *ServiceManager) addUriRoute(service server_service.IService, route string) (err error) {
 	s.withWrite(func() {
 		err = s.trieTree.Add(route, service, true)
 	})

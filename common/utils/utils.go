@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
+	"wsdk/common/logger"
 )
 
 var Rando *rand.Rand
@@ -97,4 +98,10 @@ func StringArrayToInterfaceArray(arr []string) []interface{} {
 
 func NewRand() *rand.Rand {
 	return rand.New(rand.NewSource(time.Now().Unix()))
+}
+
+func LogError(logger *logger.SimpleLogger, fnName string, err error) {
+	if err != nil {
+		logger.Printf("error happened at %s due to %s", fnName, err.Error())
+	}
 }

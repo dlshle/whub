@@ -61,8 +61,8 @@ func NewClientService(ctx IContext, id string, server roles.ICommonServer) *Clie
 type IClientService interface {
 	service.IBaseService
 	UpdateDescription(string) error
-	RegisterRoute(shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
-	UnregisterRoute(shortUri string) error                               // should update service descriptor to the host
+	RegisterRoute(shortUri string, handler service.RequestHandler) error // should update service_manager descriptor to the host
+	UnregisterRoute(shortUri string) error                               // should update service_manager descriptor to the host
 	NotifyHostForUpdate() error
 	NewMessage(to string, uri string, msgType int, payload []byte) *messages.Message
 
@@ -151,7 +151,7 @@ func (s *ClientService) HostInfo() roles.RoleDescriptor {
 	return s.host.Describe()
 }
 
-// returns the corresponding raw uri of the service or ""
+// returns the corresponding raw uri_trie of the service_manager or ""
 func (s *ClientService) matchUri(uri string) (string, error) {
 	actualUri := strings.TrimPrefix(uri, s.uriPrefix)
 	for _, v := range s.ServiceUris() {
@@ -159,7 +159,7 @@ func (s *ClientService) matchUri(uri string) (string, error) {
 			return v, nil
 		}
 	}
-	return "", errors.New("no matched uri")
+	return "", errors.New("no matched uri_trie")
 }
 
 func (s *ClientService) Handle(message *messages.Message) *messages.Message {
@@ -251,7 +251,7 @@ func (s *ClientService) Register() (err error) {
 
 func (s *ClientService) Start() (err error) {
 	if s.Status() != service.ServiceStatusRegistered {
-		return errors.New("invalid status to start a service(status != ServiceStatusRegistered)")
+		return errors.New("invalid status to start a service_manager(status != ServiceStatusRegistered)")
 	}
 	s.withWrite(func() {
 		s.status = service.ServiceStatusStarting
@@ -272,7 +272,7 @@ func (s *ClientService) Start() (err error) {
 
 func (s *ClientService) Stop() error {
 	if !(s.Status() > service.ServiceStatusUnregistered && s.Status() < service.ServiceStatusStopping) {
-		return errors.New("invalid status to stop a service")
+		return errors.New("invalid status to stop a service_manager")
 	}
 	s.healthCheckHandler.StopHealthCheck()
 	err := s.unregister()

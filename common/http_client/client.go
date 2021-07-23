@@ -254,7 +254,7 @@ func (c *HTTPClient) start() {
 						awaitableChan <- newErrorHTTPResponse(-1, toRawRequestErr.Error())
 						continue
 					}
-					// fmt.Printf("client %s on request(%s) %+v\n", idx, req.Id, rawRequest)
+					// fmt.Printf("client_manager %s on request(%s) %+v\n", idx, req.Id, rawRequest)
 					resp, err := client.Do(rawRequest)
 					if err != nil {
 						awaitableChan <- newErrorHTTPResponse(-1, err.Error())

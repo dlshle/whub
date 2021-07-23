@@ -1,4 +1,4 @@
-package service
+package service_base
 
 import (
 	"fmt"
@@ -119,14 +119,14 @@ func (s *Service) CTime() time.Time {
 
 func (s *Service) Start() error {
 	if s.Status() != service.ServiceStatusIdle {
-		s.logger.Printf("service can not be started with current status [%s]", service.ServiceStatusStringMap[s.Status()])
+		s.logger.Printf("service_manager can not be started with current status [%s]", service.ServiceStatusStringMap[s.Status()])
 		return NewInvalidServiceStatusTransitionError(s.Id(), s.Status(), service.ServiceStatusStarting)
 	}
 	s.setStatus(service.ServiceStatusStarting)
-	s.logger.Println("service is starting")
+	s.logger.Println("service_manager is starting")
 	s.serviceQueue.Start()
 	s.setStatus(service.ServiceStatusRunning)
-	s.logger.Println("service is running")
+	s.logger.Println("service_manager is running")
 	if s.onStartedCallback != nil {
 		s.onStartedCallback(s)
 	}
@@ -135,15 +135,15 @@ func (s *Service) Start() error {
 
 func (s *Service) Stop() error {
 	if !(s.Status() > service.ServiceStatusIdle || s.Status() < service.ServiceStatusStopping) {
-		s.logger.Printf("service can not be stopped with current status [%s]", service.ServiceStatusStringMap[s.Status()])
+		s.logger.Printf("service_manager can not be stopped with current status [%s]", service.ServiceStatusStringMap[s.Status()])
 		return NewInvalidServiceStatusTransitionError(s.Id(), s.Status(), service.ServiceStatusStopping)
 	}
 	s.setStatus(service.ServiceStatusStopping)
-	s.logger.Println("service is stopping")
+	s.logger.Println("service_manager is stopping")
 	s.serviceQueue.Stop()
 	// after pool is stopped
 	s.setStatus(service.ServiceStatusIdle)
-	s.logger.Println("service has stopped, current status is ", service.ServiceStatusStringMap[s.Status()])
+	s.logger.Println("service_manager has stopped, current status is ", service.ServiceStatusStringMap[s.Status()])
 	if s.onStoppedCallback != nil {
 		s.onStoppedCallback(s)
 	}
@@ -230,7 +230,7 @@ func (s *Service) FullServiceUris() []string {
 }
 
 func (s *Service) Kill() error {
-	s.logger.Println("killing service...")
+	s.logger.Println("killing service_manager...")
 	s.setStatus(service.ServiceStatusDead)
 	return s.KillAllProcessingJobs()
 }

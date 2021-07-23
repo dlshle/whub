@@ -20,15 +20,15 @@ func NewServerError(code int, msg string) *ServerError {
 }
 
 func NewNoSuchClientError(clientId string) IServerError {
-	return NewServerError(ErrNoSuchClient, fmt.Sprintf("no such client(%s)", clientId))
+	return NewServerError(ErrNoSuchClient, fmt.Sprintf("no such client_manager(%s)", clientId))
 }
 
 func NewNoSuchServiceError(serviceId string) IServerError {
-	return NewServerError(ErrNoSuchService, fmt.Sprintf("no such service(%s)", serviceId))
+	return NewServerError(ErrNoSuchService, fmt.Sprintf("no such service_manager(%s)", serviceId))
 }
 
 func NewClientExceededMaxServiceCountError(clientId string, maxServicePerClient int) IServerError {
-	return NewServerError(ErrClientExceededMaxServiceCount, fmt.Sprintf("client(%s) has exceeded max service count %d", clientId, maxServicePerClient))
+	return NewServerError(ErrClientExceededMaxServiceCount, fmt.Sprintf("client_manager(%s) has exceeded max service_manager count %d", clientId, maxServicePerClient))
 }
 
 func NewServerCloseFailError(msg string) IServerError {

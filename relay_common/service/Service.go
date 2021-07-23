@@ -8,10 +8,10 @@ import (
 )
 
 /*
- * Service can be provided by both client and server.
- * A server service is a collection of local/remote(to client) requests identified by a set of service uris.
- * A client service is a collection of function calls identified by a set of service uris.
- * Client service anatomy:
+ * Service can be provided by both client_manager and server.
+ * A server service_manager is a collection of local/remote(to client_manager) requests identified by a set of service_manager uris.
+ * A client_manager service_manager is a collection of function calls identified by a set of service_manager uris.
+ * Client service_manager anatomy:
  *  Service { handlers(deprecated)[path]handler }
  * Usual Service Flow:
  *  ClientX -request-> Server -request-> servicePool -request-> serverRequestExecutor -request-> Client -request-> servicePool -request-> clientRequestExecutor -request-> clientServiceHandler -response-> Server -response-> ClientX
@@ -22,7 +22,7 @@ func init() {
 }
 
 const (
-	ServicePrefix = "/service"
+	ServicePrefix = "/service_manager"
 )
 
 type ServiceDescriptor struct {
@@ -49,7 +49,7 @@ func (sd ServiceDescriptor) String() string {
 const (
 	ServiceStatusUnregistered = 0
 	ServiceStatusIdle         = 1 // for server only
-	ServiceStatusRegistered   = 1 // for client only
+	ServiceStatusRegistered   = 1 // for client_manager only
 	ServiceStatusStarting     = 2
 	ServiceStatusRunning      = 3
 	ServiceStatusBlocked      = 4 // when queue is maxed out
@@ -71,7 +71,7 @@ func initServiceStatusStrMap() {
 	ServiceStatusStringMap[ServiceStatusStopping] = "stopping"
 }
 
-// Service Uri should always be /service/serviceId/uri/params
+// Service Uri should always be /service_manager/serviceId/uri_trie/params
 
 // Service access type
 const (

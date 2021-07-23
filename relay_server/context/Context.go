@@ -53,7 +53,7 @@ func NewContext() *Context {
 	// TODO use config values from container
 	asyncPool := async.NewAsyncPool("[ctx-async-pool]", defaultAsyncPoolSize, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
 	asyncPool.Verbose(false)
-	servicePool := async.NewAsyncPool("[ctx-service-pool]", defaultServicePoolSize, runtime.NumCPU()*defaultServicePoolWorkerFactor)
+	servicePool := async.NewAsyncPool("[ctx-service_manager-pool]", defaultServicePoolSize, runtime.NumCPU()*defaultServicePoolWorkerFactor)
 	servicePool.Verbose(false)
 	return &Context{
 		messageParser:       messages.NewFBMessageParser(),
@@ -99,8 +99,8 @@ func (c *Context) ServiceTaskPool() *async.AsyncPool {
 	c.withLock(func() {
 		if c.serviceTaskPool == nil {
 			workerSize := runtime.NumCPU() * defaultServicePoolWorkerFactor
-			c.logger.Printf("service async pool initialized with maxPoolSize %d and workerSize %d", defaultServicePoolSize, workerSize)
-			c.serviceTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), defaultServicePoolSize, workerSize)
+			c.logger.Printf("service_manager async pool initialized with maxPoolSize %d and workerSize %d", defaultServicePoolSize, workerSize)
+			c.serviceTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-service_manager-pool]"), defaultServicePoolSize, workerSize)
 		}
 	})
 	return c.serviceTaskPool

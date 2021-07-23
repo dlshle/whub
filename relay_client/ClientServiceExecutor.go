@@ -20,7 +20,7 @@ func NewClientServiceExecutor(ctx IContext, handler service.IServiceHandler) *Cl
 
 func (e *ClientServiceExecutor) Execute(request *service.ServiceRequest) {
 	if !e.handler.SupportsUri(request.Uri()) {
-		request.Resolve(messages.NewErrorMessage(request.Id(), request.To(), e.ctx.Identity().Id(), request.Uri(), fmt.Sprintf("unsupported uri %s", request.Uri())))
+		request.Resolve(messages.NewErrorMessage(request.Id(), request.To(), e.ctx.Identity().Id(), request.Uri(), fmt.Sprintf("unsupported uri_trie %s", request.Uri())))
 		return
 	}
 	e.handler.Handle(request)

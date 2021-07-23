@@ -84,8 +84,8 @@ func NewServer(identity roles.ICommonServer) *Server {
 // when server receives a message, after the message is handled, server needs to dispatch the message with messageDispatcher
 // server *-- services
 // server *-- clients
-// service *-- clientConnectionHandler
-// when server knows the clientConnectionHandler is disconnected, server should put service in survival mode(constantly health check with clientConnectionHandler id until clientConnectionHandler is recovered or service expired)
+// service_manager *-- clientConnectionHandler
+// when server knows the clientConnectionHandler is disconnected, server should put service_manager in survival mode(constantly health check with clientConnectionHandler id until clientConnectionHandler is recovered or service_manager expired)
 
 /* General health check strategy: clientConnectionHandler should send PING to server every X seconds, and if server does not receive a
    in X + 1 seconds, server will send PING and expect to have a PONG received in X seconds. If that fails, health check
