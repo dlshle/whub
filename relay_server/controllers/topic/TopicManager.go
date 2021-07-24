@@ -6,25 +6,24 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	error2 "wsdk/relay_server/controllers/topic/error"
-	store2 "wsdk/relay_server/controllers/topic/store"
+	"wsdk/relay_server/controllers"
 	"wsdk/relay_server/events"
 )
 
 type TopicManager struct {
-	store  store2.ITopicStore `$inject:""`
+	store  ITopicStore `$inject:""`
 	logger *logger.SimpleLogger
 }
 
 type ITopicManager interface {
-	GetTopic(id string) (topic Topic, err error2.ITopicError)
-	HasTopic(id string) (h bool, err error2.ITopicError)
-	SubscribeClientToTopic(clientId string, topicId string) (err error2.ITopicError)
-	UnSubscribeClientToTopic(clientId string, topicId string) (err error2.ITopicError)
-	GetSubscriberIds(topicId string) (ids []string, err error2.ITopicError)
-	GetAllDescribedTopics() (desc []TopicDescriptor, err error2.ITopicError)
-	CreateTopic(topicId string, creatorClientId string) (topic Topic, err error2.ITopicError)
-	RemoveTopic(topicId string, requestClientId string) (err error2.ITopicError)
+	GetTopic(id string) (topic Topic, err controllers.IControllerError)
+	HasTopic(id string) (h bool, err controllers.IControllerError)
+	SubscribeClientToTopic(clientId string, topicId string) (err controllers.IControllerError)
+	UnSubscribeClientToTopic(clientId string, topicId string) (err controllers.IControllerError)
+	GetSubscriberIds(topicId string) (ids []string, err controllers.IControllerError)
+	GetAllDescribedTopics() (desc []TopicDescriptor, err controllers.IControllerError)
+	CreateTopic(topicId string, creatorClientId string) (topic Topic, err controllers.IControllerError)
+	RemoveTopic(topicId string, requestClientId string) (err controllers.IControllerError)
 }
 
 func NewTopicManager() ITopicManager {
@@ -52,39 +51,39 @@ func (m *TopicManager) initNotificationHandlers() {
 	})
 }
 
-func (m *TopicManager) get(id string) (*Topic, error2.ITopicError) {
+func (m *TopicManager) get(id string) (*Topic, controllers.IControllerError) {
 	return m.store.Get(id)
 }
 
-func (m *TopicManager) has(id string) (bool, error2.ITopicError) {
+func (m *TopicManager) has(id string) (bool, controllers.IControllerError) {
 	return m.store.Has(id)
 }
 
-func (m *TopicManager) topics() ([]*Topic, error2.ITopicError) {
+func (m *TopicManager) topics() ([]*Topic, controllers.IControllerError) {
 	return m.store.Topics()
 }
 
-func (m *TopicManager) delete(id string) error2.ITopicError {
+func (m *TopicManager) delete(id string) controllers.IControllerError {
 	return m.store.Delete(id)
 }
 
-func (m *TopicManager) create(topicId string, creatorId string) (*Topic, error2.ITopicError) {
+func (m *TopicManager) create(topicId string, creatorId string) (*Topic, controllers.IControllerError) {
 	return m.store.Create(topicId, creatorId)
 }
 
-func (m *TopicManager) GetTopic(id string) (topic Topic, err error2.ITopicError) {
+func (m *TopicManager) GetTopic(id string) (topic Topic, err controllers.IControllerError) {
 	defer utils.LogError(m.logger, "GetTopic", err)
 	t, err := m.get(id)
 	return *t, err
 }
 
-func (m *TopicManager) HasTopic(id string) (h bool, err error2.ITopicError) {
+func (m *TopicManager) HasTopic(id string) (h bool, err controllers.IControllerError) {
 	defer utils.LogError(m.logger, "HasTopic", err)
 	h, err = m.has(id)
 	return
 }
 
-func (m *TopicManager) SubscribeClientToTopic(clientId string, topicId string) (err error2.ITopicError) {
+func (m *TopicManager) SubscribeClientToTopic(clientId string, topicId string) (err controllers.IControllerError) {
 	defer utils.LogError(m.logger, "SubscribeClientToTopic", err)
 	defer func() {
 		if err == nil {
@@ -98,7 +97,7 @@ func (m *TopicManager) SubscribeClientToTopic(clientId string, topicId string) (
 	return topic.CheckAndAddSubscriber(clientId)
 }
 
-func (m *TopicManager) UnSubscribeClientToTopic(clientId string, topicId string) (err error2.ITopicError) {
+func (m *TopicManager) UnSubscribeClientToTopic(clientId string, topicId string) (err controllers.IControllerError) {
 	defer utils.LogError(m.logger, "UnSubscribeClientToTopic", err)
 	defer func() {
 		if err == nil {
@@ -112,7 +111,7 @@ func (m *TopicManager) UnSubscribeClientToTopic(clientId string, topicId string)
 	return topic.CheckAndRemoveSubscriber(clientId)
 }
 
-func (m *TopicManager) GetSubscriberIds(topicId string) (ids []string, err error2.ITopicError) {
+func (m *TopicManager) GetSubscriberIds(topicId string) (ids []string, err controllers.IControllerError) {
 	defer utils.LogError(m.logger, "GetSubscriberIds", err)
 	topic, err := m.get(topicId)
 	if err != nil {
@@ -121,7 +120,7 @@ func (m *TopicManager) GetSubscriberIds(topicId string) (ids []string, err error
 	return topic.Subscribers(), nil
 }
 
-func (m *TopicManager) GetAllDescribedTopics() (desc []TopicDescriptor, err error2.ITopicError) {
+func (m *TopicManager) GetAllDescribedTopics() (desc []TopicDescriptor, err controllers.IControllerError) {
 	defer utils.LogError(m.logger, "GetAllDescribedTopics", err)
 	topics, err := m.topics()
 	if err != nil {
@@ -134,7 +133,7 @@ func (m *TopicManager) GetAllDescribedTopics() (desc []TopicDescriptor, err erro
 	return topicDescriptors, nil
 }
 
-func (m *TopicManager) CreateTopic(topicId string, creatorClientId string) (topic Topic, err error2.ITopicError) {
+func (m *TopicManager) CreateTopic(topicId string, creatorClientId string) (topic Topic, err controllers.IControllerError) {
 	defer utils.LogError(m.logger, "CreateTopic", err)
 	t, err := m.create(topicId, creatorClientId)
 	if err != nil {
@@ -145,7 +144,7 @@ func (m *TopicManager) CreateTopic(topicId string, creatorClientId string) (topi
 }
 
 // TODO caller needs to get the subscribers first to notify them and then call this function
-func (m *TopicManager) RemoveTopic(topicId string, requestClientId string) (err error2.ITopicError) {
+func (m *TopicManager) RemoveTopic(topicId string, requestClientId string) (err controllers.IControllerError) {
 	defer utils.LogError(m.logger, "RemoveTopic", err)
 	defer func() {
 		if err == nil {
@@ -157,7 +156,7 @@ func (m *TopicManager) RemoveTopic(topicId string, requestClientId string) (err 
 		return err
 	}
 	if topic.Creator() != requestClientId {
-		return error2.NewTopicClientInsufficientPermissionError(topic.Id(), requestClientId, "creator")
+		return NewTopicClientInsufficientPermissionError(topic.Id(), requestClientId, "creator")
 	}
 	return m.delete(topicId)
 }

@@ -35,7 +35,7 @@ type IClientManager interface {
 	DisconnectAllClients() error
 	AcceptClient(id string, client *client.Client) error
 	HandleClientConnectionClosed(c *client.Client, err error)
-	HandleClientError(c *client.Client, err error)
+	HandleClientConnectionError(c *client.Client, err error)
 }
 
 func NewClientManager() IClientManager {
@@ -93,7 +93,7 @@ func (m *ClientManager) initClientCallbackHandlers(client *client.Client) {
 		m.HandleClientConnectionClosed(client, err)
 	})
 	client.OnError(func(err error) {
-		m.HandleClientError(client, err)
+		m.HandleClientConnectionError(client, err)
 	})
 }
 
@@ -169,7 +169,7 @@ func (m *ClientManager) HandleClientConnectionClosed(c *client.Client, err error
 	}
 }
 
-func (m *ClientManager) HandleClientError(c *client.Client, err error) {
+func (m *ClientManager) HandleClientConnectionError(c *client.Client, err error) {
 	// just log it
 	m.logger.Printf("client_manager (%s, %s) on connection error %s", c.Id(), c.Address(), err.Error())
 }
