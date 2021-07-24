@@ -101,7 +101,7 @@ func (s *ServiceManager) WithServicesFromClientId(clientId string, cb func([]ser
 }
 
 func (s *ServiceManager) UnregisterAllServicesFromClientId(clientId string) error {
-	s.logger.Println("unregister all services from client_manager ", clientId)
+	s.logger.Println("unregister all services from client ", clientId)
 	return s.WithServicesFromClientId(clientId, func(services []server_service.IService) {
 		for i, _ := range services {
 			if services[i] != nil {
@@ -111,7 +111,7 @@ func (s *ServiceManager) UnregisterAllServicesFromClientId(clientId string) erro
 	})
 }
 
-// nil -> no such client_manager, [] -> no service_manager
+// nil -> no such client_manager, [] -> no service
 func (s *ServiceManager) GetServicesByClientId(id string) []server_service.IService {
 	return s.getServicesByClientId(id)
 }
@@ -137,8 +137,8 @@ func (s *ServiceManager) RegisterService(clientId string, service server_service
 }
 
 func (s *ServiceManager) registerService(clientId string, svc server_service.IService) (err error) {
-	defer s.logger.Printf("register service_manager %s from %s result: %s", svc.Id(), clientId, common_utils.ConditionalPick(err != nil, err, "success"))
-	s.logger.Printf("register service_manager %s from %s", svc.Id(), clientId)
+	defer s.logger.Printf("register service %s from %s result: %s", svc.Id(), clientId, common_utils.ConditionalPick(err != nil, err, "success"))
+	s.logger.Printf("register service %s from %s", svc.Id(), clientId)
 	if s.serviceCountByClientId(clientId) >= server_service.MaxServicePerClient {
 		err = server_errors.NewClientExceededMaxServiceCountError(clientId, server_service.MaxServicePerClient)
 		return
@@ -166,7 +166,7 @@ func (s *ServiceManager) unregisterService(serviceId string) error {
 	svc := s.GetService(serviceId)
 	if svc == nil {
 		err := server_errors.NewNoSuchServiceError(serviceId)
-		s.logger.Println("unregister service_manager ", serviceId, " failed due to ", err.Error())
+		s.logger.Println("unregister service ", serviceId, " failed due to ", err.Error())
 		return err
 	}
 	s.withWrite(func() {
@@ -177,7 +177,7 @@ func (s *ServiceManager) unregisterService(serviceId string) error {
 			s.removeUriRoute(uri)
 		}
 	})
-	s.logger.Println("unregister service_manager ", serviceId, " succeeded")
+	s.logger.Println("unregister service ", serviceId, " succeeded")
 	return nil
 }
 

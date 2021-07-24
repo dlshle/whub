@@ -22,7 +22,7 @@ func init() {
 }
 
 const (
-	ServicePrefix = "/service_manager"
+	ServicePrefix = "/service"
 )
 
 type ServiceDescriptor struct {
@@ -49,7 +49,7 @@ func (sd ServiceDescriptor) String() string {
 const (
 	ServiceStatusUnregistered = 0
 	ServiceStatusIdle         = 1 // for server only
-	ServiceStatusRegistered   = 1 // for client_manager only
+	ServiceStatusRegistered   = 1 // for client only
 	ServiceStatusStarting     = 2
 	ServiceStatusRunning      = 3
 	ServiceStatusBlocked      = 4 // when queue is maxed out

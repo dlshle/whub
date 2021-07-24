@@ -44,6 +44,7 @@ func (s *Server) Start() error {
 		s.logger.Fatalln("unable to init native services due to ", err)
 		return err
 	}
+	s.logger.Println("all native services have been initialized")
 	return s.WServer.Start()
 }
 

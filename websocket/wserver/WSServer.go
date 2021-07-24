@@ -49,6 +49,7 @@ func NewWServer(config WsServerConfig) *WServer {
 }
 
 func (ws *WServer) handleUpgrade(w http.ResponseWriter, r *http.Request) (err error) {
+	ws.logger.Println("request: ", r.URL.String())
 	conn, err := ws.upgrader.Upgrade(w, r, nil)
 	if ws.asyncPool != nil {
 		ws.asyncPool.Schedule(func() { ws.handleNewConnection(conn) })

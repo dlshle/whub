@@ -24,8 +24,9 @@ func (b binding) resolve(c *Container) (interface{}, error) {
 	if b.instance != nil {
 		return b.instance, nil
 	}
-
-	return c.invoke(b.resolver)
+	var err error
+	b.instance, err = c.invoke(b.resolver)
+	return b.instance, err
 }
 
 // TypeContainer is the repository of bindings
@@ -230,10 +231,10 @@ func (c *Container) Fill(structure interface{}) error {
 					var concrete binding
 					var exist bool
 					if len(t) > 0 {
-						// e.g. $inject: "idGenerator"
+						// e.g. $inject:"idGenerator"
 						concrete, exist = c.idContainer[t]
 					} else {
-						// e.g. $inject
+						// e.g. $inject:""
 						concrete, exist = c.typeContainer[f.Type()]
 					}
 

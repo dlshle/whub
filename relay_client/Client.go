@@ -58,7 +58,7 @@ func (c *Client) onConnected(rawConn *ws_connection.WsConnection) {
 	conn := connection.NewConnection(Ctx.Logger().WithPrefix("[ServerConnection]"), rawConn, connection.DefaultTimeout, Ctx.MessageParser(), Ctx.NotificationEmitter())
 	c.logger.Println("connection to server has been established: ", conn.Address())
 	c.client = roles.NewClient(conn, "aa", "bb", roles.RoleTypeClient, "asd", 2)
-	c.logger.Println("new client_manager has been instantiated")
+	c.logger.Println("new client has been instantiated")
 	err := conn.Send(messages.NewMessage("hello", c.client.Id(), "123", "", messages.MessageTypeACK, ([]byte)("aaa")))
 	c.logger.Println("greeting message has been sent")
 	conn.OnIncomingMessage(func(msg *messages.Message) {

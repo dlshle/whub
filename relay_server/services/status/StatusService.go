@@ -5,20 +5,20 @@ import (
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/controllers/anonymous_client_manager"
 	"wsdk/relay_server/controllers/client_manager"
-	service2 "wsdk/relay_server/controllers/service_manager"
+	"wsdk/relay_server/controllers/service_manager"
 	"wsdk/relay_server/controllers/status"
 	"wsdk/relay_server/service_base"
 )
 
 const (
 	ID             = "status"
-	RouteGetStatus = "/get" // payload = service_manager descriptor
+	RouteGetStatus = "/get" // payload = service descriptor
 )
 
 type StatusService struct {
 	service_base.INativeService
 	systemStatusController status.ISystemStatusController                   `$inject:""`
-	serviceManager         service2.IServiceManager                         `$inject:""`
+	serviceManager         service_manager.IServiceManager                  `$inject:""`
 	clientManager          client_manager.IClientManager                    `$inject:""`
 	anonymousClientManager anonymous_client_manager.IAnonymousClientManager `$inject:""`
 }

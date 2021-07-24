@@ -87,7 +87,7 @@ func (m *TopicManager) SubscribeClientToTopic(clientId string, topicId string) (
 	defer utils.LogError(m.logger, "SubscribeClientToTopic", err)
 	defer func() {
 		if err == nil {
-			m.logger.Printf("client_manager %s has subscribed to topic %s", clientId, topicId)
+			m.logger.Printf("client %s has subscribed to topic %s", clientId, topicId)
 		}
 	}()
 	topic, err := m.get(topicId)
@@ -101,7 +101,7 @@ func (m *TopicManager) UnSubscribeClientToTopic(clientId string, topicId string)
 	defer utils.LogError(m.logger, "UnSubscribeClientToTopic", err)
 	defer func() {
 		if err == nil {
-			m.logger.Printf("client_manager %s has unsubscribed from topic %s", clientId, topicId)
+			m.logger.Printf("client %s has unsubscribed from topic %s", clientId, topicId)
 		}
 	}()
 	topic, err := m.get(topicId)

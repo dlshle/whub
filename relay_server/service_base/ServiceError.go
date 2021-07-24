@@ -13,17 +13,17 @@ const (
 )
 
 func NewInvalidServiceStatusError(serviceId string, status int, reason string) errors.IServerError {
-	return errors.NewServerError(ErrInvalidServiceStatusTransition, fmt.Sprintf("invalid service_manager status %d of service_manager(%s) due to %s", status, serviceId, reason))
+	return errors.NewServerError(ErrInvalidServiceStatusTransition, fmt.Sprintf("invalid service status %d of service(%s) due to %s", status, serviceId, reason))
 }
 
 func NewInvalidServiceStatusTransitionError(serviceId string, currentStatus int, newStatus int) errors.IServerError {
-	return errors.NewServerError(ErrInvalidServiceStatusTransition, fmt.Sprintf("invalid service_manager transition of service_manager(%s) from %d to %d", serviceId, currentStatus, newStatus))
+	return errors.NewServerError(ErrInvalidServiceStatusTransition, fmt.Sprintf("invalid service transition of service(%s) from %d to %d", serviceId, currentStatus, newStatus))
 }
 
 func NewInvalidServiceRequestUriError(uri string) errors.IServerError {
-	return errors.NewServerError(ErrInvalidServiceRequestUri, fmt.Sprintf("invalid service_manager message uri_trie %s", uri))
+	return errors.NewServerError(ErrInvalidServiceRequestUri, fmt.Sprintf("invalid service message uri %s", uri))
 }
 
 func NewCanNotFindServiceError(uri string) errors.IServerError {
-	return errors.NewServerError(ErrCanNotFindService, fmt.Sprintf("can not find service_manager for uri_trie %s", uri))
+	return errors.NewServerError(ErrCanNotFindService, fmt.Sprintf("can not find service for uri %s", uri))
 }

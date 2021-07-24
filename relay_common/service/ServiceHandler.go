@@ -55,7 +55,7 @@ func (m *ServiceHandler) Unregister(uri string) (err error) {
 		success = m.trieTree.Remove(uri)
 	})
 	if !success {
-		err = errors.New(fmt.Sprintf("unable to remove uri_trie %s as it's not registered into service_manager handler", uri))
+		err = errors.New(fmt.Sprintf("unable to remove uri_trie %s as it's not registered into service handler", uri))
 	}
 	return err
 }

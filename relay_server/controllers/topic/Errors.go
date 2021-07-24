@@ -27,12 +27,12 @@ func NewTopicMaxSubscribersExceededError(id string, maxSubscribersPerTopic int) 
 }
 
 func NewTopicClientNotValidSubscriberError(topicId string, clientId string) controllers.IControllerError {
-	return controllers.NewControllerError(TopicErrNotValidSubscriber, fmt.Sprintf("client_manager %s is not a subscriber of topic %s", clientId, topicId))
+	return controllers.NewControllerError(TopicErrNotValidSubscriber, fmt.Sprintf("client %s is not a subscriber of topic %s", clientId, topicId))
 }
 func NewTopicClientAlreadySubscribedError(topicId string, clientId string) controllers.IControllerError {
 	return controllers.NewControllerError(TopicErrAlreadySubscribed, fmt.Sprintf("subscriber %s has already subscriberd to topic %s", clientId, topicId))
 }
 
 func NewTopicClientInsufficientPermissionError(topicId string, clientId string, permission string) controllers.IControllerError {
-	return controllers.NewControllerError(TopicErrInsufficientPermission, fmt.Sprintf("client_manager %s does not have [%s] permission for topic %s", clientId, permission, topicId))
+	return controllers.NewControllerError(TopicErrInsufficientPermission, fmt.Sprintf("client %s does not have [%s] permission for topic %s", clientId, permission, topicId))
 }

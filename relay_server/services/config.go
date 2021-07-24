@@ -2,7 +2,7 @@ package services
 
 import (
 	"wsdk/relay_server/context"
-	service2 "wsdk/relay_server/controllers/service_manager"
+	"wsdk/relay_server/controllers/service_manager"
 	"wsdk/relay_server/service_base"
 	"wsdk/relay_server/services/messaging"
 	"wsdk/relay_server/services/pubsub"
@@ -37,17 +37,17 @@ func resetInstances() {
 	instantiateInstances()
 }
 
-func InitNativeServices(serviceManager service2.IServiceManager) (err error) {
+func InitNativeServices(serviceManager service_manager.IServiceManager) (err error) {
 	for k, v := range serviceInstances {
 		err = v.Init()
 		if err != nil {
-			context.Ctx.Logger().Printf("native service_manager %s init failed due to %s", k, err.Error())
+			context.Ctx.Logger().Printf("native service %s init failed due to %s", k, err.Error())
 			resetInstances()
 			return
 		}
 		err = serviceManager.RegisterService(context.Ctx.Server().Id(), v)
 		if err != nil {
-			context.Ctx.Logger().Printf("native service_manager %s registration failed due to %s", k, err.Error())
+			context.Ctx.Logger().Printf("native service %s registration failed due to %s", k, err.Error())
 			resetInstances()
 			return
 		}

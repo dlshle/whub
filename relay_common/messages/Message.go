@@ -109,7 +109,7 @@ func (t *Message) String() string {
 	if t == nil {
 		return "nil"
 	}
-	return fmt.Sprintf("{id: \"%s\", from: \"%s\", to: \"%s\", uri_trie: \"%s\", messageType: %d, payload: \"%s\"}", t.id, t.from, t.to, t.uri, t.messageType, t.payload)
+	return fmt.Sprintf("{id: \"%s\", from: \"%s\", to: \"%s\", uri: \"%s\", messageType: %d, payload: \"%s\"}", t.id, t.from, t.to, t.uri, t.messageType, t.payload)
 }
 
 func (t *Message) Equals(m *Message) bool {

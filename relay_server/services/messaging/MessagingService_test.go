@@ -20,7 +20,7 @@ func TestMessagingService(t *testing.T) {
 			return test_utils.AssertSlicesEqual(uris, expectedUris)
 		}),
 		test_utils.NewTestCase("test routes", "", func() bool {
-			msg := service.Handle(messages.NewMessage("x", "client_manager", "server", "/service_manager/messaging/send", messages.MessageTypeServiceRequest, ([]byte)("asdasd")))
+			msg := service.Handle(messages.NewMessage("x", "client", "server", "/service_manager/messaging/send", messages.MessageTypeServiceRequest, ([]byte)("asdasd")))
 			t.Log("msg: ", msg)
 			return msg.MessageType() == messages.MessageTypeError
 		}),

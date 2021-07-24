@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	service_common "wsdk/relay_common/service"
+	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
-	client2 "wsdk/relay_server/controllers/client_manager"
+	"wsdk/relay_server/controllers/client_manager"
 	"wsdk/relay_server/service_base"
 )
 
@@ -19,13 +19,13 @@ const (
 
 type MessagingService struct {
 	*service_base.NativeService
-	client2.IClientManager `$inject:""`
+	client_manager.IClientManager `$inject:""`
 	// logger *logger.SimpleLogger
 }
 
 func New() service_base.INativeService {
 	messagingService := &MessagingService{
-		NativeService: service_base.NewNativeService(ID, "basic messaging service_manager", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync),
+		NativeService: service_base.NewNativeService(ID, "basic messaging service", service.ServiceTypeInternal, service.ServiceAccessTypeSocket, service.ServiceExecutionSync),
 	}
 	err := container.Container.Fill(messagingService)
 	if err != nil {
@@ -37,7 +37,7 @@ func New() service_base.INativeService {
 }
 
 func (s *MessagingService) Init() (err error) {
-	s.NativeService = service_base.NewNativeService(ID, "basic messaging service_manager", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync)
+	s.NativeService = service_base.NewNativeService(ID, "basic messaging service", service.ServiceTypeInternal, service.ServiceAccessTypeSocket, service.ServiceExecutionSync)
 	err = container.Container.Fill(s)
 	if err != nil {
 		return err
@@ -52,10 +52,10 @@ func (s *MessagingService) Init() (err error) {
 	return s.RegisterRoute(RouteBroadcast, s.Broadcast)
 }
 
-func (s *MessagingService) Send(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *MessagingService) Send(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	recv := s.GetClient(request.Message.To())
 	if recv == nil {
-		return errors.New(fmt.Sprintf("client_manager %s is not online", request.Message.To()))
+		return errors.New(fmt.Sprintf("client %s is not online", request.Message.To()))
 	}
 	err := recv.Send(request.Message)
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *MessagingService) Send(request *service_common.ServiceRequest, pathPara
 	return nil
 }
 
-func (s *MessagingService) Broadcast(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *MessagingService) Broadcast(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	defer s.Logger().Printf("%s broadcast result: %v", request.Message.String(), err)
 	errMsg := strings.Builder{}
 	s.WithAllClients(func(clients []*client.Client) {

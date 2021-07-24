@@ -14,12 +14,12 @@ import (
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/controllers/anonymous_client_manager"
-	client2 "wsdk/relay_server/controllers/client_manager"
+	"wsdk/relay_server/controllers/client_manager"
 )
 
 type ClientDescriptorMessageHandler struct {
 	anonymousClientManager anonymous_client_manager.IAnonymousClientManager `$inject:""`
-	clientManager          client2.IClientManager                           `$inject:""`
+	clientManager          client_manager.IClientManager                    `$inject:""`
 	logger                 *logger.SimpleLogger
 }
 
@@ -50,7 +50,7 @@ func (h *ClientDescriptorMessageHandler) Handle(message *messages.Message, conn 
 	}
 	anonymousClient := h.anonymousClientManager.GetClient(conn.Address())
 	if anonymousClient != nil {
-		h.logger.Printf("handle anonymous client_manager(%s) promotion", anonymousClient.Address())
+		h.logger.Printf("handle anonymous client(%s) promotion", anonymousClient.Address())
 		// promote
 		h.handleClientPromotion(roleDescriptor, extraInfoDescriptor, anonymousClient)
 		return conn.Send(messages.NewACKMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri()))
@@ -58,12 +58,12 @@ func (h *ClientDescriptorMessageHandler) Handle(message *messages.Message, conn 
 	// client_manager info update
 	client := h.clientManager.GetClient(message.From())
 	if client == nil {
-		h.logger.Printf("can not find the client_manager by %s from connection %s.", message.From(), conn.Address())
-		err = errors.New(fmt.Sprintf("can not find client_manager by id %s, conn %s", message.From(), conn.Address()))
+		h.logger.Printf("can not find the client by %s from connection %s.", message.From(), conn.Address())
+		err = errors.New(fmt.Sprintf("can not find client by id %s, conn %s", message.From(), conn.Address()))
 		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
 		return err
 	}
-	h.logger.Println("update client_manager with ", roleDescriptor, extraInfoDescriptor)
+	h.logger.Println("update client with ", roleDescriptor, extraInfoDescriptor)
 	client.SetDescription(roleDescriptor.Description)
 	client.SetCKey(extraInfoDescriptor.CKey)
 	client.SetPScope(extraInfoDescriptor.PScope)

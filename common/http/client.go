@@ -408,7 +408,7 @@ func (c *ClientPool) start() {
 	if c.Status() != PoolStatusIdle {
 		return
 	}
-	c.logger.Printf("Starting the client_manager...\n")
+	c.logger.Printf("Starting the client...\n")
 	go func() {
 		var wg sync.WaitGroup
 		c.setStatus(PoolStatusStarting)
@@ -419,7 +419,7 @@ func (c *ClientPool) start() {
 				numSuccess := 0
 				numFailed := 0
 				loggerTag := fmt.Sprintf("[Client-%d]", id)
-				c.logger.Printf("%s client_manager has started.\n", loggerTag)
+				c.logger.Printf("%s client has started.\n", loggerTag)
 				for c.Status() == PoolStatusRunning {
 					// actual worker logic
 					request := <-c.queue
@@ -429,7 +429,7 @@ func (c *ClientPool) start() {
 						}
 						numRequests++
 						request.setStatus(RequestStatusInProgress)
-						c.logger.Printf("%s client_manager has acquired request(%s, %d) with rawRequest %+v.\n", loggerTag, request.id, request.Status(), request.getRequest())
+						c.logger.Printf("%s client has acquired request(%s, %d) with rawRequest %+v.\n", loggerTag, request.id, request.Status(), request.getRequest())
 						rawResponse, err := client.Do(request.getRequest())
 						if err != nil && rawResponse == nil {
 							c.logger.Printf("%s request failed due to %s, will resolve it with invalid response(-1).\n", loggerTag, err.Error())
@@ -448,8 +448,8 @@ func (c *ClientPool) start() {
 						}
 					}
 				}
-				c.logger.Printf("%s client_manager has stopped.\n", loggerTag)
-				c.logger.Printf("%s client_manager performance: [%d, %d, %d].\n", loggerTag, numRequests, numSuccess, numFailed)
+				c.logger.Printf("%s client has stopped.\n", loggerTag)
+				c.logger.Printf("%s client performance: [%d, %d, %d].\n", loggerTag, numRequests, numSuccess, numFailed)
 				wg.Done()
 			}(i, clientItr)
 		}

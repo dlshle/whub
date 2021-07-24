@@ -9,13 +9,13 @@ const (
 )
 
 func NewClientAlreadyConnectedError(clientId string) IServerError {
-	return NewServerError(ErrClientAlreadyConnected, fmt.Sprintf("client_manager %s has already connected", clientId))
+	return NewServerError(ErrClientAlreadyConnected, fmt.Sprintf("client %s has already connected", clientId))
 }
 
 func NewClientNotConnectedError(clientId string) IServerError {
-	return NewServerError(ErrClientNotConnected, fmt.Sprintf("client_manager %s is not connected", clientId))
+	return NewServerError(ErrClientNotConnected, fmt.Sprintf("client %s is not connected", clientId))
 }
 
 func NewCanNotFindClientByAddr(addr string) IServerError {
-	return NewServerError(ErrClientNotConnected, fmt.Sprintf("can not find client_manager by address %s", addr))
+	return NewServerError(ErrClientNotConnected, fmt.Sprintf("can not find client by address %s", addr))
 }

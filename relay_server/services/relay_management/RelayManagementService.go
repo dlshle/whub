@@ -10,7 +10,7 @@ import (
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/controllers/client_manager"
-	service2 "wsdk/relay_server/controllers/service_manager"
+	"wsdk/relay_server/controllers/service_manager"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 	"wsdk/relay_server/service_base"
@@ -19,22 +19,22 @@ import (
 
 const (
 	ID                         = "relay"
-	RouteRegisterService       = "/register"   // payload = service_manager descriptor
-	RouteUnregisterService     = "/unregister" // payload = service_manager descriptor
-	RouteUpdateService         = "/update"     // payload = service_manager descriptor
+	RouteRegisterService       = "/register"   // payload = service descriptor
+	RouteUnregisterService     = "/unregister" // payload = service descriptor
+	RouteUpdateService         = "/update"     // payload = service descriptor
 	RouteGetAllServices        = "/services"   // need privilege, respond with all relayed services
 	RouteGetServicesByClientId = "/services/:clientId"
 )
 
 type RelayManagementService struct {
 	*service_base.NativeService
-	clientManager  client_manager.IClientManager `$inject:""`
-	serviceManager service2.IServiceManager      `$inject:""`
+	clientManager  client_manager.IClientManager   `$inject:""`
+	serviceManager service_manager.IServiceManager `$inject:""`
 	servicePool    *sync.Pool
 }
 
 func (s *RelayManagementService) Init() error {
-	s.NativeService = service_base.NewNativeService(ID, "relay management service_manager", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync)
+	s.NativeService = service_base.NewNativeService(ID, "relay management service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync)
 	s.servicePool = &sync.Pool{
 		New: func() interface{} {
 			return new(service_base.RelayService)
@@ -93,17 +93,17 @@ func (s *RelayManagementService) initRoutes() (err error) {
 
 func (s *RelayManagementService) validateClient(clientId string) error {
 	if !s.clientManager.HasClient(clientId) {
-		return errors.New(fmt.Sprintf("invalid client_manager id %s, can not find client_manager id from client_manager manager.", clientId))
+		return errors.New(fmt.Sprintf("invalid client id %s, can not find client id from client manager.", clientId))
 	}
 	return nil
 }
 
 func (s *RelayManagementService) RegisterService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	defer s.Logger().Printf("service_manager %v registration result: %s",
+	defer s.Logger().Printf("service %v registration result: %s",
 		utils.ConditionalPick(request != nil, request.Message, nil),
 		utils.ConditionalPick(err != nil, err, "success"))
 
-	s.Logger().Println("register service_manager: ", utils.ConditionalPick(request != nil, request.Message, nil))
+	s.Logger().Println("register service: ", utils.ConditionalPick(request != nil, request.Message, nil))
 
 	if err = s.validateClient(request.From()); err != nil {
 		return err
@@ -114,7 +114,7 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 	}
 	client := s.clientManager.GetClient(descriptor.Provider.Id)
 	if client == nil {
-		return errors.New("unable to find the client_manager by providerId " + descriptor.Provider.Id)
+		return errors.New("unable to find the client by providerId " + descriptor.Provider.Id)
 	}
 	service := s.servicePool.Get().(service_base.IRelayService)
 	service.Init(*descriptor, client, client.MessageRelayExecutor())
@@ -127,10 +127,10 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 }
 
 func (s *RelayManagementService) UnregisterService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	defer s.Logger().Printf("service_manager %v un-registration result: %s",
+	defer s.Logger().Printf("service %v un-registration result: %s",
 		utils.ConditionalPick(request != nil, request.Message, nil),
 		utils.ConditionalPick(err != nil, err, "success"))
-	s.Logger().Println("un-register service_manager: ", utils.ConditionalPick(request != nil, request.Message, nil))
+	s.Logger().Println("un-register service: ", utils.ConditionalPick(request != nil, request.Message, nil))
 	if err = s.validateClient(request.From()); err != nil {
 		return err
 	}
@@ -139,20 +139,20 @@ func (s *RelayManagementService) UnregisterService(request *service_common.Servi
 		return err
 	}
 	if descriptor.Provider.Id != request.From() {
-		return errors.New(fmt.Sprintf("descriptor provider id(%s) does not match client_manager id(%s)", descriptor.Provider.Id, request.From()))
+		return errors.New(fmt.Sprintf("descriptor provider id(%s) does not match client id(%s)", descriptor.Provider.Id, request.From()))
 	}
 	service := s.serviceManager.GetService(descriptor.Id)
 	if service == nil {
 		return servererror.NewNoSuchServiceError(descriptor.Id)
 	}
 	if service.Provider().Id() != request.From() {
-		return errors.New(fmt.Sprintf("actual service_manager provider id(%s) does not match client_manager id(%s)", service.Provider().Id(), request.From()))
+		return errors.New(fmt.Sprintf("actual service provider id(%s) does not match client id(%s)", service.Provider().Id(), request.From()))
 	}
 	err = s.serviceManager.UnregisterService(descriptor.Id)
 	if err != nil {
 		return err
 	}
-	// free service_manager
+	// free service
 	s.servicePool.Put(service)
 	s.ResolveByAck(request)
 	return nil
@@ -167,7 +167,7 @@ func (s *RelayManagementService) UpdateService(request *service_common.ServiceRe
 		return err
 	}
 	if descriptor.Provider.Id != request.From() {
-		return errors.New(fmt.Sprintf("descriptor provider id(%s) does not match client_manager id(%s)", descriptor.Provider.Id, request.From()))
+		return errors.New(fmt.Sprintf("descriptor provider id(%s) does not match client id(%s)", descriptor.Provider.Id, request.From()))
 	}
 	err = s.serviceManager.UpdateService(*descriptor)
 	if err != nil {
@@ -193,8 +193,8 @@ func (s *RelayManagementService) GetServiceByClientId(request *service_common.Se
 }
 
 func (s *RelayManagementService) tryToRestoreDeadServicesFromReconnectedClient(clientId string) (err error) {
-	defer s.Logger().Printf("restore service_manager from client_manager %s result: %s", clientId, utils.ConditionalPick(err != nil, err, "success"))
-	s.Logger().Println("restore services from client_manager ", clientId)
+	defer s.Logger().Printf("restore service from client %s result: %s", clientId, utils.ConditionalPick(err != nil, err, "success"))
+	s.Logger().Println("restore services from client ", clientId)
 	s.serviceManager.WithServicesFromClientId(clientId, func(services []service_base.IService) {
 		client := s.clientManager.GetClient(clientId)
 		if client == nil {
