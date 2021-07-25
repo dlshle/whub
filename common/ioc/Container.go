@@ -20,7 +20,7 @@ type binding struct {
 }
 
 // resolve will create the appropriate implementation of the related abstraction
-func (b binding) resolve(c *Container) (interface{}, error) {
+func (b *binding) resolve(c *Container) (interface{}, error) {
 	if b.instance != nil {
 		return b.instance, nil
 	}
@@ -30,8 +30,8 @@ func (b binding) resolve(c *Container) (interface{}, error) {
 }
 
 // TypeContainer is the repository of bindings
-type TypeContainer map[reflect.Type]binding
-type IdContainer map[string]binding
+type TypeContainer map[reflect.Type]*binding
+type IdContainer map[string]*binding
 type Container struct {
 	typeContainer TypeContainer
 	idContainer   IdContainer
@@ -62,7 +62,7 @@ func (c *Container) bindById(id string, resolver interface{}) error {
 	if reflectedResolver.NumOut() != 1 {
 		return errors.New("container: the resolver for id binding must has only 1 output value")
 	}
-	c.idContainer[id] = binding{resolver: resolver}
+	c.idContainer[id] = &binding{resolver: resolver}
 
 	return nil
 }
@@ -74,7 +74,7 @@ func (c *Container) bindByType(resolver interface{}) error {
 		return err
 	}
 	for i := 0; i < reflectedResolver.NumOut(); i++ {
-		c.typeContainer[reflectedResolver.Out(i)] = binding{resolver: resolver}
+		c.typeContainer[reflectedResolver.Out(i)] = &binding{resolver: resolver}
 	}
 
 	return nil
@@ -228,7 +228,7 @@ func (c *Container) Fill(structure interface{}) error {
 				f := s.Field(i)
 
 				if t, ok := s.Type().Field(i).Tag.Lookup(TagInject); ok {
-					var concrete binding
+					var concrete *binding
 					var exist bool
 					if len(t) > 0 {
 						// e.g. $inject:"idGenerator"

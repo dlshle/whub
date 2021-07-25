@@ -2,14 +2,15 @@ package wserver
 
 import (
 	"net/http"
+	common_connection "wsdk/relay_common/connection"
 	"wsdk/websocket/connection"
 )
 
 type IWsConnectionHandler interface {
-	OnClientConnected(*connection.WsConnection)
-	OnClientClosed(*connection.WsConnection, error)
-	OnHttpRequest(upgradeFunc func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request)
-	OnConnectionError(*connection.WsConnection, error)
+	HandleClientConnected(*connection.WsConnection)
+	HandleClientClosed(*connection.WsConnection, error)
+	HandleHTTPRequest(upgradeFunc func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request)
+	HandleConnectionError(*connection.WsConnection, error)
 }
 
 type WsConnectionHandler struct {
@@ -19,25 +20,25 @@ type WsConnectionHandler struct {
 	onConnectionError func(*connection.WsConnection, error)
 }
 
-func (h *WsConnectionHandler) OnClientConnected(conn *connection.WsConnection) {
+func (h *WsConnectionHandler) HandleClientConnected(conn *connection.WsConnection) {
 	if h.onClientConnected != nil {
 		h.onClientConnected(conn)
 	}
 }
 
-func (h *WsConnectionHandler) OnClientClosed(conn *connection.WsConnection, err error) {
+func (h *WsConnectionHandler) HandleClientClosed(conn *connection.WsConnection, err error) {
 	if h.onClientClosed != nil {
 		h.onClientClosed(conn, err)
 	}
 }
 
-func (h *WsConnectionHandler) OnHttpRequest(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request) {
+func (h *WsConnectionHandler) HandleHTTPRequest(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request) {
 	if h.onHttpRequest != nil {
 		h.onHttpRequest(u, w, r)
 	}
 }
 
-func (h *WsConnectionHandler) OnConnectionError(conn *connection.WsConnection, err error) {
+func (h *WsConnectionHandler) HandleConnectionError(conn *connection.WsConnection, err error) {
 	if h.onConnectionError != nil {
 		h.onConnectionError(conn, err)
 	}
@@ -66,7 +67,7 @@ func NewServerConfig(name string, address string, port int, handler *WsConnectio
 }
 
 func DefaultHTTPRequestHandler(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/ws" {
+	if r.URL.Path != common_connection.WSConnectionPath {
 		code := http.StatusInternalServerError
 		statusText := http.StatusText(code)
 		// log path err

@@ -1,6 +1,7 @@
 package context
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -30,6 +31,8 @@ const (
 
 type Context struct {
 	lock                *sync.Mutex
+	ctx                 *context.Context
+	cancelFunc          func()
 	server              roles.ICommonServer
 	asyncTaskPool       *async.AsyncPool
 	serviceTaskPool     *async.AsyncPool
@@ -47,6 +50,7 @@ type IContext interface {
 	MessageParser() messages.IMessageParser
 	ServiceTaskPool() *async.AsyncPool
 	Logger() *logger.SimpleLogger
+	Stop()
 }
 
 func NewContext() *Context {
@@ -55,12 +59,15 @@ func NewContext() *Context {
 	asyncPool.Verbose(false)
 	servicePool := async.NewAsyncPool("[ctx-service_manager-pool]", defaultServicePoolSize, runtime.NumCPU()*defaultServicePoolWorkerFactor)
 	servicePool.Verbose(false)
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Context{
 		messageParser:       messages.NewFBMessageParser(),
 		asyncTaskPool:       asyncPool,
 		serviceTaskPool:     servicePool,
 		notificationEmitter: notification.New(defaultMaxListenerCount),
 		lock:                new(sync.Mutex),
+		ctx:                 &ctx,
+		cancelFunc:          cancel,
 		startBarrier:        async.NewBarrier(),
 		logger:              logger.New(os.Stdout, "[WServer]", true),
 	}
@@ -122,4 +129,12 @@ func (c *Context) MessageParser() messages.IMessageParser {
 
 func (c *Context) Logger() *logger.SimpleLogger {
 	return c.logger
+}
+
+func (c *Context) Stop() {
+	c.cancelFunc()
+}
+
+func (c *Context) Context() *context.Context {
+	return c.ctx
 }

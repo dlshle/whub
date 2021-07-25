@@ -24,7 +24,7 @@ type Client struct {
 }
 
 func NewClient(serverUri string, serverPort int, myId string) *Client {
-	addr := url.URL{Scheme: "ws", Host: fmt.Sprintf("%s:%d", serverUri, serverPort), Path: "/ws"}
+	addr := url.URL{Scheme: "ws", Host: fmt.Sprintf("%s:%d", serverUri, serverPort), Path: connection.WSConnectionPath}
 	c := &Client{
 		wclient: WSClient.New(WSClient.NewWClientConfig(addr.String(), nil, nil, nil, nil, nil)),
 		logger:  Ctx.Logger(),

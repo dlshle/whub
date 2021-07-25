@@ -8,6 +8,7 @@ import (
 	"os"
 	"wsdk/common/async"
 	"wsdk/common/logger"
+	common_connection "wsdk/relay_common/connection"
 	"wsdk/websocket/connection"
 )
 
@@ -37,7 +38,7 @@ func NewWServer(config WsServerConfig) *WServer {
 				wsServer.logger.Printf("invalid request from %s(METHOD = %s URL = %s)\n", req.RemoteAddr, req.Method, req.URL)
 				return false
 			}
-			if req.URL.Path != "/ws" {
+			if req.URL.Path != common_connection.WSConnectionPath {
 				wsServer.logger.Printf("invalid path from %s(METHOD = %s URL = %s)\n", req.RemoteAddr, req.Method, req.URL)
 				return false
 			}
@@ -48,8 +49,7 @@ func NewWServer(config WsServerConfig) *WServer {
 	return wsServer
 }
 
-func (ws *WServer) handleUpgrade(w http.ResponseWriter, r *http.Request) (err error) {
-	ws.logger.Println("request: ", r.URL.String())
+func (ws *WServer) upgradeHTTP(w http.ResponseWriter, r *http.Request) (err error) {
 	conn, err := ws.upgrader.Upgrade(w, r, nil)
 	if ws.asyncPool != nil {
 		ws.asyncPool.Schedule(func() { ws.handleNewConnection(conn) })
@@ -60,7 +60,7 @@ func (ws *WServer) handleUpgrade(w http.ResponseWriter, r *http.Request) (err er
 }
 
 func (ws *WServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ws.handler.OnHttpRequest(ws.handleUpgrade, w, r)
+	ws.handler.HandleHTTPRequest(ws.upgradeHTTP, w, r)
 }
 
 func (ws *WServer) Start() (err error) {
@@ -86,9 +86,9 @@ func (ws *WServer) handleNewConnection(conn *websocket.Conn) {
 	ws.logger.Printf("new connection from %s detected", conn.RemoteAddr())
 	c := connection.NewWsConnection(conn, nil, nil, nil)
 	defer c.Close()
-	c.OnClose(func(err error) { ws.handler.OnClientClosed(c, err) })
-	c.OnError(func(err error) { ws.handler.OnConnectionError(c, err) })
-	ws.handler.OnClientConnected(c)
+	c.OnClose(func(err error) { ws.handler.HandleClientClosed(c, err) })
+	c.OnError(func(err error) { ws.handler.HandleConnectionError(c, err) })
+	ws.handler.HandleClientConnected(c)
 }
 
 func (ws *WServer) Send(conn *connection.WsConnection, data []byte) error {
