@@ -2,6 +2,7 @@ package relay_server
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
 	"wsdk/common/logger"
 	"wsdk/relay_common/message_actions"
@@ -10,6 +11,7 @@ import (
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/events"
+	server_http "wsdk/relay_server/http"
 	"wsdk/relay_server/message_dispatcher"
 	"wsdk/relay_server/services"
 	"wsdk/websocket/connection"
@@ -22,6 +24,7 @@ type Server struct {
 	messageParser           messages.IMessageParser
 	messageDispatcher       message_actions.IMessageDispatcher
 	clientConnectionHandler IClientConnectionHandler
+	httpRequestHandler      server_http.IHTTPRequestHandler
 	logger                  *logger.SimpleLogger
 	lock                    *sync.RWMutex
 }
@@ -57,22 +60,29 @@ func (s *Server) handleInitialConnection(conn *connection.WsConnection) {
 	s.clientConnectionHandler.HandleConnectionEstablished(conn)
 }
 
+func (s *Server) handleHTTPRequests(w http.ResponseWriter, r *http.Request) {
+	s.httpRequestHandler.Handle(w, r)
+}
+
 func NewServer(identity roles.ICommonServer) *Server {
 	logger := context.Ctx.Logger()
 	logger.SetPrefix(fmt.Sprintf("[Server-%s]", identity.Id()))
 	context.Ctx.Start(identity)
 	wServer := wserver.NewWServer(wserver.NewServerConfig(identity.Id(), identity.Url(), identity.Port(), wserver.DefaultWsConnHandler()))
 	wServer.SetLogger(logger)
+	messageDispatcher := message_dispatcher.NewServerMessageDispatcher()
 	// wServer.SetAsyncPool(context.Ctx.AsyncTaskPool())
 	server := &Server{
-		WServer:           wServer,
-		ICommonServer:     identity,
-		messageParser:     messages.NewFBMessageParser(),
-		messageDispatcher: message_dispatcher.NewServerMessageDispatcher(),
-		lock:              new(sync.RWMutex),
-		logger:            logger,
+		WServer:            wServer,
+		ICommonServer:      identity,
+		messageParser:      messages.NewFBMessageParser(),
+		messageDispatcher:  messageDispatcher,
+		httpRequestHandler: server_http.NewHTTPRequestHandler(messageDispatcher),
+		lock:               new(sync.RWMutex),
+		logger:             logger,
 	}
 	server.OnClientConnected(server.handleInitialConnection)
+	server.OnNonUpgradableRequest(server.handleHTTPRequests)
 	server.clientConnectionHandler = NewClientConnectionHandler(server.messageDispatcher)
 	/*
 		onHttpRequest func(u func(w http.ResponseWriter, r *http.Handle) error, w http.ResponseWriter, r *http.Handle),

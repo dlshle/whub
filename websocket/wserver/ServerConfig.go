@@ -9,15 +9,16 @@ import (
 type IWsConnectionHandler interface {
 	HandleClientConnected(*connection.WsConnection)
 	HandleClientClosed(*connection.WsConnection, error)
-	HandleHTTPRequest(upgradeFunc func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request)
+	HandleHTTPRequest(w http.ResponseWriter, r *http.Request)
 	HandleConnectionError(*connection.WsConnection, error)
 }
 
 type WsConnectionHandler struct {
-	onClientConnected func(conn *connection.WsConnection)
-	onClientClosed    func(conn *connection.WsConnection, err error)
-	onHttpRequest     func(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request)
-	onConnectionError func(*connection.WsConnection, error)
+	onClientConnected     func(conn *connection.WsConnection)
+	onClientClosed        func(conn *connection.WsConnection, err error)
+	onHttpRequest         func(w http.ResponseWriter, r *http.Request)
+	onConnectionError     func(*connection.WsConnection, error)
+	onNoUpgradableRequest func(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *WsConnectionHandler) HandleClientConnected(conn *connection.WsConnection) {
@@ -32,9 +33,9 @@ func (h *WsConnectionHandler) HandleClientClosed(conn *connection.WsConnection, 
 	}
 }
 
-func (h *WsConnectionHandler) HandleHTTPRequest(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request) {
+func (h *WsConnectionHandler) HandleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 	if h.onHttpRequest != nil {
-		h.onHttpRequest(u, w, r)
+		h.onHttpRequest(w, r)
 	}
 }
 
@@ -44,10 +45,15 @@ func (h *WsConnectionHandler) HandleConnectionError(conn *connection.WsConnectio
 	}
 }
 
-func NewWsConnHandler(onClientConnected func(conn *connection.WsConnection), onClientClosed func(conn *connection.WsConnection, err error), onHttpRequest func(u func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request), onConnectionError func(*connection.WsConnection, error)) *WsConnectionHandler {
-	if onHttpRequest == nil {
-		onHttpRequest = DefaultHTTPRequestHandler
+func (h *WsConnectionHandler) HandleNoUpgradableRequest(w http.ResponseWriter, r *http.Request) {
+	if h.onNoUpgradableRequest != nil {
+		h.onNoUpgradableRequest(w, r)
+	} else {
+		DefaultNoUpgradableHTTPRequestHandler(w, r)
 	}
+}
+
+func NewWsConnHandler(onClientConnected func(conn *connection.WsConnection), onClientClosed func(conn *connection.WsConnection, err error), onHttpRequest func(w http.ResponseWriter, r *http.Request), onConnectionError func(*connection.WsConnection, error)) *WsConnectionHandler {
 	return &WsConnectionHandler{onClientConnected: onClientConnected, onClientClosed: onClientClosed, onHttpRequest: onHttpRequest, onConnectionError: onConnectionError}
 }
 
@@ -79,4 +85,11 @@ func DefaultHTTPRequestHandler(u func(w http.ResponseWriter, r *http.Request) er
 		// log err
 		return
 	}
+}
+
+func DefaultNoUpgradableHTTPRequestHandler(w http.ResponseWriter, r *http.Request) {
+	code := http.StatusInternalServerError
+	statusText := http.StatusText(code)
+	// log path err
+	http.Error(w, statusText, code)
 }

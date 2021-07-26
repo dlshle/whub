@@ -1,26 +1,35 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"wsdk/common/logger"
 	"wsdk/common/utils"
+	"wsdk/relay_server/context"
 	"wsdk/relay_server/message_dispatcher"
 )
 
 type HTTPRequestHandler struct {
-	serviceMessageDispatcher *message_dispatcher.ServiceRequestMessageHandler
+	serviceMessageDispatcher *message_dispatcher.ServerMessageDispatcher
 	logger                   *logger.SimpleLogger
 }
 
-type IHTTPRequestHandler interface {
-	Handle(r *http.Request) error
+func NewHTTPRequestHandler(dispatcher *message_dispatcher.ServerMessageDispatcher) IHTTPRequestHandler {
+	return &HTTPRequestHandler{
+		dispatcher,
+		context.Ctx.Logger().WithPrefix("[HTTPRequestHandler]"),
+	}
 }
 
-func (h *HTTPRequestHandler) Handle(w http.ResponseWriter, r *http.Request) (err error) {
-	utils.LogError(h.logger, "Handle", err)
+type IHTTPRequestHandler interface {
+	Handle(w http.ResponseWriter, r *http.Request)
+}
+
+func (h *HTTPRequestHandler) Handle(w http.ResponseWriter, r *http.Request) {
+	h.logger.Println("handle incoming HTTP request: ", r.RequestURI, r.Header)
 	msg, err := TransformRequest(r)
 	if err != nil {
-		return err
+		utils.LogError(h.logger, "Handle", err)
 	}
-	return h.serviceMessageDispatcher.Handle(msg, NewHTTPWritableConnection(w, r.RemoteAddr))
+	h.serviceMessageDispatcher.Dispatch(msg, NewHTTPWritableConnection(w, r.RemoteAddr, h.logger.WithPrefix(fmt.Sprintf("[HTTP-Conn-%s]", r.RemoteAddr))))
 }

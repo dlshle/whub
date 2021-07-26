@@ -46,6 +46,7 @@ func NewWServer(config WsServerConfig) *WServer {
 		},
 	}
 	wsServer.handler = config.WsConnectionHandler
+	wsServer.OnHttpRequest(wsServer.handleHTTPRequest)
 	return wsServer
 }
 
@@ -60,7 +61,7 @@ func (ws *WServer) upgradeHTTP(w http.ResponseWriter, r *http.Request) (err erro
 }
 
 func (ws *WServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ws.handler.HandleHTTPRequest(ws.upgradeHTTP, w, r)
+	ws.handler.HandleHTTPRequest(w, r)
 }
 
 func (ws *WServer) Start() (err error) {
@@ -80,6 +81,18 @@ func (ws *WServer) Start() (err error) {
 
 func (ws *WServer) Stop() (err error) {
 	return ws.listener.Close()
+}
+
+func (ws *WServer) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != common_connection.WSConnectionPath {
+		ws.handler.HandleNoUpgradableRequest(w, r)
+		return
+	}
+	err := ws.upgradeHTTP(w, r)
+	if err != nil {
+		ws.logger.Printf("err while upgrading HTTP request: %s", err.Error())
+		return
+	}
 }
 
 func (ws *WServer) handleNewConnection(conn *websocket.Conn) {
@@ -108,8 +121,12 @@ func (ws *WServer) OnClientClosed(cb func(*connection.WsConnection, error)) {
 	ws.handler.onClientClosed = cb
 }
 
-func (ws *WServer) OnHttpRequest(cb func(upgradeFunc func(w http.ResponseWriter, r *http.Request) error, w http.ResponseWriter, r *http.Request)) {
+func (ws *WServer) OnHttpRequest(cb func(w http.ResponseWriter, r *http.Request)) {
 	ws.handler.onHttpRequest = cb
+}
+
+func (ws *WServer) OnNonUpgradableRequest(cb func(w http.ResponseWriter, r *http.Request)) {
+	ws.handler.onNoUpgradableRequest = cb
 }
 
 func (ws *WServer) SetLogger(logger *logger.SimpleLogger) {

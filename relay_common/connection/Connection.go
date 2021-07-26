@@ -12,7 +12,7 @@ import (
 	"wsdk/websocket/connection"
 )
 
-const WSConnectionPath = "/ws"
+const WSConnectionPath = "/"
 
 const DefaultTimeout = time.Second * 30
 const DefaultAlivenessTimeout = time.Minute * 5
