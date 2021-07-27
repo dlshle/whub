@@ -52,11 +52,15 @@ func NewWServer(config WsServerConfig) *WServer {
 
 func (ws *WServer) upgradeHTTP(w http.ResponseWriter, r *http.Request) (err error) {
 	conn, err := ws.upgrader.Upgrade(w, r, nil)
-	if ws.asyncPool != nil {
-		ws.asyncPool.Schedule(func() { ws.handleNewConnection(conn) })
-	} else {
-		go ws.handleNewConnection(conn)
-	}
+	// probably not necessary to do this on a different goroutine
+	/*
+		if ws.asyncPool != nil {
+			ws.asyncPool.Schedule(func() { ws.handleNewConnection(conn) })
+		} else {
+			go ws.handleNewConnection(conn)
+		}
+	*/
+	ws.handleNewConnection(conn)
 	return
 }
 
