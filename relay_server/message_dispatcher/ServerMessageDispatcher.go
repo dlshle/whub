@@ -63,3 +63,7 @@ func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn conne
 		}
 	})
 }
+
+func (d *ServerMessageDispatcher) GetHandler(msgType int) message_actions.IMessageHandler {
+	return d.handlers[msgType]
+}

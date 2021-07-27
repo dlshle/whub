@@ -77,7 +77,7 @@ func NewServer(identity roles.ICommonServer) *Server {
 		ICommonServer:      identity,
 		messageParser:      messages.NewFBMessageParser(),
 		messageDispatcher:  messageDispatcher,
-		httpRequestHandler: server_http.NewHTTPRequestHandler(messageDispatcher),
+		httpRequestHandler: server_http.NewHTTPRequestHandler(messageDispatcher.GetHandler(messages.MessageTypeServiceRequest)),
 		lock:               new(sync.RWMutex),
 		logger:             logger,
 	}

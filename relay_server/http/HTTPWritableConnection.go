@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 	"wsdk/common/logger"
@@ -37,16 +36,16 @@ func (h *HTTPWritableConnection) RequestWithTimeout(message *messages.Message, d
 }
 
 func (h *HTTPWritableConnection) Send(m *messages.Message) error {
-	h.logger.Println("response message: ", m)
+	var err error
 	h.w.Header().Set("message-id", m.Id())
 	h.w.Header().Set("from", m.From())
 	h.w.Header().Set("to", m.To())
-	// TODO some error here
 	if m.MessageType() == messages.MessageTypeError {
-		http.Error(h.w, (string)(m.Payload()), http.StatusInternalServerError)
-		return nil
+		h.w.WriteHeader(http.StatusInternalServerError)
+		_, err = h.w.Write(m.Payload())
+	} else {
+		_, err = h.w.Write(m.Payload())
 	}
-	_, err := fmt.Fprintf(h.w, "%s", (string)(m.Payload()))
 	if err != nil {
 		h.logger.Println("response write error: ", err.Error())
 		return err

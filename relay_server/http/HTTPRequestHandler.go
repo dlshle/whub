@@ -5,16 +5,16 @@ import (
 	"net/http"
 	"wsdk/common/logger"
 	"wsdk/common/utils"
+	"wsdk/relay_common/message_actions"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/message_dispatcher"
 )
 
 type HTTPRequestHandler struct {
-	serviceMessageDispatcher *message_dispatcher.ServerMessageDispatcher
+	serviceMessageDispatcher message_actions.IMessageHandler
 	logger                   *logger.SimpleLogger
 }
 
-func NewHTTPRequestHandler(dispatcher *message_dispatcher.ServerMessageDispatcher) IHTTPRequestHandler {
+func NewHTTPRequestHandler(dispatcher message_actions.IMessageHandler) IHTTPRequestHandler {
 	return &HTTPRequestHandler{
 		dispatcher,
 		context.Ctx.Logger().WithPrefix("[HTTPRequestHandler]"),
@@ -31,5 +31,6 @@ func (h *HTTPRequestHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.LogError(h.logger, "Handle", err)
 	}
-	h.serviceMessageDispatcher.Dispatch(msg, NewHTTPWritableConnection(w, r.RemoteAddr, h.logger.WithPrefix(fmt.Sprintf("[HTTP-Conn-%s]", r.RemoteAddr))))
+	// Do not do this on another goroutine. It will cause issue with ResponseWriter.
+	h.serviceMessageDispatcher.Handle(msg, NewHTTPWritableConnection(w, r.RemoteAddr, h.logger.WithPrefix(fmt.Sprintf("[HTTP-%s-%s]", r.RemoteAddr, msg.Id()))))
 }
