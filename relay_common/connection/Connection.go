@@ -90,7 +90,7 @@ func (c *Connection) StartListening() {
 }
 
 func (c *Connection) ReadingLoop() {
-	c.ws.ReadingLoop()
+	c.ws.ReadLoop()
 }
 
 // Request naive way to conduct async in Go to give better error hint

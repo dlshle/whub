@@ -20,15 +20,6 @@ type IRelayService interface {
 	Update(descriptor service.ServiceDescriptor) error
 }
 
-func NewRelayService(
-	descriptor service.ServiceDescriptor,
-	provider IServiceProvider,
-	executor service.IRequestExecutor) IService {
-	return &RelayService{
-		NewService(descriptor.Id, descriptor.Description, provider, executor, descriptor.ServiceUris, descriptor.ServiceType, descriptor.AccessType, descriptor.ExecutionType),
-	}
-}
-
 func (s *RelayService) Init(descriptor service.ServiceDescriptor,
 	provider IServiceProvider,
 	executor service.IRequestExecutor) {

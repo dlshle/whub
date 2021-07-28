@@ -1,8 +1,10 @@
 package http
 
 import (
+	"errors"
 	"net/http"
 	"time"
+	"wsdk/common/async"
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
@@ -13,6 +15,7 @@ type HTTPWritableConnection struct {
 	w      http.ResponseWriter
 	addr   string
 	logger *logger.SimpleLogger
+	b      *async.Barrier
 }
 
 func (h *HTTPWritableConnection) Address() string {
@@ -36,10 +39,17 @@ func (h *HTTPWritableConnection) RequestWithTimeout(message *messages.Message, d
 }
 
 func (h *HTTPWritableConnection) Send(m *messages.Message) error {
+	if h.b.IsOpen() {
+		h.logger.Println("send to the same HTTP connection more than once")
+		return errors.New("unable to send more than once for HTTP connection")
+	}
+	defer h.b.Open()
 	var err error
 	h.w.Header().Set("message-id", m.Id())
 	h.w.Header().Set("from", m.From())
 	h.w.Header().Set("to", m.To())
+	// TODO need to add a payload-type as content-type equivalent
+	h.w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if m.MessageType() == messages.MessageTypeError {
 		h.w.WriteHeader(http.StatusInternalServerError)
 		_, err = h.w.Write(m.Payload())
@@ -85,10 +95,17 @@ func (h *HTTPWritableConnection) Close() error {
 	panic("implement me")
 }
 
-func NewHTTPWritableConnection(w http.ResponseWriter, addr string, logger *logger.SimpleLogger) connection.IConnection {
-	return &HTTPWritableConnection{
-		w,
-		addr,
-		logger,
-	}
+func (h *HTTPWritableConnection) Init(w http.ResponseWriter, addr string, logger *logger.SimpleLogger) {
+	h.w = w
+	h.addr = addr
+	h.logger = logger
+	h.b = async.NewBarrier()
+}
+
+func (h *HTTPWritableConnection) WaitDone() {
+	h.b.Wait()
+}
+
+func NewHTTPWritableConnection() connection.IConnection {
+	return &HTTPWritableConnection{}
 }

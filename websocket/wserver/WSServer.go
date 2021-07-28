@@ -88,6 +88,7 @@ func (ws *WServer) Stop() (err error) {
 }
 
 func (ws *WServer) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
+	// each HTTP request is a new goroutine, so no need to add extra concurrency here
 	if r.URL.Path != common_connection.WSConnectionPath {
 		ws.handler.HandleNoUpgradableRequest(w, r)
 		return

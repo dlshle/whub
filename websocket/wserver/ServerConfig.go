@@ -42,6 +42,8 @@ func (h *WsConnectionHandler) HandleHTTPRequest(w http.ResponseWriter, r *http.R
 func (h *WsConnectionHandler) HandleConnectionError(conn *connection.WsConnection, err error) {
 	if h.onConnectionError != nil {
 		h.onConnectionError(conn, err)
+	} else {
+		conn.Close()
 	}
 }
 

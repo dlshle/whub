@@ -17,7 +17,7 @@ const (
 
 type StatusService struct {
 	service_base.INativeService
-	systemStatusController status.ISystemStatusController                   `$inject:""`
+	systemStatusController status.IServerStatusController                   `$inject:""`
 	serviceManager         service_manager.IServiceManager                  `$inject:""`
 	clientManager          client_manager.IClientManager                    `$inject:""`
 	anonymousClientManager anonymous_client_manager.IAnonymousClientManager `$inject:""`
@@ -50,7 +50,7 @@ func (s *StatusService) initPubSubTopic() error {
 
 func (s *StatusService) GetStatus(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	// TODO should check auth scope
-	sysStatusJsonByte, err := s.systemStatusController.GetSystemStat().JsonByte()
+	sysStatusJsonByte, err := s.systemStatusController.GetServerStat().JsonByte()
 	if err != nil {
 		return err
 	}

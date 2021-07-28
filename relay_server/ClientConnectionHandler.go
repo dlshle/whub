@@ -39,10 +39,11 @@ func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispat
 
 func (h *ClientConnectionHandler) HandleConnectionEstablished(conn *connection.WsConnection) {
 	loggerPrefix := fmt.Sprintf("[conn-%s]", conn.Address())
-	rawConn := common_connection.NewConnection(context.Ctx.Logger().WithPrefix(loggerPrefix), conn, common_connection.DefaultTimeout, context.Ctx.MessageParser(), context.Ctx.NotificationEmitter())
-	p := context.Ctx.AsyncTaskPool().Schedule(func() {
-		rawConn.ReadingLoop()
-	})
+	rawConn := common_connection.NewConnection(context.Ctx.Logger().WithPrefix(loggerPrefix),
+		conn,
+		common_connection.DefaultTimeout,
+		context.Ctx.MessageParser(),
+		context.Ctx.NotificationEmitter())
 	h.logger.Printf("new connection %s received", rawConn.Address())
 	// any message from any connection needs to go through here
 	rawConn.OnIncomingMessage(func(message *messages.Message) {
@@ -50,6 +51,7 @@ func (h *ClientConnectionHandler) HandleConnectionEstablished(conn *connection.W
 	})
 	rawClient := client.NewAnonymousClient(rawConn)
 	h.anonymousClientManager.AcceptClient(rawClient.Address(), rawClient)
-	p.Wait()
+	// no need to run this on a different goroutine since each new connection is on its own coroutine
+	rawConn.ReadingLoop()
 	h.logger.Printf("connection %s cycle done", conn.Address())
 }

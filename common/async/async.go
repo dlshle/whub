@@ -9,19 +9,14 @@ import (
 	"wsdk/common/logger"
 )
 
-// TODO update pool size/worker size dynamically
-// channel has better performance, so used Barrier to replace Promise
+var statusStringMap map[byte]string
 
-type AsyncError struct {
-	msg string
-}
-
-func (e *AsyncError) Error() string {
-	return e.msg
-}
-
-func NewAsyncError(msg string) error {
-	return &AsyncError{msg}
+func init() {
+	statusStringMap = make(map[byte]string)
+	statusStringMap[IDLE] = "IDLE"
+	statusStringMap[RUNNING] = "RUNNING"
+	statusStringMap[TERMINATING] = "TERMINATING"
+	statusStringMap[TERMINATED] = "TERMINATED"
 }
 
 type AsyncTask func()
@@ -36,35 +31,37 @@ const (
 )
 
 type AsyncPool struct {
-	id             string
-	context        context.Context
-	cancelFunc     func()
-	stopWaitGroup  sync.WaitGroup
-	rwLock         *sync.RWMutex
-	channel        chan AsyncTask
-	numWorkers     int
-	numBusyWorkers int
-	status         int
-	logger         *logger.SimpleLogger
+	id                string
+	context           context.Context
+	cancelFunc        func()
+	stopWaitGroup     sync.WaitGroup
+	rwLock            *sync.RWMutex
+	channel           chan AsyncTask
+	numTotWorkers     int
+	numStartedWorkers int
+	numBusyWorkers    int
+	status            byte
+	logger            *logger.SimpleLogger
 }
 
 type IAsyncPool interface {
-	getStatus() int
-	setStatus(status int)
+	getStatus() byte
+	setStatus(status byte)
 	HasStarted() bool
-	isRunning() bool
-	Start()
+	start()
 	Stop()
 	schedule(task AsyncTask)
 	Schedule(task AsyncTask) *Barrier
 	ScheduleComputable(computableTask ComputableAsyncTask) *StatefulBarrier
 	Verbose(use bool)
-	NumWorkers() int
+	NumMaxWorkers() int
+	NumStartedWorkers() int
 	NumPendingTasks() int
 	NumBusyWorkers() int
+	Status() string
 }
 
-func NewAsyncPool(id string, maxPoolSize, workerSize int) *AsyncPool {
+func NewAsyncPool(id string, maxPoolSize, workerSize int) IAsyncPool {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &AsyncPool{
 		id,
@@ -76,7 +73,8 @@ func NewAsyncPool(id string, maxPoolSize, workerSize int) *AsyncPool {
 		getInRangeInt(workerSize, 2, 1024),
 		0,
 		0,
-		logger.New(os.Stdout, fmt.Sprintf("AsyncPool[pool-%s]", id), false),
+		0,
+		logger.New(os.Stdout, fmt.Sprintf("AsyncPool[%s]", id), false),
 	}
 }
 
@@ -86,16 +84,16 @@ func (p *AsyncPool) withWrite(cb func()) {
 	cb()
 }
 
-func (p *AsyncPool) getStatus() int {
+func (p *AsyncPool) getStatus() byte {
 	p.rwLock.RLock()
 	defer p.rwLock.RUnlock()
 	return p.status
 }
 
-func (p *AsyncPool) setStatus(status int) {
+func (p *AsyncPool) setStatus(status byte) {
 	p.rwLock.Lock()
 	defer p.rwLock.Unlock()
-	if status > -1 && status < 4 {
+	if status >= 0 && status < 4 {
 		p.status = status
 		p.logger.Printf("Pool status has transited to %d\n", status)
 	}
@@ -106,12 +104,6 @@ func (p *AsyncPool) HasStarted() bool {
 	p.rwLock.RLock()
 	defer p.rwLock.RUnlock()
 	return p.status > IDLE
-}
-
-func (p *AsyncPool) isRunning() bool {
-	p.rwLock.RLock()
-	defer p.rwLock.RUnlock()
-	return p.status == RUNNING
 }
 
 func (p *AsyncPool) incrementNumBusyWorkers() {
@@ -126,47 +118,65 @@ func (p *AsyncPool) decrementNumBusyWorkers() {
 	})
 }
 
-func (p *AsyncPool) Start() {
+func (p *AsyncPool) runWorker(index int) {
+	// worker routine
+	for {
+		select {
+		case task, isOpen := <-p.channel:
+			// simply take task and work on it sequentially
+			if isOpen {
+				p.logger.Printf("Worker %d has acquired task %p\n", index, task)
+				p.incrementNumBusyWorkers()
+				task()
+			} else {
+				break
+			}
+			p.decrementNumBusyWorkers()
+		case <-p.context.Done():
+			break
+		}
+	}
+	p.logger.Printf("Worker %d terminated\n", index)
+	p.stopWaitGroup.Done()
+}
+
+func (p *AsyncPool) tryAddAndRunWorker() {
+	if p.getStatus() > RUNNING {
+		p.logger.Println("status is terminating or terminated, can not add new worker")
+		return
+	}
+	p.withWrite(func() {
+		if p.numStartedWorkers < p.numTotWorkers {
+			// need to increment the waitGroup before worker goroutine runs
+			p.stopWaitGroup.Add(1)
+			// of course worker runs on its own goroutine
+			go p.runWorker(p.numStartedWorkers)
+			p.logger.Printf("worker %d has been started", p.numStartedWorkers)
+			p.numStartedWorkers++
+		}
+	})
+}
+
+func (p *AsyncPool) initWorker() {
+	p.tryAddAndRunWorker()
+	p.logger.Println("first worker has been initiated")
+	// wait till all workers terminated
+	p.stopWaitGroup.Wait()
+	p.setStatus(TERMINATED)
+	p.logger.Println("All worker has been terminated")
+}
+
+func (p *AsyncPool) start() {
 	if p.getStatus() > IDLE {
 		return
 	}
-	go func() {
-		// worker manager routine
-		for i := 0; i < p.numWorkers; i++ {
-			p.stopWaitGroup.Add(1)
-			go func(wi int) {
-				// worker routine
-				for {
-					select {
-					case task, isOpen := <-p.channel:
-						// simply take task and work on it sequentially
-						if isOpen {
-							p.logger.Printf("Worker %d has acquired task %p\n", wi, task)
-							p.incrementNumBusyWorkers()
-							task()
-						} else {
-							break
-						}
-						p.decrementNumBusyWorkers()
-					case <-p.context.Done():
-						break
-					}
-				}
-				p.logger.Printf("Worker %d terminated\n", wi)
-				p.stopWaitGroup.Done()
-			}(i)
-		}
-		// wait till all workers terminated
-		p.stopWaitGroup.Wait()
-		p.setStatus(TERMINATED)
-		p.logger.Printf("All worker has been terminated\n")
-	}()
 	p.setStatus(RUNNING)
+	go p.initWorker()
 }
 
 func (p *AsyncPool) Stop() {
 	if !p.HasStarted() {
-		p.logger.Printf("Warn pool has not started\n")
+		p.logger.Println("Warn pool has not started")
 		return
 	}
 	close(p.channel)
@@ -176,8 +186,16 @@ func (p *AsyncPool) Stop() {
 }
 
 func (p *AsyncPool) schedule(task AsyncTask) {
-	if !p.HasStarted() {
-		p.Start()
+	status := p.getStatus()
+	switch {
+	case status == IDLE:
+		p.start()
+	case status > RUNNING:
+		return
+	}
+	// if all currently running workers are busy, try to add a new worker
+	if p.NumBusyWorkers() == p.NumStartedWorkers() {
+		p.tryAddAndRunWorker()
 	}
 	p.channel <- task
 	p.logger.Printf("Task %p has been scheduled\n", task)
@@ -206,8 +224,10 @@ func (p *AsyncPool) Verbose(use bool) {
 	p.logger.Verbose(use)
 }
 
-func (p *AsyncPool) NumWorkers() int {
-	return p.numWorkers
+func (p *AsyncPool) NumMaxWorkers() int {
+	p.rwLock.RLock()
+	defer p.rwLock.RUnlock()
+	return p.numTotWorkers
 }
 
 func (p *AsyncPool) NumPendingTasks() int {
@@ -224,6 +244,16 @@ func (p *AsyncPool) NumBusyWorkers() int {
 		return p.numBusyWorkers
 	}
 	return 0
+}
+
+func (p *AsyncPool) NumStartedWorkers() int {
+	p.rwLock.RLock()
+	defer p.rwLock.RUnlock()
+	return p.numStartedWorkers
+}
+
+func (p *AsyncPool) Status() string {
+	return statusStringMap[p.getStatus()]
 }
 
 // utils

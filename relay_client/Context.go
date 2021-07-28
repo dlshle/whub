@@ -32,8 +32,8 @@ type Context struct {
 	lock                *sync.Mutex
 	identity            roles.IDescribableRole
 	server              roles.ICommonServer
-	asyncTaskPool       *async.AsyncPool
-	serviceTaskPool     *async.AsyncPool
+	asyncTaskPool       async.IAsyncPool
+	serviceTaskPool     async.IAsyncPool
 	timedJobPool        *timed.JobPool
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
@@ -47,9 +47,9 @@ type IContext interface {
 	Identity() roles.IDescribableRole
 	TimedJobPool() *timed.JobPool
 	NotificationEmitter() notification.IWRNotificationEmitter
-	AsyncTaskPool() *async.AsyncPool
+	AsyncTaskPool() async.IAsyncPool
 	MessageParser() messages.IMessageParser
-	ServiceTaskPool() *async.AsyncPool
+	ServiceTaskPool() async.IAsyncPool
 	Logger() *logger.SimpleLogger
 }
 
@@ -92,7 +92,7 @@ func (c *Context) TimedJobPool() *timed.JobPool {
 	return c.timedJobPool
 }
 
-func (c *Context) AsyncTaskPool() *async.AsyncPool {
+func (c *Context) AsyncTaskPool() async.IAsyncPool {
 	c.withLock(func() {
 		if c.asyncTaskPool == nil {
 			c.asyncTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-async-pool]"), 2048, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
@@ -101,7 +101,7 @@ func (c *Context) AsyncTaskPool() *async.AsyncPool {
 	return c.asyncTaskPool
 }
 
-func (c *Context) ServiceTaskPool() *async.AsyncPool {
+func (c *Context) ServiceTaskPool() async.IAsyncPool {
 	c.withLock(func() {
 		if c.serviceTaskPool == nil {
 			c.serviceTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-service_manager-pool]"), 1024, runtime.NumCPU()*defaultServicePoolWorkerFactor)

@@ -124,7 +124,7 @@ func (s *Service) Start() error {
 	}
 	s.setStatus(service.ServiceStatusStarting)
 	s.logger.Println("service is starting")
-	s.serviceQueue.Start()
+	// some starting task maybe
 	s.setStatus(service.ServiceStatusRunning)
 	s.logger.Println("service is running")
 	if s.onStartedCallback != nil {

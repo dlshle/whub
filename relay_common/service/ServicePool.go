@@ -15,7 +15,6 @@ const (
 
 type IServiceTaskQueue interface {
 	Get(id string) *ServiceRequest
-	Start()
 	Stop()
 	Schedule(message *ServiceRequest) *async.Barrier
 	Remove(id string) bool
@@ -28,13 +27,13 @@ type IServiceTaskQueue interface {
 
 type ServiceTaskQueue struct {
 	hostId     string
-	pool       *async.AsyncPool
+	pool       async.IAsyncPool
 	executor   IRequestExecutor
 	messageSet map[string]*ServiceRequest
 	lock       *sync.RWMutex
 }
 
-func NewServiceTaskQueue(hostId string, executor IRequestExecutor, pool *async.AsyncPool) *ServiceTaskQueue {
+func NewServiceTaskQueue(hostId string, executor IRequestExecutor, pool async.IAsyncPool) *ServiceTaskQueue {
 	return &ServiceTaskQueue{hostId, pool, executor, make(map[string]*ServiceRequest), new(sync.RWMutex)}
 }
 
@@ -60,10 +59,6 @@ func (p *ServiceTaskQueue) withAll(operation func(message *ServiceRequest) error
 		return errors.New(errorMessage)
 	}
 	return nil
-}
-
-func (p *ServiceTaskQueue) Start() {
-	p.pool.Start()
 }
 
 func (p *ServiceTaskQueue) Stop() {

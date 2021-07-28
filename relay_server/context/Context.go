@@ -34,8 +34,8 @@ type Context struct {
 	ctx                 *context.Context
 	cancelFunc          func()
 	server              roles.ICommonServer
-	asyncTaskPool       *async.AsyncPool
-	serviceTaskPool     *async.AsyncPool
+	asyncTaskPool       async.IAsyncPool
+	serviceTaskPool     async.IAsyncPool
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
 	startBarrier        *async.Barrier
@@ -46,9 +46,9 @@ type IContext interface {
 	Server() roles.IDescribableRole
 	TimedJobPool() *timed.JobPool
 	NotificationEmitter() notification.IWRNotificationEmitter
-	AsyncTaskPool() *async.AsyncPool
+	AsyncTaskPool() async.IAsyncPool
 	MessageParser() messages.IMessageParser
-	ServiceTaskPool() *async.AsyncPool
+	ServiceTaskPool() async.IAsyncPool
 	Logger() *logger.SimpleLogger
 	Stop()
 }
@@ -91,7 +91,7 @@ func (c *Context) Server() roles.IDescribableRole {
 	return c.server
 }
 
-func (c *Context) AsyncTaskPool() *async.AsyncPool {
+func (c *Context) AsyncTaskPool() async.IAsyncPool {
 	c.withLock(func() {
 		if c.asyncTaskPool == nil {
 			workerSize := runtime.NumCPU() * defaultAsyncPoolWorkerFactor
@@ -102,7 +102,7 @@ func (c *Context) AsyncTaskPool() *async.AsyncPool {
 	return c.asyncTaskPool
 }
 
-func (c *Context) ServiceTaskPool() *async.AsyncPool {
+func (c *Context) ServiceTaskPool() async.IAsyncPool {
 	c.withLock(func() {
 		if c.serviceTaskPool == nil {
 			workerSize := runtime.NumCPU() * defaultServicePoolWorkerFactor

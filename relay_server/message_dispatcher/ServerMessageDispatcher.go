@@ -47,6 +47,14 @@ func (d *ServerMessageDispatcher) RegisterHandler(handler message_actions.IMessa
 }
 
 func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn connection.IConnection) {
+	/*
+	 * this function can either be called from a reading loop coroutine or from http handler goroutine, in order to
+	 * make the reading loop more effective(less blocking time), actual message dispatching will be done on another
+	 * goroutine.
+	 * e.g. read -msg-> dispatcher(dispatch and run msg0) -> read -msg1-> dispatcher(...msg1) -> read
+	 *                                                           msg0 handle done, write back to conn
+	 *                                                                  msg1 handle done, write back to conn
+	 */
 	if message == nil {
 		return
 	}

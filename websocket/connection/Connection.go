@@ -46,7 +46,7 @@ type IWsConnection interface {
 	OnClose(func(error))
 	State() int
 	StartListening()
-	ReadingLoop()
+	ReadLoop()
 	StopListening()
 	String() string
 }
@@ -96,10 +96,10 @@ func (c *WsConnection) Close() (err error) {
 }
 
 func (c *WsConnection) StartListening() {
-	go c.ReadingLoop()
+	go c.ReadLoop()
 }
 
-func (c *WsConnection) ReadingLoop() {
+func (c *WsConnection) ReadLoop() {
 	if c.State() > StateIdle {
 		return
 	}
@@ -128,8 +128,8 @@ func (c *WsConnection) StopListening() {
 
 func (c *WsConnection) Read() ([]byte, error) {
 	_, stream, err := c.conn.ReadMessage()
-	if err != nil && c.onError != nil {
-		c.onError(err)
+	if err != nil  {
+		c.handleError(err)
 	} else if err == nil {
 		c.lastRecvTime = time.Now()
 	}
@@ -172,4 +172,12 @@ func (c *WsConnection) OnMessage(cb func([]byte)) {
 
 func (c *WsConnection) String() string {
 	return fmt.Sprintf("WsConnection { address: %s, state: %d }", c.Address(), c.State())
+}
+
+func (c *WsConnection) handleError(err error) {
+	if c.onError == nil {
+		c.Close()
+	} else {
+		c.onError(err)
+	}
 }
