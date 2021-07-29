@@ -48,6 +48,7 @@ type IServiceManager interface {
 	FindServiceByUri(uri string) server_service.IService
 	SupportsUri(uri string) bool
 
+	DescribeAllServices() []service.ServiceDescriptor
 	UpdateService(descriptor service.ServiceDescriptor) error
 }
 
@@ -197,6 +198,17 @@ func (s *ServiceManager) SupportsUri(uri string) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return s.trieTree.SupportsUri(uri)
+}
+
+func (s *ServiceManager) DescribeAllServices() []service.ServiceDescriptor {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	var res []service.ServiceDescriptor
+	for _, v := range s.serviceMap {
+		v.ServiceType()
+		res = append(res, v.Describe())
+	}
+	return res
 }
 
 func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) error {

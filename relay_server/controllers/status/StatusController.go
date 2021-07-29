@@ -15,8 +15,8 @@ import (
 const DefaultStatReadInterval = time.Second * 30
 
 type ServerStat struct {
-	*SystemStat `json:"systemStat"`
-	AsyncPoolStat *AsyncWorkerPoolStat   `json:"asyncPoolStat"`
+	*SystemStat     `json:"systemStat"`
+	AsyncPoolStat   *AsyncWorkerPoolStat `json:"asyncPoolStat"`
 	ServicePoolStat *AsyncWorkerPoolStat `json:"servicePoolStat"`
 }
 
@@ -48,8 +48,8 @@ func (s AsyncWorkerPoolStat) JsonByte() ([]byte, error) {
 type ServerStatusController struct {
 	statReadTimer  ctimer.ICTimer
 	observableStat observable.IObservable // observable with server stat
-	asyncPool async.IAsyncPool
-	servicePool async.IAsyncPool
+	asyncPool      async.IAsyncPool
+	servicePool    async.IAsyncPool
 	lastUpdateTime time.Time
 	logger         *logger.SimpleLogger
 }
@@ -62,16 +62,16 @@ type IServerStatusController interface {
 func NewSystemStatusController() IServerStatusController {
 	controller := &ServerStatusController{
 		observableStat: observable.NewObservableWith(&ServerStat{
-			SystemStat: new(SystemStat),
-			AsyncPoolStat: new(AsyncWorkerPoolStat),
+			SystemStat:      new(SystemStat),
+			AsyncPoolStat:   new(AsyncWorkerPoolStat),
 			ServicePoolStat: new(AsyncWorkerPoolStat),
 		}),
-		asyncPool:      context.Ctx.AsyncTaskPool(),
-		servicePool:    context.Ctx.ServiceTaskPool(),
-		logger:         context.Ctx.Logger().WithPrefix("[ServerStatusController]"),
+		asyncPool:   context.Ctx.AsyncTaskPool(),
+		servicePool: context.Ctx.ServiceTaskPool(),
+		logger:      context.Ctx.Logger().WithPrefix("[ServerStatusController]"),
 	}
-	controller.readAndUpdateSystemStat()
 	controller.statReadTimer = ctimer.New(DefaultStatReadInterval, controller.readAndUpdateSystemStat)
+	controller.readAndUpdateSystemStat()
 	controller.statReadTimer.Repeat()
 	return controller
 }
@@ -103,11 +103,11 @@ func (c *ServerStatusController) readAndUpdateSystemStat() {
 
 	c.observableStat.Set(stat)
 	c.lastUpdateTime = time.Now()
-	jsonByte, _ := stat.JsonByte()
-	c.logger.Println("system status has been updated: ", (string)(jsonByte))
+	c.statReadTimer.Reset()
 }
 
 func (c *ServerStatusController) GetServerStat() ServerStat {
+	c.readAndUpdateSystemStat()
 	return *(c.observableStat.Get().(*ServerStat))
 }
 

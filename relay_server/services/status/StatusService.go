@@ -1,7 +1,9 @@
 package status
 
 import (
+	"encoding/json"
 	service_common "wsdk/relay_common/service"
+	"wsdk/relay_common/utils"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/controllers/anonymous_client_manager"
 	"wsdk/relay_server/controllers/client_manager"
@@ -11,8 +13,9 @@ import (
 )
 
 const (
-	ID             = "status"
-	RouteGetStatus = "/get" // payload = service descriptor
+	ID               = "status"
+	RouteGetStatus   = "/get"      // payload = service descriptor
+	RouteGetServices = "/services" // payload = all internal services
 )
 
 type StatusService struct {
@@ -40,7 +43,11 @@ func (s *StatusService) Init() error {
 }
 
 func (s *StatusService) initRoutes() error {
-	return s.RegisterRoute(RouteGetStatus, s.GetStatus)
+	return utils.ProcessWithErrors(func() error {
+		return s.RegisterRoute(RouteGetStatus, s.GetStatus)
+	}, func() error {
+		return s.RegisterRoute(RouteGetServices, s.GetAllInternalServices)
+	})
 }
 
 func (s *StatusService) initPubSubTopic() error {
@@ -55,5 +62,15 @@ func (s *StatusService) GetStatus(request *service_common.ServiceRequest, pathPa
 		return err
 	}
 	s.ResolveByResponse(request, sysStatusJsonByte)
+	return nil
+}
+
+func (s *StatusService) GetAllInternalServices(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	// TODO should check auth scope
+	servicesJsonByte, err := json.Marshal(s.serviceManager.DescribeAllServices())
+	if err != nil {
+		return err
+	}
+	s.ResolveByResponse(request, servicesJsonByte)
 	return nil
 }
