@@ -7,7 +7,7 @@ func main() {
 	if role == "server" {
 		ServerTest()
 	} else {
-		go RunMultipleClientTest(10)
+		go RunMultipleClientTest(1)
 	}
 	time.Sleep(time.Minute * 10)
 }

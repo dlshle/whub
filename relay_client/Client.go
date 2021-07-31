@@ -90,23 +90,24 @@ func (c *Client) RegisterService() error {
 	if c.service != nil {
 		err := c.service.Init(c.server, c.conn)
 		if err != nil {
+			c.logger.Println("Init service failed due to ", err.Error())
 			return err
 		}
 		return c.service.Register()
 	}
-	return errors.New("no service present")
+	return errors.New("no service is present")
 }
 
 func (c *Client) StartService() error {
 	if c.service != nil {
 		return c.service.Start()
 	}
-	return errors.New("no service present")
+	return errors.New("no service is present")
 }
 
 func (c *Client) StopService() error {
 	if c.service != nil {
 		return c.service.Stop()
 	}
-	return errors.New("no service present")
+	return errors.New("no service is present")
 }
