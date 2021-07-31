@@ -151,11 +151,13 @@ func (s *ServiceManager) registerService(clientId string, svc server_service.ISe
 		for _, uri := range svc.FullServiceUris() {
 			s.trieTree.Add(uri, svc, false)
 		}
+		/* No need to do this as when service is unregistered, all full uris will be removed
 		svc.OnStopped(func(tService service.IBaseService) {
 			for _, uri := range tService.FullServiceUris() {
 				s.trieTree.Remove(uri)
 			}
 		})
+		*/
 	})
 	err = nil
 	return
@@ -173,7 +175,7 @@ func (s *ServiceManager) unregisterService(serviceId string) error {
 		return err
 	}
 	s.withWrite(func() {
-		uris := svc.ServiceUris()
+		uris := svc.FullServiceUris()
 		s.serviceMap[serviceId].Stop()
 		delete(s.serviceMap, serviceId)
 		for _, uri := range uris {
@@ -253,8 +255,6 @@ func (s *ServiceManager) addUriRoute(service server_service.IService, route stri
 }
 
 func (s *ServiceManager) removeUriRoute(route string) (success bool) {
-	s.withWrite(func() {
-		success = s.trieTree.Remove(route)
-	})
+	success = s.trieTree.Remove(route)
 	return success
 }

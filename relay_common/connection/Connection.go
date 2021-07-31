@@ -121,7 +121,12 @@ func (c *Connection) RequestWithTimeout(message *messages.Message, timeout time.
 	return
 }
 
-func (c *Connection) Send(message *messages.Message) error {
+func (c *Connection) Send(message *messages.Message) (err error) {
+	defer func() {
+		if err != nil {
+			c.logger.Println("write error: ", err)
+		}
+	}()
 	if m, e := c.messageParser.Serialize(message); e == nil {
 		return c.ws.Write(m)
 	} else {

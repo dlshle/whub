@@ -181,7 +181,6 @@ func (n *trieNode) remove() {
 			for k, v := range n.parent.constChildren {
 				if v == n {
 					n.parent.constChildren[k] = nil
-					fmt.Println("Daniel path value " + k + " is removed")
 				}
 			}
 		}
@@ -333,7 +332,6 @@ func (t *TrieTree) compact() {
 		node := t.unCompactedLeaves.Pop().(*trieNode)
 		path, isConst := node.path()
 		if isConst {
-			fmt.Println("Daniel compact ", path)
 			node.remove()
 			t.constPathMap[path] = node.value
 		}
@@ -389,7 +387,6 @@ func (t *TrieTree) Remove(path string) bool {
 		return false
 	}
 	node.remove()
-	fmt.Println("Daniel path ", path, " removed!")
 	t.size--
 	return true
 }

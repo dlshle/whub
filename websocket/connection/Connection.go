@@ -104,7 +104,7 @@ func (c *WsConnection) ReadLoop() {
 		return
 	}
 	c.setState(StateReading)
-	c.conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
+	// c.conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
 	for c.State() == StateReading {
 		// Read will handle error itself
 		msg, err := c.Read()
@@ -128,7 +128,7 @@ func (c *WsConnection) StopListening() {
 
 func (c *WsConnection) Read() ([]byte, error) {
 	_, stream, err := c.conn.ReadMessage()
-	if err != nil  {
+	if err != nil {
 		c.handleError(err)
 	} else if err == nil {
 		c.lastRecvTime = time.Now()
