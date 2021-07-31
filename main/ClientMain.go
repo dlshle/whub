@@ -9,7 +9,7 @@ import (
 )
 
 func ClientTest() {
-	c := relay_client.NewClient("42.192.164.79", 1234, "aabb")
+	c := relay_client.NewClient("192.168.0.182", 1234, "aabb")
 	err := c.Connect()
 	if err != nil {
 		fmt.Println(err)

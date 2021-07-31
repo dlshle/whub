@@ -16,9 +16,12 @@ type EchoService struct {
 	relay_client.IClientService
 }
 
-func (s *EchoService) Init(server roles.ICommonServer, serverConn connection.IConnection) error {
+func (s *EchoService) Init(server roles.ICommonServer, serverConn connection.IConnection) (err error) {
+	defer func() {
+		s.Logger().Println("service has been initiated with err ", err)
+	}()
 	s.IClientService = relay_client.NewClientService(EchoServiceID, server, serverConn)
-	err := s.RegisterRoute(EchoServiceRouteEcho, s.Echo)
+	err = s.RegisterRoute(EchoServiceRouteEcho, s.Echo)
 	return err
 }
 

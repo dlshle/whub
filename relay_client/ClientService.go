@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/health_check"
 	"wsdk/relay_common/messages"
@@ -40,6 +41,8 @@ type ClientService struct {
 	onHealthCheckRestoredCallback func(service IClientService)
 
 	lock *sync.RWMutex
+
+	logger *logger.SimpleLogger
 }
 
 // TODO NewFunc
@@ -54,6 +57,7 @@ func NewClientService(id string, server roles.ICommonServer, serverConn connecti
 		host:                 server,
 		lock:                 new(sync.RWMutex),
 		uriPrefix:            fmt.Sprintf("%s/%s", service.ServicePrefix, id),
+		logger:               Ctx.Logger().WithPrefix(fmt.Sprintf("[%s]", id)),
 	}
 	s.init()
 	return s
@@ -76,6 +80,8 @@ type IClientService interface {
 
 	ResolveByAck(request *service.ServiceRequest) error
 	ResolveByResponse(request *service.ServiceRequest, responseData []byte) error
+
+	Logger() *logger.SimpleLogger
 }
 
 func (s *ClientService) init() {
@@ -364,4 +370,8 @@ func (s *ClientService) ResolveByResponse(request *service.ServiceRequest, respo
 
 func (s *ClientService) Init(server roles.ICommonServer, serverConn connection.IConnection) error {
 	return errors.New("current service did not implement Init() interface")
+}
+
+func (s *ClientService) Logger() *logger.SimpleLogger {
+	return s.logger
 }
