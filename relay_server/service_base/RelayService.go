@@ -54,7 +54,7 @@ func (s *RelayService) RestoreExternally(reconnectedOwner *client.Client) (err e
 	return err
 }
 
-func (s *Service) Update(descriptor service.ServiceDescriptor) (err error) {
+func (s *RelayService) Update(descriptor service.ServiceDescriptor) (err error) {
 	defer s.Logger().Println("update result: ", utils.ConditionalPick(err != nil, err, "success"))
 	s.Logger().Println("update with descriptor: ", descriptor.Description)
 	oldDescriptor := s.Describe()
@@ -68,7 +68,7 @@ func (s *Service) Update(descriptor service.ServiceDescriptor) (err error) {
 	return nil
 }
 
-func (s *Service) update(descriptor service.ServiceDescriptor) {
+func (s *RelayService) update(descriptor service.ServiceDescriptor) {
 	s.withWrite(func() {
 		s.description = descriptor.Description
 		s.status = descriptor.Status

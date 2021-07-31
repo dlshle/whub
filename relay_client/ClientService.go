@@ -45,11 +45,11 @@ type ClientService struct {
 	logger *logger.SimpleLogger
 }
 
-// TODO NewFunc
-func NewClientService(id string, server roles.ICommonServer, serverConn connection.IConnection) *ClientService {
+func NewClientService(id string, description string, accessType int, execType int, server roles.ICommonServer, serverConn connection.IConnection) *ClientService {
 	handler := service.NewServiceHandler()
 	s := &ClientService{
 		id:                   id,
+		description:          description,
 		ctx:                  Ctx,
 		serviceManagerClient: NewServiceCenterClient(Ctx.Identity().Id(), server.Id(), serverConn),
 		serviceTaskQueue:     service.NewServiceTaskQueue(Ctx.Identity().Id(), NewClientServiceExecutor(handler), Ctx.ServiceTaskPool()),
@@ -58,6 +58,9 @@ func NewClientService(id string, server roles.ICommonServer, serverConn connecti
 		lock:                 new(sync.RWMutex),
 		uriPrefix:            fmt.Sprintf("%s/%s", service.ServicePrefix, id),
 		logger:               Ctx.Logger().WithPrefix(fmt.Sprintf("[%s]", id)),
+		serviceType:          service.ServiceTypeRelay,
+		accessType:           accessType,
+		executionType:        execType,
 	}
 	s.init()
 	return s
@@ -219,6 +222,9 @@ func (s *ClientService) UnregisterRoute(shortUri string) (err error) {
 }
 
 func (s *ClientService) NotifyHostForUpdate() error {
+	if s.Status() == service.ServiceStatusUnregistered {
+		return nil
+	}
 	if s.serviceManagerClient != nil {
 		return s.serviceManagerClient.UpdateService(s.Describe())
 	}

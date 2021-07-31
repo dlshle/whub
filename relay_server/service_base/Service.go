@@ -140,7 +140,8 @@ func (s *Service) Stop() error {
 	}
 	s.setStatus(service.ServiceStatusStopping)
 	s.logger.Println("service is stopping")
-	s.serviceQueue.Stop()
+	// DO NOT STOP THE POOL, IT'S SHARED!!!
+	// s.serviceQueue.Stop()
 	// after pool is stopped
 	s.setStatus(service.ServiceStatusIdle)
 	s.logger.Println("service has stopped, current status is ", service.ServiceStatusStringMap[s.Status()])

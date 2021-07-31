@@ -117,7 +117,7 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 		return errors.New("unable to find the client by providerId " + descriptor.Provider.Id)
 	}
 	service := s.servicePool.Get().(service_base.IRelayService)
-	service.Init(*descriptor, client, client.MessageRelayExecutor())
+	service.Init(descriptor, client, client.MessageRelayExecutor())
 	err = s.serviceManager.RegisterService(descriptor.Id, service)
 	if err != nil {
 		return err
@@ -169,7 +169,7 @@ func (s *RelayManagementService) UpdateService(request *service_common.ServiceRe
 	if descriptor.Provider.Id != request.From() {
 		return errors.New(fmt.Sprintf("descriptor provider id(%s) does not match client id(%s)", descriptor.Provider.Id, request.From()))
 	}
-	err = s.serviceManager.UpdateService(*descriptor)
+	err = s.serviceManager.UpdateService(descriptor)
 	if err != nil {
 		// log error
 		return err

@@ -217,7 +217,7 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 		return errors.New(fmt.Sprintf("tService %s can not be found", descriptor.Id))
 	}
 	return utils.ProcessWithErrors(func() error {
-		return tService.(server_service.RelayService).Update(descriptor)
+		return tService.(*server_service.RelayService).Update(descriptor)
 	}, func() error {
 		// TODO how to update uris here???
 		fullUris := tService.FullServiceUris()
@@ -226,7 +226,7 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 			currentUriSet[uri] = true
 		}
 		for _, shortUri := range descriptor.ServiceUris {
-			fullUri := fmt.Sprintf("%s/%s", service.ServicePrefix, shortUri)
+			fullUri := fmt.Sprintf("%s/%s%s", service.ServicePrefix, descriptor.Id, shortUri)
 			if !currentUriSet[fullUri] {
 				// add uri_trie
 				err := s.addUriRoute(tService, fullUri)
@@ -234,6 +234,7 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 				if err != nil {
 					return err
 				}
+			} else {
 				delete(currentUriSet, fullUri)
 			}
 		}

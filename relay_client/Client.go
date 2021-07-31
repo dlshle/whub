@@ -1,9 +1,12 @@
 package relay_client
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
@@ -18,11 +21,13 @@ type Client struct {
 	wclient WSClient.IWClient
 	client  roles.ICommonClient
 	// serviceMap map[string]IClientService // id -- [listener functions]
-	service IClientService
-	server  roles.ICommonServer
-	conn    connection.IConnection
-	logger  *logger.SimpleLogger
-	lock    *sync.RWMutex
+	service                     IClientService
+	server                      roles.ICommonServer
+	conn                        connection.IConnection
+	logger                      *logger.SimpleLogger
+	lock                        *sync.RWMutex
+	dispatcher                  *ClientMessageDispatcher
+	clientServiceRequestHandler *ClientServiceMessageHandler
 }
 
 func NewClient(serverUri string, serverPort int, myId string) *Client {
@@ -51,8 +56,13 @@ type IWRClient interface {
 
 func (c *Client) Connect() error {
 	err := c.wclient.Connect()
-	c.wclient.ListenToMessage()
 	return err
+}
+
+func (c *Client) initDispatchers() {
+	c.dispatcher = NewClientMessageDispatcher()
+	c.clientServiceRequestHandler = NewClientServiceMessageHandler()
+	c.dispatcher.RegisterHandler(c.clientServiceRequestHandler)
 }
 
 func (c *Client) onConnected(rawConn *ws_connection.WsConnection) {
@@ -62,11 +72,34 @@ func (c *Client) onConnected(rawConn *ws_connection.WsConnection) {
 	c.logger.Println("connection to server has been established: ", conn.Address())
 	c.client = roles.NewClient(conn, "aa", "bb", roles.RoleTypeClient, "asd", 2)
 	c.logger.Println("new client has been instantiated")
-	err := conn.Send(messages.NewMessage("hello", c.client.Id(), "123", "", messages.MessageTypeACK, ([]byte)("aaa")))
+	c.wclient.ListenToMessage()
+	// TODO should request ClientDescriptor to the server
+	serverDesc, err := conn.Request(messages.DraftMessage(c.client.Id(), "", "", messages.MessageTypeClientDescriptor, ([]byte)(c.client.Describe().String())))
+	if err != nil {
+		c.logger.Println("unable to receive server description due to ", err.Error())
+		panic(err)
+	}
+	c.logger.Println("receive server description response: ", serverDesc)
+	// TODO refactor with better coding fuck
+	var serverRoleDesc roles.RoleDescriptor
+	err = json.Unmarshal(serverDesc.Payload(), &serverRoleDesc)
+	if err != nil {
+		c.logger.Println("unable to unmarshall server role descriptor due to ", err.Error())
+		panic(err)
+	}
+	splittedAddr := strings.Split(serverRoleDesc.Address, ":")
+	port, err := strconv.Atoi(splittedAddr[1])
+	if err != nil {
+		c.logger.Println("unable to parse server port ", err.Error())
+		panic(err)
+	}
+	c.server = roles.NewServer(serverRoleDesc.Id, serverRoleDesc.Description, splittedAddr[0], port)
+	Ctx.Start(c.client, c.server)
+	c.initDispatchers()
+	err = conn.Send(messages.NewMessage("hello", c.client.Id(), "123", "", messages.MessageTypeACK, ([]byte)("aaa")))
 	c.logger.Println("greeting message has been sent")
 	conn.OnIncomingMessage(func(msg *messages.Message) {
-		// conn.Send(messages.NewMessage(msg.Id(), conn.Address(), msg.From(), msg.Uri(), messages.MessageTypeACK, nil))
-		c.logger.Println("recv msg: ", msg)
+		c.dispatcher.Dispatch(msg, conn)
 	})
 	if err != nil {
 		c.logger.Panicln("greeting error !", err.Error())
@@ -84,6 +117,7 @@ func (c *Client) Role() roles.ICommonClient {
 
 func (c *Client) SetService(service IClientService) {
 	c.service = service
+	c.clientServiceRequestHandler.SetService(service)
 }
 
 func (c *Client) RegisterService() error {

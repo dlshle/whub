@@ -1,7 +1,8 @@
 package service
 
 import (
-	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
@@ -38,12 +39,48 @@ type ServiceDescriptor struct {
 	Status        int                  `json:"status"`
 }
 
-func (sd ServiceDescriptor) String() string {
-	marshalled, err := json.Marshal(sd)
-	if err != nil {
-		return "error"
+func (sd ServiceDescriptor) marshallStringField(key string, value string) string {
+	return fmt.Sprintf("\"%s\":\"%s\"", key, value)
+}
+
+func (sd ServiceDescriptor) marshallObjField(key string, value string) string {
+	return fmt.Sprintf("\"%s\":%s", key, value)
+}
+
+func (sd ServiceDescriptor) marshallArrStringField(key string, values []string) string {
+	l := len(values)
+	var builder strings.Builder
+	builder.WriteByte('"')
+	builder.WriteString(key)
+	builder.WriteString("\":[")
+	for i, v := range values {
+		builder.WriteString(fmt.Sprintf("\"%s\"", v))
+		if i != l-1 {
+			builder.WriteByte(',')
+		}
 	}
-	return (string)(marshalled)
+	builder.WriteByte(']')
+	return builder.String()
+}
+
+func (sd ServiceDescriptor) marshallNumberField(key string, value int) string {
+	return fmt.Sprintf("\"%s\":%d", key, value)
+}
+
+func (sd ServiceDescriptor) String() string {
+	return fmt.Sprintf("{%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s}",
+		sd.marshallStringField("id", sd.Id),
+		sd.marshallStringField("description", sd.Description),
+		sd.marshallObjField("hostInfo", sd.HostInfo.String()),
+		sd.marshallObjField("provider", sd.Provider.String()),
+		sd.marshallStringField("description", sd.Description),
+		sd.marshallArrStringField("serviceUris", sd.ServiceUris),
+		sd.marshallStringField("cTime", sd.CTime.Format("2006-01-02T15:04:05Z07:00")),
+		sd.marshallNumberField("serviceType", sd.ServiceType),
+		sd.marshallNumberField("accessType", sd.AccessType),
+		sd.marshallNumberField("executionType", sd.ExecutionType),
+		sd.marshallNumberField("status", sd.Status),
+	)
 }
 
 const (

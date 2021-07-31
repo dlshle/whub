@@ -53,7 +53,13 @@ func (h *ClientDescriptorMessageHandler) Handle(message *messages.Message, conn 
 		h.logger.Printf("handle anonymous client(%s) promotion", anonymousClient.Address())
 		// promote
 		h.handleClientPromotion(roleDescriptor, extraInfoDescriptor, anonymousClient)
-		return conn.Send(messages.NewACKMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri()))
+		serverDescMsg := messages.NewMessage(message.Id(),
+			context.Ctx.Server().Id(),
+			message.From(),
+			message.Uri(),
+			messages.MessageTypeServerDescriptor,
+			([]byte)(context.Ctx.Server().Describe().String()))
+		return conn.Send(serverDescMsg)
 	}
 	// client_manager info update
 	client := h.clientManager.GetClient(message.From())
