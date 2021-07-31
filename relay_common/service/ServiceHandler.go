@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	uri2 "wsdk/common/uri_trie"
+	"wsdk/common/uri_trie"
 )
 
 // ServiceHandler handles service_manager requests
 type ServiceHandler struct {
-	trieTree *uri2.TrieTree
+	trieTree *uri_trie.TrieTree
 	lock     *sync.RWMutex
 }
 
@@ -22,7 +22,7 @@ type IServiceHandler interface {
 
 func NewServiceHandler() IServiceHandler {
 	return &ServiceHandler{
-		trieTree: uri2.NewTrieTree(),
+		trieTree: uri_trie.NewTrieTree(),
 		lock:     new(sync.RWMutex),
 	}
 }

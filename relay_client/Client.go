@@ -1,6 +1,7 @@
 package relay_client
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -19,6 +20,7 @@ type Client struct {
 	// serviceMap map[string]IClientService // id -- [listener functions]
 	service IClientService
 	server  roles.ICommonServer
+	conn    connection.IConnection
 	logger  *logger.SimpleLogger
 	lock    *sync.RWMutex
 }
@@ -56,6 +58,7 @@ func (c *Client) Connect() error {
 func (c *Client) onConnected(rawConn *ws_connection.WsConnection) {
 	// ctx has already started!
 	conn := connection.NewConnection(Ctx.Logger().WithPrefix("[ServerConnection]"), rawConn, connection.DefaultTimeout, Ctx.MessageParser(), Ctx.NotificationEmitter())
+	c.conn = conn
 	c.logger.Println("connection to server has been established: ", conn.Address())
 	c.client = roles.NewClient(conn, "aa", "bb", roles.RoleTypeClient, "asd", 2)
 	c.logger.Println("new client has been instantiated")
@@ -77,4 +80,33 @@ func (c *Client) Request(message *messages.Message) (*messages.Message, error) {
 
 func (c *Client) Role() roles.ICommonClient {
 	return c.client
+}
+
+func (c *Client) SetService(service IClientService) {
+	c.service = service
+}
+
+func (c *Client) RegisterService() error {
+	if c.service != nil {
+		err := c.service.Init(c.server, c.conn)
+		if err != nil {
+			return err
+		}
+		return c.service.Register()
+	}
+	return errors.New("no service present")
+}
+
+func (c *Client) StartService() error {
+	if c.service != nil {
+		return c.service.Start()
+	}
+	return errors.New("no service present")
+}
+
+func (c *Client) StopService() error {
+	if c.service != nil {
+		return c.service.Stop()
+	}
+	return errors.New("no service present")
 }

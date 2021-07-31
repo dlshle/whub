@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"wsdk/relay_common/connection"
 	"wsdk/relay_common/health_check"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
@@ -42,17 +43,17 @@ type ClientService struct {
 }
 
 // TODO NewFunc
-func NewClientService(ctx IContext, id string, server roles.ICommonServer) *ClientService {
+func NewClientService(id string, server roles.ICommonServer, serverConn connection.IConnection) *ClientService {
 	handler := service.NewServiceHandler()
 	s := &ClientService{
-		id:  id,
-		ctx: ctx,
-		// serviceManagerClient: NewServiceCenterClient(ctx.Identity().Id(), server.Id(), ),
-		serviceTaskQueue: service.NewServiceTaskQueue(ctx.Identity().Id(), NewClientServiceExecutor(ctx, handler), ctx.ServiceTaskPool()),
-		handler:          handler,
-		host:             server,
-		lock:             new(sync.RWMutex),
-		uriPrefix:        fmt.Sprintf("%s/%s", service.ServicePrefix, id),
+		id:                   id,
+		ctx:                  Ctx,
+		serviceManagerClient: NewServiceCenterClient(Ctx.Identity().Id(), server.Id(), serverConn),
+		serviceTaskQueue:     service.NewServiceTaskQueue(Ctx.Identity().Id(), NewClientServiceExecutor(handler), Ctx.ServiceTaskPool()),
+		handler:              handler,
+		host:                 server,
+		lock:                 new(sync.RWMutex),
+		uriPrefix:            fmt.Sprintf("%s/%s", service.ServicePrefix, id),
 	}
 	s.init()
 	return s
@@ -60,6 +61,7 @@ func NewClientService(ctx IContext, id string, server roles.ICommonServer) *Clie
 
 type IClientService interface {
 	service.IBaseService
+	Init(server roles.ICommonServer, serverConn connection.IConnection) error
 	UpdateDescription(string) error
 	RegisterRoute(shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
 	UnregisterRoute(shortUri string) error                               // should update service descriptor to the host
@@ -71,6 +73,9 @@ type IClientService interface {
 	HealthCheck() error
 	OnHealthCheckFails(cb func(service IClientService))
 	OnHealthRestored(cb func(service IClientService))
+
+	ResolveByAck(request *service.ServiceRequest) error
+	ResolveByResponse(request *service.ServiceRequest, responseData []byte) error
 }
 
 func (s *ClientService) init() {
@@ -287,11 +292,6 @@ func (s *ClientService) Stop() error {
 	s.withWrite(func() {
 		s.status = service.ServiceStatusUnregistered
 	})
-	/*
-		if s.onStoppedCallback != nil {
-			s.onStoppedCallback(s)
-		}
-	*/
 	return nil
 }
 
@@ -352,4 +352,16 @@ func (s *ClientService) OnStarted(cb func(service.IBaseService)) {
 
 func (s *ClientService) OnStopped(cb func(service.IBaseService)) {
 	s.onStoppedCallback = cb
+}
+
+func (s *ClientService) ResolveByAck(request *service.ServiceRequest) error {
+	return request.Resolve(messages.NewACKMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri()))
+}
+
+func (s *ClientService) ResolveByResponse(request *service.ServiceRequest, responseData []byte) error {
+	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, responseData))
+}
+
+func (s *ClientService) Init(server roles.ICommonServer, serverConn connection.IConnection) error {
+	return errors.New("current service did not implement Init() interface")
 }
