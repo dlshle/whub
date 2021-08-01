@@ -37,7 +37,7 @@ func (s *HTTPClientService) Request(request *service.ServiceRequest, pathParams 
 		s.Logger().Println("unable to unmarshall WHTTPRequest from message", request.Message)
 		return err
 	}
-	path := s.assembleRequestUrl(pathParams["*path"], queryParams)
+	path := s.assembleRequestUrl(pathParams["path"], queryParams)
 	httpRequest, err := http.FromWHTTPRequest(path, whr)
 	if err != nil {
 		s.Logger().Printf("unable to transfer %s to http request", whr)

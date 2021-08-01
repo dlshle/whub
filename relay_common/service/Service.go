@@ -68,12 +68,11 @@ func (sd ServiceDescriptor) marshallNumberField(key string, value int) string {
 }
 
 func (sd ServiceDescriptor) String() string {
-	return fmt.Sprintf("{%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s}",
+	return fmt.Sprintf("{%s,%s,%s,%s,%s,%s,%s,%s,%s,%s}",
 		sd.marshallStringField("id", sd.Id),
 		sd.marshallStringField("description", sd.Description),
 		sd.marshallObjField("hostInfo", sd.HostInfo.String()),
 		sd.marshallObjField("provider", sd.Provider.String()),
-		sd.marshallStringField("description", sd.Description),
 		sd.marshallArrStringField("serviceUris", sd.ServiceUris),
 		sd.marshallStringField("cTime", sd.CTime.Format("2006-01-02T15:04:05Z07:00")),
 		sd.marshallNumberField("serviceType", sd.ServiceType),

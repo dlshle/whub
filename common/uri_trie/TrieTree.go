@@ -8,6 +8,7 @@ import (
 	"wsdk/relay_common/utils"
 )
 
+// TODO bug with paramed nodes!!!
 const (
 	DefaultCompactSize = 15
 )
@@ -57,7 +58,7 @@ func splitRemaining(remaining string) (string, string) {
 	if i == len(remaining) {
 		return remaining, ""
 	}
-	return remaining[:i], remaining[i+1:]
+	return remaining[:i+1], remaining[i+1:]
 }
 
 func splitQueryParams(path string) (queries string, remaining string) {
@@ -216,7 +217,7 @@ func (n *trieNode) findByPath(path string) (node *trieNode) {
 		if curr.constChildren[subPath] != nil {
 			curr = curr.constChildren[subPath]
 		} else if curr.wildcardChild != nil {
-			curr = curr.paramChild
+			curr = curr.wildcardChild
 			break
 		} else if curr.paramChild != nil {
 			curr = curr.paramChild
@@ -244,7 +245,7 @@ func (n *trieNode) match(path string, ctx *MatchContext) (node *trieNode, err er
 		if curr.constChildren[subPath] != nil {
 			curr = curr.constChildren[subPath]
 		} else if curr.wildcardChild != nil {
-			curr = curr.paramChild
+			curr = curr.wildcardChild
 			ctx.PathParams[curr.param] = subPath
 			break
 		} else if curr.paramChild != nil {

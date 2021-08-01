@@ -179,7 +179,7 @@ func (s *RelayManagementService) UpdateService(request *service_common.ServiceRe
 }
 
 func (s *RelayManagementService) GetServiceByClientId(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
-	clientId := pathParams[":clientId"]
+	clientId := pathParams["clientId"]
 	if clientId == "" {
 		return errors.New("parameter [:clientId] is missing")
 	}
