@@ -185,10 +185,10 @@ func (b *RequestBuilder) StringBody(body string) *RequestBuilder {
 
 // Awaitable Response
 type Response struct {
-	success bool
-	code    int
-	header  http.Header // usage just like map, can for each kv or ["headerKey"] gives an array of strings
-	body    string
+	Success bool
+	Code    int
+	Header  http.Header // usage just like map, can for each kv or ["headerKey"] gives an array of strings
+	Body    string
 }
 
 func fromRawResponse(resp *http.Response) (*Response, error) {

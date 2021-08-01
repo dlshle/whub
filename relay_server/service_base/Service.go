@@ -9,7 +9,9 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
+	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/controllers/metering"
 )
 
 const (
@@ -34,6 +36,7 @@ type Service struct {
 	lock          *sync.RWMutex
 	serviceQueue  service.IServiceTaskQueue
 	logger        *logger.SimpleLogger
+	metering      metering.IMeteringController `$inject:""`
 
 	onStartedCallback func(baseService service.IBaseService)
 	onStoppedCallback func(baseService service.IBaseService)
@@ -51,7 +54,7 @@ type IService interface {
 }
 
 func NewService(id string, description string, provider IServiceProvider, executor service.IRequestExecutor, serviceUris []string, serviceType int, accessType int, exeType int) *Service {
-	return &Service{
+	service := &Service{
 		uriPrefix:     fmt.Sprintf("%s/%s", service.ServicePrefix, id),
 		ctx:           context.Ctx,
 		id:            id,
@@ -67,6 +70,11 @@ func NewService(id string, description string, provider IServiceProvider, execut
 		serviceQueue:  service.NewServiceTaskQueue(context.Ctx.Server().Id(), executor, context.Ctx.ServiceTaskPool()),
 		logger:        context.Ctx.Logger().WithPrefix(fmt.Sprintf("[Service-%s]", id)),
 	}
+	err := container.Container.Fill(service)
+	if err != nil {
+		panic(err)
+	}
+	return service
 }
 
 func (s *Service) withWrite(cb func()) {
@@ -166,16 +174,21 @@ func (s *Service) Status() int {
 }
 
 func (s *Service) Handle(message *messages.Message) *messages.Message {
+	stopWatch := s.Metering().Measure(fmt.Sprintf("svc-handle-msg-%s", message.Id()))
 	if strings.HasPrefix(message.Uri(), s.uriPrefix) {
 		message = message.SetUri(strings.TrimPrefix(message.Uri(), s.uriPrefix))
 	}
 	serviceRequest := service.NewServiceRequest(message)
 	s.logger.Println("handle new request ", message)
 	s.serviceQueue.Schedule(serviceRequest)
+	stopWatch.Mark("preSchedule")
 	if s.ExecutionType() == service.ServiceExecutionAsync {
 		return nil
 	} else {
-		return serviceRequest.Response()
+		resp := serviceRequest.Response()
+		stopWatch.Mark("postSchedule")
+		stopWatch.Stop()
+		return resp
 	}
 }
 
@@ -258,4 +271,8 @@ func (s *Service) ResolveByResponse(request *service.ServiceRequest, responseDat
 
 func (s *Service) Logger() *logger.SimpleLogger {
 	return s.logger
+}
+
+func (s *Service) Metering() metering.IMeteringController {
+	return s.metering
 }

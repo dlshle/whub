@@ -21,17 +21,8 @@ func ClientTest() {
 	resp, err = c.Request(messages.NewMessage("roleDescTest", c.Role().Id(), "", "", messages.MessageTypeClientDescriptor, ([]byte)(c.Role().Describe().String())))
 	fmt.Println("request2 resp, err: ", resp, err)
 
-	echoService := new(services.EchoService)
-	c.SetService(echoService)
-	err = c.RegisterService()
-	if err != nil {
-		fmt.Println("register service error: ", err)
-	} else {
-		err = c.StartService()
-		if err != nil {
-			fmt.Println("start service error: ", err)
-		}
-	}
+	httpSvc := new(services.HTTPClientService)
+	registerSvc(c, httpSvc)
 	time.Sleep(70 * time.Second)
 	fmt.Println("client timeout done")
 }
@@ -39,5 +30,18 @@ func ClientTest() {
 func RunMultipleClientTest(n int) {
 	for i := 0; i < n; i++ {
 		go ClientTest()
+	}
+}
+
+func registerSvc(c *relay_client.Client, svc relay_client.IClientService) {
+	c.SetService(svc)
+	err := c.RegisterService()
+	if err != nil {
+		fmt.Println("register service error: ", err)
+	} else {
+		err = c.StartService()
+		if err != nil {
+			fmt.Println("start service error: ", err)
+		}
 	}
 }
