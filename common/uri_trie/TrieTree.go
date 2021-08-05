@@ -262,6 +262,7 @@ func (n *trieNode) match(path string, ctx *MatchContext) (node *trieNode, err er
 			if curr.wildcardChild != nil {
 				// add param
 				ctx.PathParams[curr.wildcardChild.param] = fmt.Sprintf("%s%s", subPath, remaining)
+				curr = curr.wildcardChild
 				break
 			} else if curr.paramChild != nil {
 				// add param
