@@ -184,7 +184,11 @@ func (s *RelayManagementService) GetServiceByClientId(request *service_common.Se
 		return errors.New("parameter [:clientId] is missing")
 	}
 	services := s.serviceManager.GetServicesByClientId(clientId)
-	marshalled, err := json.Marshal(services)
+	descriptors := make([]service_common.ServiceDescriptor, len(services), len(services))
+	for i, svc := range services {
+		descriptors[i] = svc.Describe()
+	}
+	marshalled, err := json.Marshal(descriptors)
 	if err != nil {
 		return err
 	}

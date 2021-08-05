@@ -47,10 +47,6 @@ func splitRemaining(remaining string) (string, string) {
 		return "", ""
 	}
 	i := 0
-	// special case when url starts with '/' (e.g. /service_manager/xx/yy)
-	if remaining[0] == '/' {
-		i = 1
-	}
 	// stop until it hits /
 	for i < len(remaining) && remaining[i] != '/' {
 		i++
@@ -58,7 +54,7 @@ func splitRemaining(remaining string) (string, string) {
 	if i == len(remaining) {
 		return remaining, ""
 	}
-	return remaining[:i+1], remaining[i+1:]
+	return remaining[:i], remaining[i:]
 }
 
 func splitQueryParams(path string) (queries string, remaining string) {
@@ -87,22 +83,26 @@ type trieNode struct {
 }
 
 func (n *trieNode) addParam(param string) (*trieNode, error) {
-	if n.paramChild != nil {
-		return nil, errors.New("no duplicated param child for single node")
+	// we allow adding another param child w/ the same param
+	if n.wildcardChild != nil || (n.paramChild != nil && n.paramChild.param != param) || len(n.constChildren) > 0 {
+		return nil, errors.New("can not add a new param node over a wildcard/const node or a param node w/ different param")
 	}
 	n.paramChild = &trieNode{parent: n, param: param, t: tnTypeP}
 	return n.paramChild, nil
 }
 
 func (n *trieNode) addWildcard(param string) (*trieNode, error) {
-	if n.wildcardChild != nil {
-		return nil, errors.New("no duplicate wildcard child for single node")
+	if (n.wildcardChild != nil && n.wildcardChild.param != param) || n.paramChild != nil || len(n.constChildren) > 0 {
+		return nil, errors.New("can not add a new wildcard node over a param/const node or a wildcard node w/ different param")
 	}
 	n.wildcardChild = &trieNode{parent: n, param: param, t: tnTypeW}
 	return n.wildcardChild, nil
 }
 
-func (n *trieNode) addConst(subPath string) *trieNode {
+func (n *trieNode) addConst(subPath string) (*trieNode, error) {
+	if n.wildcardChild != nil || n.paramChild != nil {
+		return nil, errors.New("can not add a new const node over a wildcard/param node")
+	}
 	if n.constChildren == nil {
 		n.constChildren = make(map[string]*trieNode)
 	}
@@ -112,7 +112,7 @@ func (n *trieNode) addConst(subPath string) *trieNode {
 		node = &trieNode{parent: n, t: tnTypeC}
 		n.constChildren[subPath] = node
 	}
-	return node
+	return node, nil
 }
 
 func (n *trieNode) addPath(ctx UriContext, path string, value interface{}, override bool) (node *trieNode, err error) {
@@ -132,7 +132,7 @@ func (n *trieNode) addPath(ctx UriContext, path string, value interface{}, overr
 			err = utils.ProcessWithErrors(
 				func() error {
 					if ctx.params[param] {
-						errors.New(fmt.Sprintf("param %s has already been taken", param))
+						errors.New(fmt.Sprintf("param %s has already been taken in url %s", param, path))
 					}
 					return nil
 				},
@@ -146,12 +146,14 @@ func (n *trieNode) addPath(ctx UriContext, path string, value interface{}, overr
 			param := remaining
 			remaining = ""
 			node, err = node.addWildcard(param)
+		case '/':
+			node, err = node.addConst("/")
 		default:
 			// constant child
 			var subPath string
 			subPath, remaining = splitRemaining(remaining)
 			subPath = fmt.Sprintf("%c%s", token, subPath)
-			node = node.addConst(subPath)
+			node, err = node.addConst(subPath)
 		}
 		if err != nil {
 			return
@@ -204,32 +206,36 @@ func (n *trieNode) clean() {
 	n.value = nil
 }
 
-func (n *trieNode) findByPath(path string) (node *trieNode) {
+func (n *trieNode) findByPath(path string) *trieNode {
 	if len(path) == 0 {
 		return nil
 	}
 	curr := n
 	remaining := path
 	for len(remaining) > 0 {
-		var subPath string
-		subPath, remaining = splitRemaining(remaining)
-		// need to match constChildren first so that one subPath can be either const or param
-		if curr.constChildren[subPath] != nil {
-			curr = curr.constChildren[subPath]
-		} else if curr.wildcardChild != nil {
-			curr = curr.wildcardChild
-			break
-		} else if curr.paramChild != nil {
-			curr = curr.paramChild
-		} else {
-			curr = nil
+		if curr == nil {
 			break
 		}
+		token := remaining[0]
+		remaining = remaining[1:]
+		switch token {
+		case '/':
+			curr = curr.constChildren["/"]
+		default:
+			var subPath string
+			subPath, remaining = splitRemaining(remaining)
+			if curr.wildcardChild != nil {
+				// add param
+				break
+			} else if curr.paramChild != nil {
+				// add param
+				curr = curr.paramChild
+			} else {
+				curr = curr.constChildren[fmt.Sprintf("%c%s", token, subPath)]
+			}
+		}
 	}
-	if curr != nil {
-		node = curr
-	}
-	return
+	return curr
 }
 
 func (n *trieNode) match(path string, ctx *MatchContext) (node *trieNode, err error) {
@@ -239,26 +245,36 @@ func (n *trieNode) match(path string, ctx *MatchContext) (node *trieNode, err er
 	curr := n
 	remaining := path
 	for len(remaining) > 0 {
-		var subPath string
-		subPath, remaining = splitRemaining(remaining)
-		// need to match constChildren first so that one subPath can be either const or param
-		if curr.constChildren[subPath] != nil {
-			curr = curr.constChildren[subPath]
-		} else if curr.wildcardChild != nil {
-			curr = curr.wildcardChild
-			ctx.PathParams[curr.param] = subPath
-			break
-		} else if curr.paramChild != nil {
-			curr = curr.paramChild
-			ctx.PathParams[curr.param] = subPath
-		} else {
-			err = errors.New(fmt.Sprintf("mismatch subpath %s from %s- no routing found", subPath, path))
+		if curr == nil {
+			err = errors.New(fmt.Sprintf("mismatched remaining path %s from %s- no routing found", remaining, path))
 			curr = nil
 			break
+		}
+		token := remaining[0]
+		remaining = remaining[1:]
+		switch token {
+		case '/':
+			curr = curr.constChildren["/"]
+		default:
+			var subPath string
+			subPath, remaining = splitRemaining(remaining)
+			subPath = fmt.Sprintf("%c%s", token, subPath)
+			if curr.wildcardChild != nil {
+				// add param
+				ctx.PathParams[curr.wildcardChild.param] = fmt.Sprintf("%s%s", subPath, remaining)
+				break
+			} else if curr.paramChild != nil {
+				// add param
+				ctx.PathParams[curr.paramChild.param] = subPath
+				curr = curr.paramChild
+			} else {
+				curr = curr.constChildren[subPath]
+			}
 		}
 	}
 	if curr != nil {
 		node = curr
+		ctx.Value = node.value
 	} else if err == nil {
 		err = errors.New(fmt.Sprintf("no routing found for path %s", path))
 	}
@@ -273,7 +289,6 @@ func (n *trieNode) matchByPath(pathWithoutQueryParams string, ctx *MatchContext)
 	if err != nil || node == nil {
 		return
 	}
-	ctx.Value = node.value
 	c = ctx
 	return
 }
@@ -311,7 +326,6 @@ type TrieTree struct {
 	root              *trieNode
 	constPathMap      map[string]interface{} // initially nil, when a new path has no : or *, it will be registered
 	unCompactedLeaves *data_structures.LinkedList
-	uriContext        UriContext
 	size              int
 }
 
@@ -320,7 +334,6 @@ func NewTrieTree() *TrieTree {
 		root:              &trieNode{parent: nil},
 		constPathMap:      make(map[string]interface{}),
 		unCompactedLeaves: data_structures.NewLinkedList(false),
-		uriContext:        UriContext{params: make(map[string]bool)},
 	}
 }
 
@@ -368,7 +381,7 @@ func (t *TrieTree) Match(path string) (*MatchContext, error) {
 }
 
 func (t *TrieTree) Add(path string, value interface{}, override bool) error {
-	node, err := t.root.addPath(t.uriContext, path, value, override)
+	node, err := t.root.addPath(UriContext{make(map[string]bool)}, path, value, override)
 	t.unCompactedLeaves.Append(node)
 	if t.unCompactedLeaves.Size() >= DefaultCompactSize {
 		t.compact()
