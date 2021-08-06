@@ -6,6 +6,7 @@ import (
 	"sync"
 	"wsdk/common/logger"
 	"wsdk/common/utils"
+	whttp "wsdk/relay_common/http"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_server/context"
 )
@@ -18,7 +19,7 @@ type HTTPRequestHandler struct {
 
 func NewHTTPRequestHandler(dispatcher message_actions.IMessageHandler) IHTTPRequestHandler {
 	pool := &sync.Pool{New: func() interface{} {
-		return NewHTTPWritableConnection()
+		return whttp.NewHTTPWritableConnection()
 	}}
 	return &HTTPRequestHandler{
 		dispatcher,
@@ -37,7 +38,7 @@ func (h *HTTPRequestHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.LogError(h.logger, "Handle", err)
 	}
-	conn := h.pool.Get().(*HTTPWritableConnection)
+	conn := h.pool.Get().(*whttp.HTTPWritableConnection)
 	conn.Init(w, r.RemoteAddr, h.logger.WithPrefix(fmt.Sprintf("[HTTP-%s-%s]", r.RemoteAddr, msg.Id())))
 	// Do not do this on another goroutine. It will cause issue with ResponseWriter.
 	h.serviceMessageDispatcher.Handle(msg, conn)
