@@ -33,9 +33,9 @@ func (h *ClientServiceMessageHandler) Type() int {
 }
 
 func (h *ClientServiceMessageHandler) Handle(msg *messages.Message, conn connection.IConnection) error {
-	defer h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
 	h.m.Track(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()), "in service handler")
 	if h.service == nil {
+		h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
 		return conn.Send(messages.NewErrorMessage(
 			msg.Id(),
 			context.Ctx.Identity().Id(),
@@ -45,11 +45,15 @@ func (h *ClientServiceMessageHandler) Handle(msg *messages.Message, conn connect
 		))
 	}
 	if !h.service.SupportsUri(msg.Uri()) {
+		h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
 		return conn.Send(messages.NewErrorMessage(msg.Id(),
 			context.Ctx.Identity().Id(),
 			msg.From(),
 			msg.Uri(),
 			fmt.Sprintf("uri %s is not supported by service %s", msg.Uri(), h.service.Id())))
 	}
-	return conn.Send(h.service.Handle(msg))
+	resp := h.service.Handle(msg)
+	h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
+	err := conn.Send(resp)
+	return err
 }

@@ -192,7 +192,7 @@ func (s *ClientService) Handle(message *messages.Message) *messages.Message {
 	request := service.NewServiceRequest(message)
 	s.serviceTaskQueue.Schedule(request)
 	s.m.Track(s.m.GetAssembledTraceId(controllers.TMessagePerformance, message.Id()), "request in queue")
-	if s.executionType == service.ServiceExecutionAsync {
+	if s.executionType == service.ServiceExecutionSync {
 		resp := request.Response()
 		s.m.Track(s.m.GetAssembledTraceId(controllers.TMessagePerformance, message.Id()), "sync request handled")
 		return resp
