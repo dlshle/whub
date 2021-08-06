@@ -53,7 +53,7 @@ func (h *ClientServiceMessageHandler) Handle(msg *messages.Message, conn connect
 			fmt.Sprintf("uri %s is not supported by service %s", msg.Uri(), h.service.Id())))
 	}
 	resp := h.service.Handle(msg)
-	h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
 	err := conn.Send(resp)
+	h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
 	return err
 }

@@ -39,6 +39,7 @@ func (h *ServiceRequestMessageHandler) Handle(message *messages.Message, conn co
 		return err
 	}
 	response := svc.Handle(message)
+	err = conn.Send(response)
 	h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
-	return conn.Send(response)
+	return
 }
