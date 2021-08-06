@@ -13,7 +13,6 @@ import (
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/health_check"
 	"wsdk/relay_common/messages"
-	"wsdk/relay_common/metering"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
 )
@@ -44,7 +43,7 @@ type ClientService struct {
 	onHealthCheckFailsCallback    func(service IClientService)
 	onHealthCheckRestoredCallback func(service IClientService)
 
-	m metering.IMeteringController `$inject:""`
+	m controllers.IClientMeteringController `$inject:""`
 
 	lock *sync.RWMutex
 
