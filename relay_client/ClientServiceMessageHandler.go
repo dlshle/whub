@@ -2,42 +2,54 @@ package relay_client
 
 import (
 	"fmt"
+	"wsdk/relay_client/container"
+	"wsdk/relay_client/context"
+	"wsdk/relay_client/controllers"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_server/controllers/metering"
 )
 
 type ClientServiceMessageHandler struct {
+	m       controllers.IClientMeteringController `$inject:""`
 	service IClientService
 }
 
 func NewClientServiceMessageHandler() *ClientServiceMessageHandler {
-	return &ClientServiceMessageHandler{}
+	h := &ClientServiceMessageHandler{}
+	err := container.Container.Fill(h)
+	if err != nil {
+		panic(err)
+	}
+	return h
 }
 
-func (s *ClientServiceMessageHandler) SetService(svc IClientService) {
-	s.service = svc
+func (h *ClientServiceMessageHandler) SetService(svc IClientService) {
+	h.service = svc
 }
 
-func (s *ClientServiceMessageHandler) Type() int {
+func (h *ClientServiceMessageHandler) Type() int {
 	return messages.MessageTypeServiceRequest
 }
 
-func (s *ClientServiceMessageHandler) Handle(msg *messages.Message, conn connection.IConnection) error {
-	if s.service == nil {
+func (h *ClientServiceMessageHandler) Handle(msg *messages.Message, conn connection.IConnection) error {
+	defer h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
+	h.m.Track(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()), "in service handler")
+	if h.service == nil {
 		return conn.Send(messages.NewErrorMessage(
 			msg.Id(),
-			Ctx.Identity().Id(),
+			context.Ctx.Identity().Id(),
 			msg.From(),
 			msg.Uri(),
-			fmt.Sprintf("client connection %s does not have service running yet", Ctx.Identity().Id()),
+			fmt.Sprintf("client connection %s does not have service running yet", context.Ctx.Identity().Id()),
 		))
 	}
-	if !s.service.SupportsUri(msg.Uri()) {
+	if !h.service.SupportsUri(msg.Uri()) {
 		return conn.Send(messages.NewErrorMessage(msg.Id(),
-			Ctx.Identity().Id(),
+			context.Ctx.Identity().Id(),
 			msg.From(),
 			msg.Uri(),
-			fmt.Sprintf("uri %s is not supported by service %s", msg.Uri(), s.service.Id())))
+			fmt.Sprintf("uri %s is not supported by service %s", msg.Uri(), h.service.Id())))
 	}
-	return conn.Send(s.service.Handle(msg))
+	return conn.Send(h.service.Handle(msg))
 }

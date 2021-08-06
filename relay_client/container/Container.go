@@ -1,4 +1,4 @@
-package relay_client
+package container
 
 import "wsdk/common/ioc"
 

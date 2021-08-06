@@ -7,15 +7,18 @@ import (
 	"sync"
 	"time"
 	"wsdk/common/logger"
+	"wsdk/relay_client/context"
+	"wsdk/relay_client/controllers"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/health_check"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/metering"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
 )
 
 type ClientService struct {
-	ctx IContext
+	ctx context.IContext
 
 	serviceManagerClient IServiceManagerClient
 	serviceTaskQueue     service.IServiceTaskQueue
@@ -40,6 +43,8 @@ type ClientService struct {
 	onHealthCheckFailsCallback    func(service IClientService)
 	onHealthCheckRestoredCallback func(service IClientService)
 
+	m metering.IMeteringController
+
 	lock *sync.RWMutex
 
 	logger *logger.SimpleLogger
@@ -50,14 +55,14 @@ func NewClientService(id string, description string, accessType int, execType in
 	s := &ClientService{
 		id:                   id,
 		description:          description,
-		ctx:                  Ctx,
-		serviceManagerClient: NewServiceCenterClient(Ctx.Identity().Id(), server.Id(), serverConn),
-		serviceTaskQueue:     service.NewServiceTaskQueue(Ctx.Identity().Id(), NewClientServiceExecutor(handler), Ctx.ServiceTaskPool()),
+		ctx:                  context.Ctx,
+		serviceManagerClient: NewServiceCenterClient(context.Ctx.Identity().Id(), server.Id(), serverConn),
+		serviceTaskQueue:     service.NewServiceTaskQueue(context.Ctx.Identity().Id(), NewClientServiceExecutor(handler), context.Ctx.ServiceTaskPool()),
 		handler:              handler,
 		host:                 server,
 		lock:                 new(sync.RWMutex),
 		uriPrefix:            fmt.Sprintf("%s/%s", service.ServicePrefix, id),
-		logger:               Ctx.Logger().WithPrefix(fmt.Sprintf("[%s]", id)),
+		logger:               context.Ctx.Logger().WithPrefix(fmt.Sprintf("[%s]", id)),
 		serviceType:          service.ServiceTypeRelay,
 		accessType:           accessType,
 		executionType:        execType,
@@ -182,7 +187,14 @@ func (s *ClientService) Handle(message *messages.Message) *messages.Message {
 	}
 	request := service.NewServiceRequest(message)
 	s.serviceTaskQueue.Schedule(request)
-	return request.Response()
+	s.m.Track(s.m.GetAssembledTraceId(controllers.TMessagePerformance, message.Id()), "request in queue")
+	if s.executionType == service.ServiceExecutionAsync {
+		resp := request.Response()
+		s.m.Track(s.m.GetAssembledTraceId(controllers.TMessagePerformance, message.Id()), "sync request handled")
+		return resp
+	} else {
+		return nil
+	}
 }
 
 func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHandler) (err error) {

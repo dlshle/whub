@@ -61,6 +61,7 @@ func (d *MessageDispatcher) Dispatch(message *messages.Message, conn connection.
 	if err != nil {
 		d.Logger.Printf("message %s handler error due to %s", message.String(), err.Error())
 	}
+	message = nil
 }
 
 func (d *MessageDispatcher) GetHandler(msgType int) IMessageHandler {

@@ -99,7 +99,11 @@ func (m *ClientManager) initClientCallbackHandlers(client *client.Client) {
 
 func (m *ClientManager) DisconnectClient(id string) (err error) {
 	client := m.GetClient(id)
-	defer m.logger.Printf("error while disconnecting client %s due to %v", id, err)
+	defer func() {
+		if err != nil {
+			m.logger.Printf("error while disconnecting client %s due to %v", id, err)
+		}
+	}()
 	if client == nil {
 		err = servererror.NewClientNotConnectedError(id)
 		return

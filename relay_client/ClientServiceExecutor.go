@@ -1,6 +1,7 @@
 package relay_client
 
 import (
+	"wsdk/relay_client/context"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 )
@@ -18,6 +19,6 @@ func NewClientServiceExecutor(handler service.IServiceHandler) *ClientServiceExe
 func (e *ClientServiceExecutor) Execute(request *service.ServiceRequest) {
 	err := e.handler.Handle(request)
 	if err != nil {
-		request.Resolve(messages.NewErrorMessage(request.Id(), Ctx.Identity().Id(), request.From(), request.Uri(), err.Error()))
+		request.Resolve(messages.NewErrorMessage(request.Id(), context.Ctx.Identity().Id(), request.From(), request.Uri(), err.Error()))
 	}
 }

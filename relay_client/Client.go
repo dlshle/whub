@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"wsdk/common/logger"
+	"wsdk/relay_client/context"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
@@ -34,7 +35,7 @@ func NewClient(serverUri string, serverPort int, myId string) *Client {
 	addr := url.URL{Scheme: "ws", Host: fmt.Sprintf("%s:%d", serverUri, serverPort), Path: connection.WSConnectionPath}
 	c := &Client{
 		wclient: WSClient.New(WSClient.NewWClientConfig(addr.String(), nil, nil, nil, nil, nil)),
-		logger:  Ctx.Logger(),
+		logger:  context.Ctx.Logger(),
 		lock:    new(sync.RWMutex),
 	}
 	c.wclient.SetOnConnectionEstablished(c.onConnected)
@@ -67,7 +68,7 @@ func (c *Client) initDispatchers() {
 
 func (c *Client) onConnected(rawConn *ws_connection.WsConnection) {
 	// ctx has already started!
-	conn := connection.NewConnection(Ctx.Logger().WithPrefix("[ServerConnection]"), rawConn, connection.DefaultTimeout, Ctx.MessageParser(), Ctx.NotificationEmitter())
+	conn := connection.NewConnection(context.Ctx.Logger().WithPrefix("[ServerConnection]"), rawConn, connection.DefaultTimeout, context.Ctx.MessageParser(), context.Ctx.NotificationEmitter())
 	c.conn = conn
 	c.logger.Println("connection to server has been established: ", conn.Address())
 	c.client = roles.NewClient(conn, "aa", "bb", roles.RoleTypeClient, "asd", 2)
@@ -94,7 +95,7 @@ func (c *Client) onConnected(rawConn *ws_connection.WsConnection) {
 		panic(err)
 	}
 	c.server = roles.NewServer(serverRoleDesc.Id, serverRoleDesc.Description, splittedAddr[0], port)
-	Ctx.Start(c.client, c.server)
+	context.Ctx.Start(c.client, c.server)
 	c.initDispatchers()
 	err = conn.Send(messages.NewMessage("hello", c.client.Id(), "123", "", messages.MessageTypeACK, ([]byte)("aaa")))
 	c.logger.Println("greeting message has been sent")

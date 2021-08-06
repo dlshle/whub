@@ -5,16 +5,23 @@ import (
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/controllers/metering"
 )
 
 type ServerMessageDispatcher struct {
 	dispatcher *message_actions.MessageDispatcher
+	metering   metering.IServerMeteringController `$inject:""`
 }
 
 func NewServerMessageDispatcher() *ServerMessageDispatcher {
 	md := &ServerMessageDispatcher{
 		dispatcher: message_actions.NewMessageDispatcher(context.Ctx.Logger().WithPrefix("[MessageDispatcher]")),
+	}
+	err := container.Container.Fill(md)
+	if err != nil {
+		panic(err)
 	}
 	md.init()
 	return md
@@ -49,8 +56,10 @@ func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn conne
 		return
 	}
 	d.logger().Printf("receive message %s from %s", message.String(), conn.Address())
+	d.metering.TraceMessagePerformance(message.Id())
 	context.Ctx.AsyncTaskPool().Schedule(func() {
 		d.dispatcher.Dispatch(message, conn)
+		d.metering.Stop(d.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
 	})
 }
 

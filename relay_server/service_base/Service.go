@@ -36,7 +36,7 @@ type Service struct {
 	lock          *sync.RWMutex
 	serviceQueue  service.IServiceTaskQueue
 	logger        *logger.SimpleLogger
-	metering      metering.IMeteringController `$inject:""`
+	metering      metering.IServerMeteringController `$inject:""`
 
 	onStartedCallback func(baseService service.IBaseService)
 	onStoppedCallback func(baseService service.IBaseService)
@@ -174,22 +174,24 @@ func (s *Service) Status() int {
 }
 
 func (s *Service) Handle(message *messages.Message) *messages.Message {
-	stopWatch := s.Metering().Measure(fmt.Sprintf("svc-handle-msg-%s", message.Id()))
 	if strings.HasPrefix(message.Uri(), s.uriPrefix) {
 		message = message.SetUri(strings.TrimPrefix(message.Uri(), s.uriPrefix))
 	}
 	serviceRequest := service.NewServiceRequest(message)
 	s.logger.Println("handle new request ", message)
 	s.serviceQueue.Schedule(serviceRequest)
-	stopWatch.Mark("preSchedule")
+	s.traceMessagePerformance(message.Id(), "request in queue")
 	if s.ExecutionType() == service.ServiceExecutionAsync {
 		return nil
 	} else {
 		resp := serviceRequest.Response()
-		stopWatch.Mark("postSchedule")
-		stopWatch.Stop()
+		s.traceMessagePerformance(message.Id(), "sync request handled")
 		return resp
 	}
+}
+
+func (s *Service) traceMessagePerformance(id, description string) {
+	s.metering.Track(s.metering.GetAssembledTraceId(metering.TMessagePerformance, id), description)
 }
 
 func (s *Service) Cancel(messageId string) error {
@@ -271,8 +273,4 @@ func (s *Service) ResolveByResponse(request *service.ServiceRequest, responseDat
 
 func (s *Service) Logger() *logger.SimpleLogger {
 	return s.logger
-}
-
-func (s *Service) Metering() metering.IMeteringController {
-	return s.metering
 }

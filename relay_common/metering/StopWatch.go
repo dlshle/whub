@@ -2,6 +2,7 @@ package metering
 
 import (
 	"container/list"
+	"fmt"
 	"time"
 )
 
@@ -31,11 +32,12 @@ func (w *StopWatch) Init(id string) {
 func (w *StopWatch) Mark(description string) {
 	w.marks.PushBack(&markPair{
 		time:        time.Now(),
-		description: description,
+		description: fmt.Sprintf("%c%s%c", '[', description, ']'),
 	})
 }
 
 func (w *StopWatch) Stop() {
+	w.Mark("stop")
 	w.onStopCallback(w.marks)
 	w.marks = nil
 }
