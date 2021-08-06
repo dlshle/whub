@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 	"wsdk/common/logger"
+	"wsdk/relay_client/container"
 	"wsdk/relay_client/context"
 	"wsdk/relay_client/controllers"
 	"wsdk/relay_common/connection"
@@ -43,7 +44,7 @@ type ClientService struct {
 	onHealthCheckFailsCallback    func(service IClientService)
 	onHealthCheckRestoredCallback func(service IClientService)
 
-	m metering.IMeteringController
+	m metering.IMeteringController `$inject:""`
 
 	lock *sync.RWMutex
 
@@ -68,6 +69,10 @@ func NewClientService(id string, description string, accessType int, execType in
 		executionType:        execType,
 	}
 	s.init()
+	err := container.Container.Fill(s)
+	if err != nil {
+		panic(err)
+	}
 	return s
 }
 
