@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"wsdk/common/data_structures"
-	"wsdk/relay_common/utils"
+	"wsdk/common/utils"
 )
 
-// TODO bug with paramed nodes!!!
 const (
 	DefaultCompactSize = 15
 )

@@ -2,7 +2,6 @@ package topic
 
 import (
 	"wsdk/common/logger"
-	"wsdk/common/utils"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
@@ -72,19 +71,19 @@ func (m *TopicManager) create(topicId string, creatorId string) (*Topic, control
 }
 
 func (m *TopicManager) GetTopic(id string) (topic Topic, err controllers.IControllerError) {
-	defer utils.LogError(m.logger, "GetTopic", err)
+	defer logger.LogError(m.logger, "GetTopic", err)
 	t, err := m.get(id)
 	return *t, err
 }
 
 func (m *TopicManager) HasTopic(id string) (h bool, err controllers.IControllerError) {
-	defer utils.LogError(m.logger, "HasTopic", err)
+	defer logger.LogError(m.logger, "HasTopic", err)
 	h, err = m.has(id)
 	return
 }
 
 func (m *TopicManager) SubscribeClientToTopic(clientId string, topicId string) (err controllers.IControllerError) {
-	defer utils.LogError(m.logger, "SubscribeClientToTopic", err)
+	defer logger.LogError(m.logger, "SubscribeClientToTopic", err)
 	defer func() {
 		if err == nil {
 			m.logger.Printf("client %s has subscribed to topic %s", clientId, topicId)
@@ -98,7 +97,7 @@ func (m *TopicManager) SubscribeClientToTopic(clientId string, topicId string) (
 }
 
 func (m *TopicManager) UnSubscribeClientToTopic(clientId string, topicId string) (err controllers.IControllerError) {
-	defer utils.LogError(m.logger, "UnSubscribeClientToTopic", err)
+	defer logger.LogError(m.logger, "UnSubscribeClientToTopic", err)
 	defer func() {
 		if err == nil {
 			m.logger.Printf("client %s has unsubscribed from topic %s", clientId, topicId)
@@ -112,7 +111,7 @@ func (m *TopicManager) UnSubscribeClientToTopic(clientId string, topicId string)
 }
 
 func (m *TopicManager) GetSubscriberIds(topicId string) (ids []string, err controllers.IControllerError) {
-	defer utils.LogError(m.logger, "GetSubscriberIds", err)
+	defer logger.LogError(m.logger, "GetSubscriberIds", err)
 	topic, err := m.get(topicId)
 	if err != nil {
 		return nil, err
@@ -121,7 +120,7 @@ func (m *TopicManager) GetSubscriberIds(topicId string) (ids []string, err contr
 }
 
 func (m *TopicManager) GetAllDescribedTopics() (desc []TopicDescriptor, err controllers.IControllerError) {
-	defer utils.LogError(m.logger, "GetAllDescribedTopics", err)
+	defer logger.LogError(m.logger, "GetAllDescribedTopics", err)
 	topics, err := m.topics()
 	if err != nil {
 		return nil, err
@@ -134,7 +133,7 @@ func (m *TopicManager) GetAllDescribedTopics() (desc []TopicDescriptor, err cont
 }
 
 func (m *TopicManager) CreateTopic(topicId string, creatorClientId string) (topic Topic, err controllers.IControllerError) {
-	defer utils.LogError(m.logger, "CreateTopic", err)
+	defer logger.LogError(m.logger, "CreateTopic", err)
 	t, err := m.create(topicId, creatorClientId)
 	if err != nil {
 		return Topic{}, err
@@ -145,7 +144,7 @@ func (m *TopicManager) CreateTopic(topicId string, creatorClientId string) (topi
 
 // TODO caller needs to get the subscribers first to notify them and then call this function
 func (m *TopicManager) RemoveTopic(topicId string, requestClientId string) (err controllers.IControllerError) {
-	defer utils.LogError(m.logger, "RemoveTopic", err)
+	defer logger.LogError(m.logger, "RemoveTopic", err)
 	defer func() {
 		if err == nil {
 			m.logger.Printf("topic %s has been removed", topicId)

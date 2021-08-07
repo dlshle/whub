@@ -79,6 +79,37 @@ func NewConnection(
 	return conn
 }
 
+func (conn *Connection) Init(
+	logger *logger.SimpleLogger,
+	c connection.IConnection,
+	timeout time.Duration,
+	messageParser messages.IMessageParser,
+	notifications notification.IWRNotificationEmitter) {
+	conn.conn = c
+	conn.logger = logger
+	conn.requestTimeout = timeout
+	conn.messageParser = messageParser
+	conn.notificationEmitter = notifications
+	conn.ttlTimedJob = ctimer.New(DefaultAlivenessTimeout, conn.ttlJob)
+	conn.conn.OnError(func(err error) {
+		conn.conn.Close()
+	})
+	conn.conn.OnMessage(func(stream []byte) {
+		conn.ttlTimedJob.Reset()
+		msg, err := conn.messageParser.Deserialize(stream)
+		if err == nil {
+			if notifications.HasEvent(msg.Id()) {
+				notifications.Notify(msg.Id(), msg)
+			} else if conn.messageCallback != nil {
+				conn.messageCallback(msg)
+			}
+		} else {
+			logger.Println("unable to parse message ", stream)
+		}
+	})
+	conn.ttlTimedJob.Start()
+}
+
 func (c *Connection) Address() string {
 	if c.address == "" {
 		c.address = c.conn.Address()

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"sync"
 	"wsdk/common/logger"
-	"wsdk/common/utils"
 	whttp "wsdk/relay_common/http"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_server/context"
@@ -36,7 +35,7 @@ func (h *HTTPRequestHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	h.logger.Println("handle incoming HTTP request: ", r.RequestURI, r.Header)
 	msg, err := TransformRequest(r)
 	if err != nil {
-		utils.LogError(h.logger, "Handle", err)
+		logger.LogError(h.logger, "Handle", err)
 	}
 	conn := h.pool.Get().(*whttp.HTTPWritableConnection)
 	conn.Init(w, r.RemoteAddr, h.logger.WithPrefix(fmt.Sprintf("[HTTP-%s-%s]", r.RemoteAddr, msg.Id())))

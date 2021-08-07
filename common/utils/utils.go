@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
-	"wsdk/common/logger"
 )
 
 var Rando *rand.Rand
@@ -100,8 +99,15 @@ func NewRand() *rand.Rand {
 	return rand.New(rand.NewSource(time.Now().Unix()))
 }
 
-func LogError(logger *logger.SimpleLogger, fnName string, err error) {
-	if err != nil {
-		logger.Printf("error happened at %s due to %s", fnName, err.Error())
+func ProcessWithError(processors []func() error) (err error) {
+	for _, processor := range processors {
+		if err = processor(); err != nil {
+			return
+		}
 	}
+	return
+}
+
+func ProcessWithErrors(funcs ...func() error) error {
+	return ProcessWithError(funcs)
 }

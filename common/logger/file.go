@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-	"wsdk/relay_common/utils"
+	"wsdk/common/utils"
 )
 
 // FileWriter
