@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 	"sync"
 	"time"
+	"wsdk/common/connection"
 )
 
 const (
@@ -31,7 +32,7 @@ type WsConnection struct {
 	closeChannel  chan bool
 }
 
-func NewWsConnection(conn *websocket.Conn, onMessage func([]byte), onClose func(error), onError func(error)) *WsConnection {
+func NewWsConnection(conn *websocket.Conn, onMessage func([]byte), onClose func(error), onError func(error)) connection.IConnection {
 	now := time.Now()
 	return &WsConnection{conn, onMessage, onClose, onError, now, now, now, false, 0, new(sync.RWMutex), make(chan bool)}
 }
@@ -45,9 +46,7 @@ type IWsConnection interface {
 	OnError(func(error))
 	OnClose(func(error))
 	State() int
-	StartListening()
 	ReadLoop()
-	StopListening()
 	String() string
 }
 
@@ -95,10 +94,6 @@ func (c *WsConnection) Close() (err error) {
 	return err
 }
 
-func (c *WsConnection) StartListening() {
-	go c.ReadLoop()
-}
-
 func (c *WsConnection) ReadLoop() {
 	if c.State() > StateIdle {
 		return
@@ -115,15 +110,6 @@ func (c *WsConnection) ReadLoop() {
 		}
 	}
 	c.setState(StateStopped)
-	close(c.closeChannel)
-}
-
-func (c *WsConnection) StopListening() {
-	if c.State() != StateReading {
-		return
-	}
-	c.setState(StateStopping)
-	<-c.closeChannel
 }
 
 func (c *WsConnection) Read() ([]byte, error) {
@@ -171,7 +157,7 @@ func (c *WsConnection) OnMessage(cb func([]byte)) {
 }
 
 func (c *WsConnection) String() string {
-	return fmt.Sprintf("WsConnection { address: %s, state: %d }", c.Address(), c.State())
+	return fmt.Sprintf("{\"address\": \"%s\",\"state\": %d }", c.Address(), c.State())
 }
 
 func (c *WsConnection) handleError(err error) {
@@ -180,4 +166,8 @@ func (c *WsConnection) handleError(err error) {
 	} else {
 		c.onError(err)
 	}
+}
+
+func (c *WsConnection) ConnectionType() uint8 {
+	return connection.TypeWS
 }

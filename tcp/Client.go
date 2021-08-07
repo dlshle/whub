@@ -1,37 +1,89 @@
 package tcp
 
 import (
-	"bufio"
+	"errors"
 	"fmt"
 	"net"
-	"os"
-	"strings"
+	"wsdk/common/connection"
+	"wsdk/common/logger"
 )
 
-func Client(ip string, port int) {
-	//打开连接:
-	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ip, port))
-	if err != nil {
-		//由于目标计算机积极拒绝而无法创建连接
-		fmt.Println("Error dialing", err.Error())
-		return // 终止程序
-	}
+type TCPClient struct {
+	serverAddr      string
+	serverPort      int
+	retryCount      int
+	logger          *logger.SimpleLogger
+	onConnected     func(conn connection.IConnection)
+	onMessage       func([]byte)
+	onDisconnected  func(err error)
+	onConnectionErr func(err error)
 
-	inputReader := bufio.NewReader(os.Stdin)
-	fmt.Println("First, what is your name?")
-	clientName, _ := inputReader.ReadString('\n')
-	// fmt.Printf("CLIENTNAME %s", clientName)
-	trimmedClient := strings.Trim(clientName, "\r\n") // Windows 平台下用 "\r\n"，Linux平台下使用 "\n"
-	// 给服务器发送信息直到程序退出：
-	for {
-		fmt.Println("What to send to the server? Type Q to quit.")
-		input, _ := inputReader.ReadString('\n')
-		trimmedInput := strings.Trim(input, "\r\n")
-		// fmt.Printf("input:--%s--", input)
-		// fmt.Printf("trimmedInput:--%s--", trimmedInput)
-		if trimmedInput == "Q" {
-			return
-		}
-		_, err = conn.Write([]byte(trimmedClient + " says: " + trimmedInput))
+	conn connection.IConnection
+}
+
+func (c *TCPClient) Connect() error {
+	return c.connectWithRetry(c.retryCount, nil)
+}
+
+func (c *TCPClient) connectWithRetry(retry int, lastErr error) error {
+	if retry == 0 {
+		return lastErr
 	}
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", c.serverAddr, c.serverPort))
+	if err != nil {
+		return c.connectWithRetry(retry-1, err)
+	}
+	return c.handleConnection(conn)
+}
+
+func (c *TCPClient) handleConnection(rawConn net.Conn) error {
+	conn := NewTCPConnection(rawConn)
+	conn.OnError(c.onConnectionErr)
+	conn.OnClose(c.onDisconnected)
+	conn.OnMessage(c.onMessage)
+	c.onConnected(conn)
+	return nil
+}
+
+func (c *TCPClient) ReadLoop() {
+	if c.conn != nil {
+		c.conn.ReadLoop()
+	}
+}
+
+func (c *TCPClient) Disconnect() error {
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return errors.New("no connection has been established yet")
+}
+
+func (c *TCPClient) Write(data []byte) error {
+	if c.conn != nil {
+		return c.conn.Write(data)
+	}
+	return errors.New("no connection has been established yet")
+}
+
+func (c *TCPClient) Read() ([]byte, error) {
+	if c.conn != nil {
+		return c.conn.Read()
+	}
+	return nil, errors.New("no connection has been established yet")
+}
+
+func (c *TCPClient) OnConnectionEstablished(cb func(conn connection.IConnection)) {
+	c.onConnected = cb
+}
+
+func (c *TCPClient) OnDisconnect(cb func(error)) {
+	c.onDisconnected = cb
+}
+
+func (c *TCPClient) OnMessage(cb func([]byte)) {
+	c.onMessage = cb
+}
+
+func (c *TCPClient) OnError(cb func(error)) {
+	c.onConnectionErr = cb
 }

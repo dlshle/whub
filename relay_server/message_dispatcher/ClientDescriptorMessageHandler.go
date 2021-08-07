@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	base_conn "wsdk/common/connection"
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/message_actions"
@@ -39,6 +40,9 @@ func (h *ClientDescriptorMessageHandler) Type() int {
 }
 
 func (h *ClientDescriptorMessageHandler) Handle(message *messages.Message, conn connection.IConnection) (err error) {
+	if !base_conn.IsAsyncType(conn.ConnectionType()) {
+		return errors.New("non async connection type can not be used to initiate async client registration")
+	}
 	if message == nil {
 		return errors.New("nil message")
 	}

@@ -2,32 +2,32 @@ package wserver
 
 import (
 	"net/http"
+	"wsdk/common/connection"
 	common_connection "wsdk/relay_common/connection"
-	"wsdk/websocket/connection"
 )
 
 type IWsConnectionHandler interface {
-	HandleClientConnected(*connection.WsConnection)
-	HandleClientClosed(*connection.WsConnection, error)
+	HandleClientConnected(connection.IConnection)
+	HandleClientClosed(connection.IConnection, error)
 	HandleHTTPRequest(w http.ResponseWriter, r *http.Request)
-	HandleConnectionError(*connection.WsConnection, error)
+	HandleConnectionError(connection.IConnection, error)
 }
 
 type WsConnectionHandler struct {
-	onClientConnected     func(conn *connection.WsConnection)
-	onClientClosed        func(conn *connection.WsConnection, err error)
+	onClientConnected     func(conn connection.IConnection)
+	onClientClosed        func(conn connection.IConnection, err error)
 	onHttpRequest         func(w http.ResponseWriter, r *http.Request)
-	onConnectionError     func(*connection.WsConnection, error)
+	onConnectionError     func(connection.IConnection, error)
 	onNoUpgradableRequest func(w http.ResponseWriter, r *http.Request)
 }
 
-func (h *WsConnectionHandler) HandleClientConnected(conn *connection.WsConnection) {
+func (h *WsConnectionHandler) HandleClientConnected(conn connection.IConnection) {
 	if h.onClientConnected != nil {
 		h.onClientConnected(conn)
 	}
 }
 
-func (h *WsConnectionHandler) HandleClientClosed(conn *connection.WsConnection, err error) {
+func (h *WsConnectionHandler) HandleClientClosed(conn connection.IConnection, err error) {
 	if h.onClientClosed != nil {
 		h.onClientClosed(conn, err)
 	}
@@ -39,7 +39,7 @@ func (h *WsConnectionHandler) HandleHTTPRequest(w http.ResponseWriter, r *http.R
 	}
 }
 
-func (h *WsConnectionHandler) HandleConnectionError(conn *connection.WsConnection, err error) {
+func (h *WsConnectionHandler) HandleConnectionError(conn connection.IConnection, err error) {
 	if h.onConnectionError != nil {
 		h.onConnectionError(conn, err)
 	} else {
@@ -55,7 +55,7 @@ func (h *WsConnectionHandler) HandleNoUpgradableRequest(w http.ResponseWriter, r
 	}
 }
 
-func NewWsConnHandler(onClientConnected func(conn *connection.WsConnection), onClientClosed func(conn *connection.WsConnection, err error), onHttpRequest func(w http.ResponseWriter, r *http.Request), onConnectionError func(*connection.WsConnection, error)) *WsConnectionHandler {
+func NewWsConnHandler(onClientConnected func(conn connection.IConnection), onClientClosed func(conn connection.IConnection, err error), onHttpRequest func(w http.ResponseWriter, r *http.Request), onConnectionError func(connection.IConnection, error)) *WsConnectionHandler {
 	return &WsConnectionHandler{onClientConnected: onClientConnected, onClientClosed: onClientClosed, onHttpRequest: onHttpRequest, onConnectionError: onConnectionError}
 }
 

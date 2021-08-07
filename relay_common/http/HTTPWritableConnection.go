@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 	"wsdk/common/async"
+	base_conn "wsdk/common/connection"
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
@@ -22,20 +23,17 @@ func (h *HTTPWritableConnection) Address() string {
 	return h.addr
 }
 
-func (h *HTTPWritableConnection) StartListening() {
-	panic("implement me")
-}
-
 func (h *HTTPWritableConnection) ReadingLoop() {
-	panic("implement me")
+	return
 }
 
 func (h *HTTPWritableConnection) Request(message *messages.Message) (*messages.Message, error) {
-	panic("implement me")
+	err := h.Send(message)
+	return nil, err
 }
 
 func (h *HTTPWritableConnection) RequestWithTimeout(message *messages.Message, duration time.Duration) (*messages.Message, error) {
-	panic("implement me")
+	return h.Request(message)
 }
 
 func (h *HTTPWritableConnection) Send(m *messages.Message) error {
@@ -64,35 +62,30 @@ func (h *HTTPWritableConnection) Send(m *messages.Message) error {
 }
 
 func (h *HTTPWritableConnection) OnIncomingMessage(f func(message *messages.Message)) {
-	panic("implement me")
 }
 
 func (h *HTTPWritableConnection) OnceMessage(s string, f func(*messages.Message)) (notification.Disposable, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func (h *HTTPWritableConnection) OnMessage(s string, f func(*messages.Message)) (notification.Disposable, error) {
-	panic("implement me")
+	return nil, nil
 }
 
 func (h *HTTPWritableConnection) OffMessage(s string, f func(*messages.Message)) {
-	panic("implement me")
 }
 
 func (h *HTTPWritableConnection) OffAll(s string) {
-	panic("implement me")
 }
 
 func (h *HTTPWritableConnection) OnError(f func(error)) {
-	panic("implement me")
 }
 
 func (h *HTTPWritableConnection) OnClose(f func(error)) {
-	panic("implement me")
 }
 
 func (h *HTTPWritableConnection) Close() error {
-	panic("implement me")
+	return h.Send(messages.NewACKMessage("", "", h.addr, h.addr))
 }
 
 func (h *HTTPWritableConnection) Init(w http.ResponseWriter, addr string, logger *logger.SimpleLogger) {
@@ -104,6 +97,10 @@ func (h *HTTPWritableConnection) Init(w http.ResponseWriter, addr string, logger
 
 func (h *HTTPWritableConnection) WaitDone() {
 	h.b.Wait()
+}
+
+func (h *HTTPWritableConnection) ConnectionType() uint8 {
+	return base_conn.TypeHTTP
 }
 
 func NewHTTPWritableConnection() connection.IConnection {

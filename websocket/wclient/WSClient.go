@@ -4,13 +4,14 @@ import (
 	"errors"
 	"github.com/gorilla/websocket"
 	"os"
+	base_conn "wsdk/common/connection"
 	"wsdk/common/logger"
 	"wsdk/websocket/connection"
 )
 
 type WClientConnectionHandler struct {
 	onMessage               func([]byte)
-	onConnectionEstablished func(*connection.WsConnection)
+	onConnectionEstablished func(base_conn.IConnection)
 	onConnectionFailed      func(error)
 	onDisconnected          func(error)
 	onError                 func(error)
@@ -22,7 +23,7 @@ func (c *WClientConnectionHandler) OnMessage(msg []byte) {
 	}
 }
 
-func (c *WClientConnectionHandler) OnConnectionEstablished(connection *connection.WsConnection) {
+func (c *WClientConnectionHandler) OnConnectionEstablished(connection base_conn.IConnection) {
 	if c.onConnectionEstablished != nil {
 		c.onConnectionEstablished(connection)
 	}
@@ -58,7 +59,7 @@ type WClientConfig struct {
 	serverUrl string
 }
 
-func NewWClientConfig(serverUrl string, onMessage func([]byte), onConnectionEstablished func(connection *connection.WsConnection), onConnectionFailed func(error), onDisconnected func(error), onError func(error)) *WClientConfig {
+func NewWClientConfig(serverUrl string, onMessage func([]byte), onConnectionEstablished func(connection base_conn.IConnection), onConnectionFailed func(error), onDisconnected func(error), onError func(error)) *WClientConfig {
 	return &WClientConfig{&WClientConnectionHandler{onMessage, onConnectionEstablished, onConnectionFailed, onDisconnected, onError}, serverUrl}
 }
 
@@ -66,15 +67,11 @@ type WClient struct {
 	serverUrl string
 	handler   *WClientConnectionHandler
 	logger    *logger.SimpleLogger
-	conn      *connection.WsConnection
+	conn      base_conn.IConnection
 }
 
 func New(config *WClientConfig) IWClient {
 	return &WClient{config.serverUrl, config.WClientConnectionHandler, logger.New(os.Stdout, "[wclient]", true), nil}
-}
-
-func NewClient(serverUrl string) IWClient {
-	return New(NewWClientConfig(serverUrl, nil, nil, nil, nil, nil))
 }
 
 type IWClient interface {
@@ -82,12 +79,11 @@ type IWClient interface {
 	Disconnect() error
 	Write(data []byte) error
 	Read() ([]byte, error)
-	SetOnConnectionEstablished(func(conn *connection.WsConnection))
-	SetOnDisconnect(func(error))
-	SetOnMessage(func([]byte))
-	SetOnError(func(error))
-	ListenToMessage()
-	StopListenToMessage()
+	ReadLoop()
+	OnConnectionEstablished(func(conn base_conn.IConnection))
+	OnDisconnect(func(error))
+	OnMessage(func([]byte))
+	OnError(func(error))
 }
 
 func (c *WClient) Connect() error {
@@ -136,30 +132,22 @@ func (c *WClient) Read() ([]byte, error) {
 	return c.conn.Read()
 }
 
-func (c *WClient) SetOnDisconnect(cb func(error)) {
+func (c *WClient) ReadLoop() {
+	c.conn.ReadLoop()
+}
+
+func (c *WClient) OnDisconnect(cb func(error)) {
 	c.handler.onDisconnected = cb
 }
 
-func (c *WClient) SetOnMessage(cb func([]byte)) {
+func (c *WClient) OnMessage(cb func([]byte)) {
 	c.handler.onMessage = cb
 }
 
-func (c *WClient) SetOnError(cb func(error)) {
+func (c *WClient) OnError(cb func(error)) {
 	c.handler.onError = cb
 }
 
-func (c *WClient) ListenToMessage() {
-	if c.conn != nil {
-		c.conn.StartListening()
-	}
-}
-
-func (c *WClient) StopListenToMessage() {
-	if c.conn != nil {
-		c.conn.StopListening()
-	}
-}
-
-func (c *WClient) SetOnConnectionEstablished(cb func(conn *connection.WsConnection)) {
+func (c *WClient) OnConnectionEstablished(cb func(conn base_conn.IConnection)) {
 	c.handler.onConnectionEstablished = cb
 }

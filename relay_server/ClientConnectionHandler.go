@@ -2,6 +2,7 @@ package relay_server
 
 import (
 	"fmt"
+	"wsdk/common/connection"
 	"wsdk/common/logger"
 	common_connection "wsdk/relay_common/connection"
 	"wsdk/relay_common/message_actions"
@@ -11,7 +12,6 @@ import (
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/controllers/anonymous_client_manager"
 	"wsdk/relay_server/controllers/client_manager"
-	"wsdk/websocket/connection"
 )
 
 type ClientConnectionHandler struct {
@@ -22,7 +22,7 @@ type ClientConnectionHandler struct {
 }
 
 type IClientConnectionHandler interface {
-	HandleConnectionEstablished(conn *connection.WsConnection)
+	HandleConnectionEstablished(conn connection.IConnection)
 }
 
 func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispatcher) IClientConnectionHandler {
@@ -37,9 +37,10 @@ func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispat
 	return h
 }
 
-func (h *ClientConnectionHandler) HandleConnectionEstablished(conn *connection.WsConnection) {
+func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IConnection) {
 	loggerPrefix := fmt.Sprintf("[conn-%s]", conn.Address())
-	warpedConn := common_connection.NewConnection(context.Ctx.Logger().WithPrefix(loggerPrefix),
+	warpedConn := common_connection.NewConnection(
+		context.Ctx.Logger().WithPrefix(loggerPrefix),
 		conn,
 		common_connection.DefaultTimeout,
 		context.Ctx.MessageParser(),

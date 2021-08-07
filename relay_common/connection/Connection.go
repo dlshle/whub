@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 	"wsdk/common/async"
+	"wsdk/common/connection"
 	"wsdk/common/ctimer"
 	"wsdk/common/logger"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/notification"
-	"wsdk/websocket/connection"
 )
 
 const WSConnectionPath = "/"
@@ -18,7 +18,7 @@ const DefaultTimeout = time.Second * 30
 const DefaultAlivenessTimeout = time.Minute * 5
 
 type Connection struct {
-	ws                  connection.IWsConnection
+	conn                connection.IConnection
 	address             string
 	requestTimeout      time.Duration
 	messageParser       messages.IMessageParser
@@ -30,7 +30,6 @@ type Connection struct {
 
 type IConnection interface {
 	Address() string
-	StartListening()
 	ReadingLoop()
 	Request(*messages.Message) (*messages.Message, error)
 	RequestWithTimeout(*messages.Message, time.Duration) (*messages.Message, error)
@@ -43,10 +42,12 @@ type IConnection interface {
 	OnError(func(error))
 	OnClose(func(error))
 	Close() error
+	ConnectionType() uint8
 }
 
-func NewConnection(logger *logger.SimpleLogger,
-	c connection.IWsConnection,
+func NewConnection(
+	logger *logger.SimpleLogger,
+	c connection.IConnection,
 	timeout time.Duration,
 	messageParser messages.IMessageParser,
 	notifications notification.IWRNotificationEmitter,
@@ -58,10 +59,10 @@ func NewConnection(logger *logger.SimpleLogger,
 	}
 	conn := &Connection{c, "", timeout, messageParser, notifications, nil, logger, nil}
 	conn.ttlTimedJob = ctimer.New(DefaultAlivenessTimeout, conn.ttlJob)
-	conn.ws.OnError(func(err error) {
-		conn.ws.Close()
+	conn.conn.OnError(func(err error) {
+		conn.conn.Close()
 	})
-	conn.ws.OnMessage(func(stream []byte) {
+	conn.conn.OnMessage(func(stream []byte) {
 		conn.ttlTimedJob.Reset()
 		msg, err := conn.messageParser.Deserialize(stream)
 		if err == nil {
@@ -80,17 +81,13 @@ func NewConnection(logger *logger.SimpleLogger,
 
 func (c *Connection) Address() string {
 	if c.address == "" {
-		c.address = c.ws.Address()
+		c.address = c.conn.Address()
 	}
 	return c.address
 }
 
-func (c *Connection) StartListening() {
-	c.ws.StartListening()
-}
-
 func (c *Connection) ReadingLoop() {
-	c.ws.ReadLoop()
+	c.conn.ReadLoop()
 }
 
 // Request naive way to conduct async in Go to give better error hint
@@ -128,7 +125,7 @@ func (c *Connection) Send(message *messages.Message) (err error) {
 		}
 	}()
 	if m, e := c.messageParser.Serialize(message); e == nil {
-		return c.ws.Write(m)
+		return c.conn.Write(m)
 	} else {
 		return e
 	}
@@ -155,18 +152,22 @@ func (c *Connection) OffAll(id string) {
 }
 
 func (c *Connection) Close() error {
-	return c.ws.Close()
+	return c.conn.Close()
 }
 
 func (c *Connection) OnClose(cb func(error)) {
-	c.ws.OnClose(cb)
+	c.conn.OnClose(cb)
 }
 
 func (c *Connection) OnError(cb func(error)) {
-	c.ws.OnError(cb)
+	c.conn.OnError(cb)
 }
 
 func (c *Connection) ttlJob() {
 	c.logger.Println("connection closed due to inactive timeout")
 	c.Close()
+}
+
+func (c *Connection) ConnectionType() uint8 {
+	return c.conn.ConnectionType()
 }

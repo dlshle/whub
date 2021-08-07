@@ -1,6 +1,12 @@
 package tcp
 
-import "net"
+import (
+	"errors"
+	"fmt"
+	"net"
+	"sync"
+	"wsdk/common/connection"
+)
 
 const (
 	DefaultReadBufferSize = 4096
@@ -11,26 +17,43 @@ type TCPConnection struct {
 	onMessageCb func([]byte)
 	onCloseCb   func(error)
 	onErrorCb   func(error)
+	state       int
+
+	rwLock    *sync.RWMutex
+	closeChan chan bool
 }
 
-type ITCPConnection interface {
-	Close() error
-	Read() ([]byte, error)
-	OnMessage(func([]byte))
-	Write([]byte) error
-	Address() string
-	OnError(func(error))
-	OnClose(func(error))
-	State() int
-	StartListening()
-	ReadLoop()
-	StopListening()
-	String() string
+func NewTCPConnection(conn net.Conn) connection.IConnection {
+	return &TCPConnection{
+		conn:      conn,
+		state:     connection.StateIdle,
+		rwLock:    new(sync.RWMutex),
+		closeChan: make(chan bool),
+	}
+}
+
+func (c *TCPConnection) withWrite(cb func()) {
+	c.rwLock.RLock()
+	defer c.rwLock.RUnlock()
+	cb()
+}
+
+func (c *TCPConnection) setState(state int) {
+	if state > 0 && state <= connection.StateDisconnected {
+		c.withWrite(func() {
+			c.state = state
+		})
+	}
 }
 
 func (c *TCPConnection) Close() error {
+	if c.State() >= connection.StateClosing {
+		return errors.New("err: closing a closing connection")
+	}
+	c.setState(connection.StateClosing)
 	err := c.conn.Close()
 	c.handleClose(err)
+	c.setState(connection.StateDisconnected)
 	return err
 }
 
@@ -55,8 +78,10 @@ func (c *TCPConnection) handleMessage(message []byte) {
 	}
 }
 
-func (c *TCPConnection) Write(data []byte) error {
-	_, err := c.conn.Write(data)
+func (c *TCPConnection) Write(data []byte) (err error) {
+	c.withWrite(func() {
+		_, err = c.conn.Write(data)
+	})
 	if err != nil {
 		c.handleError(err)
 	}
@@ -90,21 +115,34 @@ func (c *TCPConnection) handleClose(err error) {
 }
 
 func (c *TCPConnection) State() int {
-	return 0
-}
-
-func (c *TCPConnection) StartListening() {
-	go c.ReadLoop()
+	c.rwLock.RLock()
+	defer c.rwLock.RUnlock()
+	return c.state
 }
 
 func (c *TCPConnection) ReadLoop() {
-	// TODO
-}
-
-func (c *TCPConnection) StopListening() {
-	// TODO
+	if c.State() > connection.StateIdle {
+		return
+	}
+	c.setState(connection.StateReading)
+	// c.conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
+	for c.State() == connection.StateReading {
+		// Read will handle error itself
+		msg, err := c.Read()
+		if err == nil {
+			c.handleMessage(msg)
+		} else if err != nil {
+			break
+		}
+	}
+	c.setState(connection.StateStopped)
+	close(c.closeChan)
 }
 
 func (c *TCPConnection) String() string {
-	return ""
+	return fmt.Sprintf("{\"address\": \"%s\",\"state\": %d }", c.Address(), c.State())
+}
+
+func (c *TCPConnection) ConnectionType() uint8 {
+	return connection.TypeTCP
 }

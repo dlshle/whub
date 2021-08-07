@@ -6,20 +6,19 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"wsdk/common/async"
+	base_conn "wsdk/common/connection"
 	"wsdk/common/logger"
 	common_connection "wsdk/relay_common/connection"
 	"wsdk/websocket/connection"
 )
 
 type WServer struct {
-	name      string
-	address   string
-	listener  net.Listener
-	upgrader  *websocket.Upgrader
-	handler   *WsConnectionHandler
-	logger    *logger.SimpleLogger
-	asyncPool *async.AsyncPool
+	name     string
+	address  string
+	listener net.Listener
+	upgrader *websocket.Upgrader
+	handler  *WsConnectionHandler
+	logger   *logger.SimpleLogger
 }
 
 func NewWServer(config WsServerConfig) *WServer {
@@ -109,20 +108,15 @@ func (ws *WServer) handleNewConnection(conn *websocket.Conn) {
 	ws.handler.HandleClientConnected(c)
 }
 
-func (ws *WServer) Send(conn *connection.WsConnection, data []byte) error {
-	// log send
-	return conn.Write(data)
-}
-
-func (ws *WServer) OnConnectionError(cb func(*connection.WsConnection, error)) {
+func (ws *WServer) OnConnectionError(cb func(base_conn.IConnection, error)) {
 	ws.handler.onConnectionError = cb
 }
 
-func (ws *WServer) OnClientConnected(cb func(*connection.WsConnection)) {
+func (ws *WServer) OnClientConnected(cb func(base_conn.IConnection)) {
 	ws.handler.onClientConnected = cb
 }
 
-func (ws *WServer) OnClientClosed(cb func(*connection.WsConnection, error)) {
+func (ws *WServer) OnClientClosed(cb func(base_conn.IConnection, error)) {
 	ws.handler.onClientClosed = cb
 }
 
@@ -136,8 +130,4 @@ func (ws *WServer) OnNonUpgradableRequest(cb func(w http.ResponseWriter, r *http
 
 func (ws *WServer) SetLogger(logger *logger.SimpleLogger) {
 	ws.logger = logger
-}
-
-func (ws *WServer) SetAsyncPool(pool *async.AsyncPool) {
-	ws.asyncPool = pool
 }

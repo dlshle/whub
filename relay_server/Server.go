@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"wsdk/common/connection"
 	"wsdk/common/logger"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
@@ -14,7 +15,6 @@ import (
 	server_http "wsdk/relay_server/http"
 	"wsdk/relay_server/message_dispatcher"
 	"wsdk/relay_server/services"
-	"wsdk/websocket/connection"
 	"wsdk/websocket/wserver"
 )
 
@@ -56,7 +56,7 @@ func (s *Server) Stop() (closeError error) {
 	return
 }
 
-func (s *Server) handleInitialConnection(conn *connection.WsConnection) {
+func (s *Server) handleInitialConnection(conn connection.IConnection) {
 	s.clientConnectionHandler.HandleConnectionEstablished(conn)
 }
 
@@ -77,7 +77,7 @@ func NewServer(identity roles.ICommonServer) *Server {
 		ICommonServer:      identity,
 		messageParser:      messages.NewFBMessageParser(),
 		messageDispatcher:  messageDispatcher,
-		httpRequestHandler: server_http.NewHTTPRequestHandler(messageDispatcher.GetHandler(messages.MessageTypeServiceRequest)),
+		httpRequestHandler: server_http.NewHTTPRequestHandler(messageDispatcher),
 		lock:               new(sync.RWMutex),
 		logger:             logger,
 	}

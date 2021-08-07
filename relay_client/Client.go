@@ -8,19 +8,20 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	base_conn "wsdk/common/connection"
 	"wsdk/common/logger"
 	"wsdk/relay_client/context"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
-	ws_connection "wsdk/websocket/connection"
 	WSClient "wsdk/websocket/wclient"
 )
 
 // TODO
 type Client struct {
-	wclient WSClient.IWClient
-	client  roles.ICommonClient
+	connectionType uint8
+	wclient        WSClient.IWClient
+	client         roles.ICommonClient
 	// serviceMap map[string]IClientService // id -- [listener functions]
 	service                     IClientService
 	server                      roles.ICommonServer
@@ -31,15 +32,16 @@ type Client struct {
 	clientServiceRequestHandler *ClientServiceMessageHandler
 }
 
-func NewClient(serverUri string, serverPort int, myId string) *Client {
+func NewClient(connType uint8, serverUri string, serverPort int, myId string) *Client {
 	addr := url.URL{Scheme: "ws", Host: fmt.Sprintf("%s:%d", serverUri, serverPort), Path: connection.WSConnectionPath}
 	c := &Client{
-		wclient: WSClient.New(WSClient.NewWClientConfig(addr.String(), nil, nil, nil, nil, nil)),
-		logger:  context.Ctx.Logger(),
-		lock:    new(sync.RWMutex),
+		connectionType: connType,
+		wclient:        WSClient.New(WSClient.NewWClientConfig(addr.String(), nil, nil, nil, nil, nil)),
+		logger:         context.Ctx.Logger(),
+		lock:           new(sync.RWMutex),
 	}
-	c.wclient.SetOnConnectionEstablished(c.onConnected)
-	c.wclient.SetOnMessage(func(msg []byte) {
+	c.wclient.OnConnectionEstablished(c.onConnected)
+	c.wclient.OnMessage(func(msg []byte) {
 		fmt.Println(msg)
 	})
 	return c
@@ -66,15 +68,14 @@ func (c *Client) initDispatchers() {
 	c.dispatcher.RegisterHandler(c.clientServiceRequestHandler)
 }
 
-func (c *Client) onConnected(rawConn *ws_connection.WsConnection) {
+func (c *Client) onConnected(rawConn base_conn.IConnection) {
 	// ctx has already started!
 	conn := connection.NewConnection(context.Ctx.Logger().WithPrefix("[ServerConnection]"), rawConn, connection.DefaultTimeout, context.Ctx.MessageParser(), context.Ctx.NotificationEmitter())
 	c.conn = conn
 	c.logger.Println("connection to server has been established: ", conn.Address())
 	c.client = roles.NewClient(conn, "aa", "bb", roles.RoleTypeClient, "asd", 2)
 	c.logger.Println("new client has been instantiated")
-	c.wclient.ListenToMessage()
-	// TODO should request ClientDescriptor to the server
+	go c.wclient.ReadLoop()
 	serverDesc, err := conn.Request(messages.DraftMessage(c.client.Id(), "", "", messages.MessageTypeClientDescriptor, ([]byte)(c.client.Describe().String())))
 	if err != nil {
 		c.logger.Println("unable to receive server description due to ", err.Error())

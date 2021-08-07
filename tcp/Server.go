@@ -1,36 +1,81 @@
 package tcp
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"wsdk/common/connection"
+	"wsdk/common/logger"
 )
 
-func Server(port int) {
-	fmt.Println("Starting the server ...")
-	// 创建 listener
-	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
-	if err != nil {
-		panic(err)
-	}
-	// 监听并接受来自客户端的连接
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println("Error accepting", err.Error())
-			return // 终止程序
-		}
-		go doServerStuff(conn)
-	}
+type TCPServer struct {
+	name     string
+	address  string
+	port     int
+	logger   *logger.SimpleLogger
+	ctx      context.Context
+	stopFunc func()
+
+	onConnected     func(conn connection.IConnection)
+	onDisconnected  func(conn connection.IConnection, err error)
+	onConnectionErr func(conn connection.IConnection, err error)
 }
 
-func doServerStuff(conn net.Conn) {
-	for {
-		buf := make([]byte, 512)
-		len, err := conn.Read(buf)
-		if err != nil {
-			fmt.Println("Error reading", err.Error())
-			return //终止程序
-		}
-		fmt.Printf("Received data: %v\n", string(buf[:len]))
+func (s *TCPServer) Start() error {
+	s.logger.Println("starting TCP server...")
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.address, s.port))
+	if err != nil {
+		return err
 	}
+
+	select {
+	case <-s.ctx.Done():
+		s.logger.Println("stopping server ...")
+		break
+	default:
+		conn, err := listener.Accept()
+		if err != nil {
+			s.logger.Println("listener err: ", err)
+			return err
+		}
+		go s.handleNewConnection(conn)
+	}
+	return nil
+}
+
+func (s *TCPServer) toTCPConnection(conn net.Conn) connection.IConnection {
+	return NewTCPConnection(conn)
+}
+
+func (s *TCPServer) handleNewConnection(rawConn net.Conn) {
+	conn := s.toTCPConnection(rawConn)
+	s.logger.Println("new tcp connection ", conn.String())
+	conn.OnError(func(err error) {
+		s.onConnectionErr(conn, err)
+	})
+	conn.OnClose(func(err error) {
+		s.onConnectionErr(conn, err)
+	})
+	s.onConnected(conn)
+}
+
+func (s *TCPServer) Stop() error {
+	s.stopFunc()
+	return nil
+}
+
+func (s *TCPServer) OnConnectionError(cb func(connection.IConnection, error)) {
+	s.onConnectionErr = cb
+}
+
+func (s *TCPServer) OnClientConnected(cb func(connection.IConnection)) {
+	s.onConnected = cb
+}
+
+func (s *TCPServer) OnClientClosed(cb func(connection.IConnection, error)) {
+	s.onDisconnected = cb
+}
+
+func (s *TCPServer) SetLogger(logger *logger.SimpleLogger) {
+	s.logger = logger
 }
