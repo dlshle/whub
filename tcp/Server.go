@@ -40,7 +40,7 @@ func (s *TCPServer) Start() error {
 		}
 		go s.handleNewConnection(conn)
 	}
-	return nil
+	return listener.Close()
 }
 
 func (s *TCPServer) toTCPConnection(conn net.Conn) connection.IConnection {

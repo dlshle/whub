@@ -68,6 +68,10 @@ func (ws *WServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WServer) Start() (err error) {
+	// basically same flow as how TCP server starts, so can we abstract the start logic, and use the same listener?
+	// no bitch, you can't unless you can write your own http handler for a listener! Clearly, you can't so fuck it.
+	// detailed reason: http.Server takes over the listener, and it will keep accepting from it, so when other goroutine
+	// can not use the listener or there will be race condition as TCPListener does not use lock internally?
 	ws.logger.Println("starting ws server...")
 	ws.listener, err = net.Listen("tcp", ws.address)
 	if err != nil {
