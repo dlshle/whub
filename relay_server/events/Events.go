@@ -18,6 +18,10 @@ const (
 	EventServerError   = "EServerDown"
 
 	EventTopicRemoval = "ETopicRemoval"
+
+	EventClientConnectionEstablished = "EClientConnectionEstablished"
+	EventClientConnectionClosed      = "EClientConnectionClosed" // one connection closed
+	EventClientConnectionGone        = "EClientConnectionGone"   // all connections closed
 )
 
 func EmitEvent(eventId string, message string) {

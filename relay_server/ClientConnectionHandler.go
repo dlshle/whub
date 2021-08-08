@@ -12,13 +12,16 @@ import (
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/controllers/anonymous_client_manager"
 	"wsdk/relay_server/controllers/client_manager"
+	"wsdk/relay_server/controllers/connection_manager"
 )
 
 type ClientConnectionHandler struct {
 	messageDispatcher      message_actions.IMessageDispatcher
 	clientManager          client_manager.IClientManager                    `$inject:""`
 	anonymousClientManager anonymous_client_manager.IAnonymousClientManager `$inject:""`
-	logger                 *logger.SimpleLogger
+	// TODO remove anonymousClientManager, keep for now just for compatibility
+	connectionManager connection_manager.IConnectionManager `$inject:""`
+	logger            *logger.SimpleLogger
 }
 
 type IClientConnectionHandler interface {
@@ -39,20 +42,22 @@ func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispat
 
 func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IConnection) {
 	loggerPrefix := fmt.Sprintf("[conn-%s]", conn.Address())
-	warpedConn := common_connection.NewConnection(
+	wrappedConn := common_connection.NewConnection(
 		context.Ctx.Logger().WithPrefix(loggerPrefix),
 		conn,
 		common_connection.DefaultTimeout,
 		context.Ctx.MessageParser(),
 		context.Ctx.NotificationEmitter())
-	h.logger.Printf("new connection %s received", warpedConn.Address())
+	h.logger.Printf("new connection %s received", wrappedConn.Address())
 	// any message from any connection needs to go through here
-	warpedConn.OnIncomingMessage(func(message *messages.Message) {
-		h.messageDispatcher.Dispatch(message, warpedConn)
+	wrappedConn.OnIncomingMessage(func(message *messages.Message) {
+		h.messageDispatcher.Dispatch(message, wrappedConn)
 	})
-	rawClient := client.NewAnonymousClient(warpedConn)
+	rawClient := client.NewAnonymousClient(wrappedConn)
 	h.anonymousClientManager.AcceptClient(rawClient.Address(), rawClient)
+	// TODO remove above line, keep for now just for compatibility
+	h.connectionManager.Accept(wrappedConn)
 	// no need to run this on a different goroutine since each new connection is on its own coroutine
-	warpedConn.ReadingLoop()
+	wrappedConn.ReadingLoop()
 	h.logger.Printf("connection %s cycle done", conn.Address())
 }

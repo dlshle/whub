@@ -99,6 +99,7 @@ func (s *RelayManagementService) validateClient(clientId string) error {
 }
 
 func (s *RelayManagementService) RegisterService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	// TODO only async connections can register a new service
 	defer s.Logger().Printf("service %v registration result: %s",
 		utils.ConditionalPick(request != nil, request.Message, nil),
 		utils.ConditionalPick(err != nil, err, "success"))

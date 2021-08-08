@@ -7,6 +7,7 @@ import (
 	"wsdk/relay_common/connection"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/events"
 )
 
 // TODO replace anonymous client manager with this, then change client manager to actual registered client manager
@@ -24,7 +25,7 @@ type IConnectionManager interface {
 	GetConnectionByAddress(string) (connection.IConnection, error)
 	GetConnectionsByClientId(string) ([]connection.IConnection, error)
 	RegisterClientToConnection(clientId string, addr string) error
-	WithAllConnections(func(iConnection connection.IConnection)) error
+	WithAllConnections(func(connection.IConnection)) error
 }
 
 func NewConnectionManager() IConnectionManager {
@@ -41,7 +42,7 @@ func (m *ConnectionManager) initNotifications() {
 }
 
 func (m *ConnectionManager) Accept(conn connection.IConnection) (err error) {
-	logger.LogError(m.logger, "Accept", err)
+	defer logger.LogError(m.logger, "Accept", err)
 	err = m.connStore.Add(conn)
 	if err != nil {
 		return err
@@ -139,7 +140,9 @@ func (m *ConnectionManager) RegisterClientToConnection(clientId string, addr str
 		m.handleConnectionClosed(conn, err)
 		// delete the clientId-connection record from active client store
 		m.activeClientStore.Delete(clientId, addr)
+		events.EmitEvent(events.EventClientConnectionClosed, clientId)
 	})
+	events.EmitEvent(events.EventClientConnectionEstablished, clientId)
 	return nil
 }
 

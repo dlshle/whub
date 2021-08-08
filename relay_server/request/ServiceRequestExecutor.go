@@ -1,10 +1,15 @@
 package request
 
 import (
+	"fmt"
+	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
+	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/controllers/connection_manager"
+	"wsdk/relay_server/events"
 )
 
 type InternalServiceRequestExecutor struct {
@@ -16,6 +21,7 @@ func NewInternalServiceRequestExecutor(handler service.IServiceHandler) service.
 }
 
 func (e *InternalServiceRequestExecutor) Execute(request *service.ServiceRequest) {
+	// internal service will resolve the request if no error is present
 	err := e.handler.Handle(request)
 	if err != nil {
 		request.Resolve(messages.NewErrorMessage(request.Id(), context.Ctx.Server().Id(), request.From(), request.Uri(), err.Error()))
@@ -23,20 +29,59 @@ func (e *InternalServiceRequestExecutor) Execute(request *service.ServiceRequest
 }
 
 type RelayServiceRequestExecutor struct {
-	conn   connection.IConnection
-	hostId string
+	providerId        string
+	hostId            string
+	connections       []connection.IConnection
+	connectionManager connection_manager.IConnectionManager `$inject:""`
+	logger            *logger.SimpleLogger
 }
 
-func NewRelayServiceRequestExecutor(c connection.IConnection) service.IRequestExecutor {
+func NewRelayServiceRequestExecutor(providerId string) service.IRequestExecutor {
 	e := &RelayServiceRequestExecutor{
-		conn: c,
+		hostId:     context.Ctx.Server().Id(),
+		providerId: providerId,
+		logger:     context.Ctx.Logger().WithPrefix(fmt.Sprintf("[RelayServiceRequestExecutor-%s]", providerId)),
 	}
-	e.hostId = context.Ctx.Server().Id()
+	err := container.Container.Fill(e)
+	if err != nil {
+		panic(err)
+	}
+	err = e.updateConnections()
+	if err != nil {
+		e.logger.Printf("init connections failed due to %s", err.Error())
+		e.connections = []connection.IConnection{}
+	}
+	e.initNotifications()
 	return e
 }
 
+func (e *RelayServiceRequestExecutor) initNotifications() {
+	events.OnEvent(events.EventClientConnectionEstablished, e.handleClientConnectionChangeEvent)
+	events.OnEvent(events.EventClientConnectionClosed, e.handleClientConnectionChangeEvent)
+	events.OnEvent(events.EventClientConnectionGone, e.handleClientConnectionChangeEvent)
+}
+
+func (e *RelayServiceRequestExecutor) handleClientConnectionChangeEvent(event *messages.Message) {
+	if (string)(event.Payload()) == e.providerId {
+		e.logger.Printf("receive client connection change event for %s", e.providerId)
+		err := e.updateConnections()
+		if err != nil {
+			e.logger.Printf("update connections failed due to %s", err.Error())
+		}
+	}
+}
+
+func (e *RelayServiceRequestExecutor) updateConnections() error {
+	conns, err := e.connectionManager.GetConnectionsByClientId(e.providerId)
+	if err != nil {
+		return err
+	}
+	e.connections = conns
+	return nil
+}
+
 func (e *RelayServiceRequestExecutor) Execute(request *service.ServiceRequest) {
-	response, err := e.conn.Request(request.Message)
+	response, err := e.doRequest(request)
 	if request.Status() == service.ServiceRequestStatusDead {
 		// last check on if message_dispatcher is killed
 		request.Resolve(messages.NewErrorMessage(request.Id(), e.hostId, request.From(), request.Uri(), "request has been cancelled or target server is dead"))
@@ -45,4 +90,16 @@ func (e *RelayServiceRequestExecutor) Execute(request *service.ServiceRequest) {
 	} else {
 		request.Resolve(response)
 	}
+}
+
+// try all connections until one succeeded
+func (e *RelayServiceRequestExecutor) doRequest(request *service.ServiceRequest) (msg *messages.Message, err error) {
+	for _, conn := range e.connections {
+		msg, err = conn.Request(request.Message)
+		if err == nil {
+			// once the first connection successfully handles the request, return
+			return
+		}
+	}
+	return
 }

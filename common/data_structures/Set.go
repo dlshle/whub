@@ -42,8 +42,8 @@ func (s *Set) Clear() {
 
 func (s *Set) GetAll() []interface{} {
 	var data []interface{}
-	for _, v := range s.m {
-		data = append(data, v)
+	for k, _ := range s.m {
+		data = append(data, k)
 	}
 	return data
 }

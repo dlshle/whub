@@ -28,6 +28,6 @@ func NewAnonymousClient(conn connection.IConnection) *Client {
 
 func NewClient(conn connection.IConnection, id string, description string, cType int, cKey string, pScope int) *Client {
 	return &Client{roles.NewClient(conn, id, description, cType, cKey, pScope),
-		request.NewRelayServiceRequestExecutor(conn),
+		request.NewRelayServiceRequestExecutor(id),
 	}
 }

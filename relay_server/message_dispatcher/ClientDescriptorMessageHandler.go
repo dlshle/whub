@@ -16,11 +16,13 @@ import (
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/controllers/anonymous_client_manager"
 	"wsdk/relay_server/controllers/client_manager"
+	"wsdk/relay_server/controllers/connection_manager"
 )
 
 type ClientDescriptorMessageHandler struct {
 	anonymousClientManager anonymous_client_manager.IAnonymousClientManager `$inject:""`
 	clientManager          client_manager.IClientManager                    `$inject:""`
+	connectionManager      connection_manager.IConnectionManager            `$inject:""`
 	logger                 *logger.SimpleLogger
 }
 
@@ -52,11 +54,12 @@ func (h *ClientDescriptorMessageHandler) Handle(message *messages.Message, conn 
 		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
 		return err
 	}
+	// TODO remove later
 	anonymousClient := h.anonymousClientManager.GetClient(conn.Address())
-	if anonymousClient != nil {
+	if c, err := h.connectionManager.GetConnectionByAddress(conn.Address()); c != nil && err == nil && anonymousClient != nil {
 		h.logger.Printf("handle anonymous client(%s) promotion", anonymousClient.Address())
-		// promote
-		h.handleClientPromotion(roleDescriptor, extraInfoDescriptor, anonymousClient)
+		// registration
+		h.handleClientRegistration(roleDescriptor, extraInfoDescriptor, conn)
 		serverDescMsg := messages.NewMessage(message.Id(),
 			context.Ctx.Server().Id(),
 			message.From(),
@@ -92,8 +95,10 @@ func (h *ClientDescriptorMessageHandler) unmarshallClientDescriptor(message *mes
 	return
 }
 
-func (h *ClientDescriptorMessageHandler) handleClientPromotion(clientDescriptor roles.RoleDescriptor, clientExtraInfo roles.ClientExtraInfoDescriptor, anonymousClient *client.Client) {
-	h.anonymousClientManager.RemoveClient(anonymousClient.Id())
-	client := client.NewClient(anonymousClient.Connection(), clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.CType, clientExtraInfo.CKey, clientExtraInfo.PScope)
+func (h *ClientDescriptorMessageHandler) handleClientRegistration(clientDescriptor roles.RoleDescriptor, clientExtraInfo roles.ClientExtraInfoDescriptor, conn connection.IConnection) {
+	// TODO remove this later
+	h.anonymousClientManager.RemoveClient(conn.Address())
+	client := client.NewClient(conn, clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.CType, clientExtraInfo.CKey, clientExtraInfo.PScope)
+	h.connectionManager.RegisterClientToConnection(client.Id(), conn.Address())
 	h.clientManager.AcceptClient(client.Id(), client)
 }
