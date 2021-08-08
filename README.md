@@ -11,8 +11,9 @@ Ideally, one client handles one service(maybe will handler multiple services in 
 A service provider has to use an async connection(TCP/WebSocket/maybe UDP) to communicate with the server.
 
 ## TODO Tasks
-* Connection manager
 * Better client design
+  * No connection inside client
+  * When needed, use ConnectionManager to get connections of a client
 * Client manager w/ DB
 * Proper service provider registration
 * Common auth layer
