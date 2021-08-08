@@ -11,7 +11,9 @@ const (
 	EventClientUnexpectedClosure = "EClientUnexpectedClosure"
 	EventClientConnected         = "EClientReconnected"
 	EventServiceRegistered       = "EServiceRegistered"
+	EventServiceUpdated          = "EServiceUpdated"
 	EventServiceUnregistered     = "EServiceUnregistered"
+	EventServiceNewProvider      = "EServiceNewProvider"
 
 	EventServerStarted = "EServerStarted"
 	EventServerClosed  = "EServerClosed"

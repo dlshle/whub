@@ -5,6 +5,7 @@ import (
 	"wsdk/common/utils"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
+	"wsdk/relay_server/request"
 )
 
 type RelayService struct {
@@ -40,7 +41,7 @@ func (s *RelayService) RestoreExternally(reconnectedOwner *client.Client) (err e
 	oldPool := s.serviceQueue
 	s.withWrite(func() {
 		s.provider = reconnectedOwner
-		s.serviceQueue = service.NewServiceTaskQueue(s.HostInfo().Id, reconnectedOwner.MessageRelayExecutor(), s.ctx.ServiceTaskPool())
+		s.serviceQueue = service.NewServiceTaskQueue(s.HostInfo().Id, request.NewRelayServiceRequestExecutor(s.Id(), s.Provider().Id()), s.ctx.ServiceTaskPool())
 	})
 	err = s.Start()
 	if err != nil {

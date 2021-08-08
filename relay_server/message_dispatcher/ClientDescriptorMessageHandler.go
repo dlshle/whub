@@ -55,9 +55,9 @@ func (h *ClientDescriptorMessageHandler) Handle(message *messages.Message, conn 
 		return err
 	}
 	// TODO remove later
-	anonymousClient := h.anonymousClientManager.GetClient(conn.Address())
-	if c, err := h.connectionManager.GetConnectionByAddress(conn.Address()); c != nil && err == nil && anonymousClient != nil {
-		h.logger.Printf("handle anonymous client(%s) promotion", anonymousClient.Address())
+	// anonymousClient := h.anonymousClientManager.GetClient(conn.Address())
+	if c, err := h.connectionManager.GetConnectionByAddress(conn.Address()); c != nil && err == nil {
+		h.logger.Printf("handle client connection(%s) promotion", conn.Address())
 		// registration
 		h.handleClientRegistration(roleDescriptor, extraInfoDescriptor, conn)
 		serverDescMsg := messages.NewMessage(message.Id(),
@@ -97,7 +97,7 @@ func (h *ClientDescriptorMessageHandler) unmarshallClientDescriptor(message *mes
 
 func (h *ClientDescriptorMessageHandler) handleClientRegistration(clientDescriptor roles.RoleDescriptor, clientExtraInfo roles.ClientExtraInfoDescriptor, conn connection.IConnection) {
 	// TODO remove this later
-	h.anonymousClientManager.RemoveClient(conn.Address())
+	// h.anonymousClientManager.RemoveClient(conn.Address())
 	client := client.NewClient(conn, clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.CType, clientExtraInfo.CKey, clientExtraInfo.PScope)
 	h.connectionManager.RegisterClientToConnection(client.Id(), conn.Address())
 	h.clientManager.AcceptClient(client.Id(), client)

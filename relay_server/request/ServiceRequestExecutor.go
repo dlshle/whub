@@ -29,6 +29,7 @@ func (e *InternalServiceRequestExecutor) Execute(request *service.ServiceRequest
 }
 
 type RelayServiceRequestExecutor struct {
+	serviceId         string
 	providerId        string
 	hostId            string
 	connections       []connection.IConnection
@@ -36,11 +37,12 @@ type RelayServiceRequestExecutor struct {
 	logger            *logger.SimpleLogger
 }
 
-func NewRelayServiceRequestExecutor(providerId string) service.IRequestExecutor {
+func NewRelayServiceRequestExecutor(serviceId string, providerId string) service.IRequestExecutor {
 	e := &RelayServiceRequestExecutor{
 		hostId:     context.Ctx.Server().Id(),
+		serviceId:  serviceId,
 		providerId: providerId,
-		logger:     context.Ctx.Logger().WithPrefix(fmt.Sprintf("[RelayServiceRequestExecutor-%s]", providerId)),
+		logger:     context.Ctx.Logger().WithPrefix(fmt.Sprintf("[RelayServiceRequestExecutor-%s]", serviceId)),
 	}
 	err := container.Container.Fill(e)
 	if err != nil {
@@ -48,7 +50,6 @@ func NewRelayServiceRequestExecutor(providerId string) service.IRequestExecutor 
 	}
 	err = e.updateConnections()
 	if err != nil {
-		e.logger.Printf("init connections failed due to %s", err.Error())
 		e.connections = []connection.IConnection{}
 	}
 	e.initNotifications()
@@ -56,27 +57,35 @@ func NewRelayServiceRequestExecutor(providerId string) service.IRequestExecutor 
 }
 
 func (e *RelayServiceRequestExecutor) initNotifications() {
-	events.OnEvent(events.EventClientConnectionEstablished, e.handleClientConnectionChangeEvent)
+	// do not on ClientConnectionEstablished event because new client connection doesn't mean the client is ready for
+	// service requests
+	events.OnEvent(events.EventServiceNewProvider, e.handleNewServiceProviderEvent)
 	events.OnEvent(events.EventClientConnectionClosed, e.handleClientConnectionChangeEvent)
 	events.OnEvent(events.EventClientConnectionGone, e.handleClientConnectionChangeEvent)
+}
+
+func (e *RelayServiceRequestExecutor) handleNewServiceProviderEvent(event *messages.Message) {
+	if (string)(event.Payload()) == e.serviceId {
+		e.logger.Printf("receive new service provider event for %s", e.serviceId)
+		e.updateConnections()
+	}
 }
 
 func (e *RelayServiceRequestExecutor) handleClientConnectionChangeEvent(event *messages.Message) {
 	if (string)(event.Payload()) == e.providerId {
 		e.logger.Printf("receive client connection change event for %s", e.providerId)
-		err := e.updateConnections()
-		if err != nil {
-			e.logger.Printf("update connections failed due to %s", err.Error())
-		}
+		e.updateConnections()
 	}
 }
 
 func (e *RelayServiceRequestExecutor) updateConnections() error {
 	conns, err := e.connectionManager.GetConnectionsByClientId(e.providerId)
 	if err != nil {
+		e.logger.Printf("update connection failed due to %s", err.Error())
 		return err
 	}
 	e.connections = conns
+	e.logger.Println("new connections:", conns)
 	return nil
 }
 

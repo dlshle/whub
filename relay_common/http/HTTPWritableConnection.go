@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 	"wsdk/common/async"
@@ -86,6 +87,10 @@ func (h *HTTPWritableConnection) OnClose(f func(error)) {
 
 func (h *HTTPWritableConnection) Close() error {
 	return h.Send(messages.NewACKMessage("", "", h.addr, h.addr))
+}
+
+func (h *HTTPWritableConnection) String() string {
+	return fmt.Sprintf("{\"type\":\"%s\",\"address\":\"%s\"}", base_conn.TypeString(base_conn.TypeHTTP), h.Address())
 }
 
 func (h *HTTPWritableConnection) Init(w http.ResponseWriter, addr string, logger *logger.SimpleLogger) {

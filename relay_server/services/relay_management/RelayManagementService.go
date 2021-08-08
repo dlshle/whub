@@ -5,14 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"wsdk/common/connection"
 	"wsdk/common/utils"
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/controllers/client_manager"
+	"wsdk/relay_server/controllers/connection_manager"
 	"wsdk/relay_server/controllers/service_manager"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
+	request_executor "wsdk/relay_server/request"
 	"wsdk/relay_server/service_base"
 	server_utils "wsdk/relay_server/utils"
 )
@@ -28,9 +31,10 @@ const (
 
 type RelayManagementService struct {
 	*service_base.NativeService
-	clientManager  client_manager.IClientManager   `$inject:""`
-	serviceManager service_manager.IServiceManager `$inject:""`
-	servicePool    *sync.Pool
+	clientManager     client_manager.IClientManager         `$inject:""`
+	serviceManager    service_manager.IServiceManager       `$inject:""`
+	connectionManager connection_manager.IConnectionManager `$inject:""`
+	servicePool       *sync.Pool
 }
 
 func (s *RelayManagementService) Init() error {
@@ -40,12 +44,9 @@ func (s *RelayManagementService) Init() error {
 			return new(service_base.RelayService)
 		},
 	}
-	container.Container.Fill(s)
-	if s.clientManager == nil {
-		return errors.New("can not get clientManager from container")
-	}
-	if s.serviceManager == nil {
-		return errors.New("can not get serviceManager from container")
+	err := container.Container.Fill(s)
+	if err != nil {
+		return err
 	}
 	return s.init()
 }
@@ -95,7 +96,16 @@ func (s *RelayManagementService) validateClient(clientId string) error {
 	if !s.clientManager.HasClient(clientId) {
 		return errors.New(fmt.Sprintf("invalid client id %s, can not find client id from client manager.", clientId))
 	}
-	return nil
+	conns, err := s.connectionManager.GetConnectionsByClientId(clientId)
+	if err != nil {
+		return err
+	}
+	for _, conn := range conns {
+		if connection.IsAsyncType(conn.ConnectionType()) {
+			return nil
+		}
+	}
+	return errors.New("only async connection type supports relay service")
 }
 
 func (s *RelayManagementService) RegisterService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
@@ -103,9 +113,7 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 	defer s.Logger().Printf("service %v registration result: %s",
 		utils.ConditionalPick(request != nil, request.Message, nil),
 		utils.ConditionalPick(err != nil, err, "success"))
-
 	s.Logger().Println("register service: ", utils.ConditionalPick(request != nil, request.Message, nil))
-
 	if err = s.validateClient(request.From()); err != nil {
 		return err
 	}
@@ -117,10 +125,17 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 	if client == nil {
 		return errors.New("unable to find the client by providerId " + descriptor.Provider.Id)
 	}
+	if s.serviceManager.HasService(descriptor.Id) {
+		// service already running, notify service executor to add extra connection
+		events.EmitEvent(events.EventServiceNewProvider, descriptor.Id)
+		s.ResolveByAck(request)
+		return nil
+	}
 	service := s.servicePool.Get().(service_base.IRelayService)
-	service.Init(descriptor, client, client.MessageRelayExecutor())
+	service.Init(descriptor, client, request_executor.NewRelayServiceRequestExecutor(descriptor.Id, client.Id()))
 	err = s.serviceManager.RegisterService(descriptor.Id, service)
 	if err != nil {
+		s.servicePool.Put(service)
 		return err
 	}
 	s.ResolveByAck(request)

@@ -43,6 +43,7 @@ type IConnection interface {
 	OnClose(func(error))
 	Close() error
 	ConnectionType() uint8
+	String() string
 }
 
 func NewConnection(
@@ -201,4 +202,12 @@ func (c *Connection) ttlJob() {
 
 func (c *Connection) ConnectionType() uint8 {
 	return c.conn.ConnectionType()
+}
+
+func (c *Connection) String() string {
+	return fmt.Sprintf("{\"type\":\"%s\",\"address\":\"%s\"}", c.TypeString(), c.Address())
+}
+
+func (c *Connection) TypeString() string {
+	return connection.TypeString(c.ConnectionType())
 }

@@ -7,7 +7,6 @@ import (
 	common_connection "wsdk/relay_common/connection"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
-	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/controllers/anonymous_client_manager"
@@ -53,8 +52,8 @@ func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IC
 	wrappedConn.OnIncomingMessage(func(message *messages.Message) {
 		h.messageDispatcher.Dispatch(message, wrappedConn)
 	})
-	rawClient := client.NewAnonymousClient(wrappedConn)
-	h.anonymousClientManager.AcceptClient(rawClient.Address(), rawClient)
+	// rawClient := client.NewAnonymousClient(wrappedConn)
+	// h.anonymousClientManager.AcceptClient(rawClient.Address(), rawClient)
 	// TODO remove above line, keep for now just for compatibility
 	h.connectionManager.Accept(wrappedConn)
 	// no need to run this on a different goroutine since each new connection is on its own coroutine

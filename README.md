@@ -10,6 +10,9 @@ Ideally, one client handles one service(maybe will handler multiple services in 
 
 A service provider has to use an async connection(TCP/WebSocket/maybe UDP) to communicate with the server.
 
+A service can also have multiple provider connections for better availability. Once a new provider registers a service, 
+a new connection channel for the service is established.
+
 ## TODO Tasks
 * Better client design
   * No connection inside client
