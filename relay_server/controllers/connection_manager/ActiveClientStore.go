@@ -12,15 +12,21 @@ const (
 
 // clinetId: []connectionAddress
 type IActiveClientConnectionStore interface {
-	Add(string, string) error
-	Has(string) (bool, error)
-	Delete(string, string) error
-	DeleteAll(string) error
-	Get(string) ([]string, error)
+	Add(clientId string, addr string) error
+	Has(clientId string) (bool, error)
+	Delete(clientId string, addr string) error
+	DeleteAll(clientId string) error
+	Get(clientId string) ([]string, error)
 }
 
 type InMemoryActiveClientConnectionStore struct {
 	store map[string]data_structures.ISet
+}
+
+func NewInMemoryActiveClientConnectionStore() IActiveClientConnectionStore {
+	return &InMemoryActiveClientConnectionStore{
+		store: make(map[string]data_structures.ISet),
+	}
 }
 
 func (s *InMemoryActiveClientConnectionStore) getOrCreateAndAdd(clientId string, addr string) bool {

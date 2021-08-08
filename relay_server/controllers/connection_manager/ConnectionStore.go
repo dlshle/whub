@@ -12,12 +12,19 @@ type IConnectionStore interface {
 	Has(string) (bool, error)
 	Delete(string) error
 	Get(string) (connection.IConnection, error)
+	GetAll() ([]connection.IConnection, error)
 }
 
 type InMemoryConnectionStore struct {
-	pool   *sync.Pool
 	store  map[string]connection.IConnection
 	rwLock *sync.RWMutex
+}
+
+func NewInMemoryConnectionStore() IConnectionStore {
+	return &InMemoryConnectionStore{
+		store:  make(map[string]connection.IConnection),
+		rwLock: new(sync.RWMutex),
+	}
 }
 
 func (s *InMemoryConnectionStore) withWrite(cb func()) {
@@ -63,6 +70,17 @@ func (s *InMemoryConnectionStore) Delete(addr string) error {
 func (s *InMemoryConnectionStore) Get(addr string) (conn connection.IConnection, err error) {
 	s.withRead(func() {
 		conn = s.store[addr]
+	})
+	return
+}
+
+func (s *InMemoryConnectionStore) GetAll() (connections []connection.IConnection, err error) {
+	s.withRead(func() {
+		var allConns []connection.IConnection
+		for _, c := range s.store {
+			allConns = append(allConns, c)
+		}
+		connections = allConns
 	})
 	return
 }

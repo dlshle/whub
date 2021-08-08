@@ -1,10 +1,12 @@
 package connection_manager
 
 import (
+	"errors"
+	"fmt"
 	"wsdk/common/logger"
-	"wsdk/common/utils"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_server/container"
+	"wsdk/relay_server/context"
 )
 
 // TODO replace anonymous client manager with this, then change client manager to actual registered client manager
@@ -17,13 +19,20 @@ type ConnectionManager struct {
 
 type IConnectionManager interface {
 	Accept(connection.IConnection) error
-	Disconnect(connection.IConnection) error
+	Disconnect(string) error
 	DisconnectAllConnections() error
+	GetConnectionByAddress(string) (connection.IConnection, error)
 	GetConnectionsByClientId(string) ([]connection.IConnection, error)
 	RegisterClientToConnection(clientId string, addr string) error
-	// handleClientDowngrade(credential removal)
-	// handleConnectionClosed
-	// handleConnectionError
+	WithAllConnections(func(iConnection connection.IConnection)) error
+}
+
+func NewConnectionManager() IConnectionManager {
+	return &ConnectionManager{
+		logger:            context.Ctx.Logger().WithPrefix("[ConnectionManager]"),
+		connStore:         NewInMemoryConnectionStore(),
+		activeClientStore: NewInMemoryActiveClientConnectionStore(),
+	}
 }
 
 func (m *ConnectionManager) initNotifications() {
@@ -59,7 +68,8 @@ func (m *ConnectionManager) handleConnectionClosed(conn connection.IConnection, 
 }
 
 func (m *ConnectionManager) handleConnectionError(conn connection.IConnection, err error) {
-	m.logger.Printf("connection %s has encountered an error %s", conn.Address(), err.Error())
+	m.logger.Printf("connection %s has encountered an error %s, closing connection...", conn.Address(), err.Error())
+	conn.Close()
 }
 
 func (m *ConnectionManager) handleClientDowngrade(clientId string) {
@@ -69,11 +79,83 @@ func (m *ConnectionManager) handleClientDowngrade(clientId string) {
 	}
 }
 
-// TODO finish
+func (m *ConnectionManager) Disconnect(addr string) error {
+	c, err := m.connStore.Get(addr)
+	if err != nil {
+		return err
+	}
+	if c == nil {
+		return errors.New(fmt.Sprintf("can not find connection by address %s", addr))
+	}
+	return c.Close()
+}
+
+func (m *ConnectionManager) DisconnectAllConnections() (err error) {
+	conns, err := m.connStore.GetAll()
+	if err != nil {
+		return
+	}
+	for _, c := range conns {
+		e := c.Close()
+		if e != nil {
+			err = e
+		}
+	}
+	return
+}
+
+func (m *ConnectionManager) GetConnectionByAddress(address string) (connection.IConnection, error) {
+	return m.connStore.Get(address)
+}
+
+func (m *ConnectionManager) GetConnectionsByClientId(clientId string) ([]connection.IConnection, error) {
+	addrs, err := m.activeClientStore.Get(clientId)
+	if err != nil {
+		return nil, err
+	}
+	conns := make([]connection.IConnection, len(addrs), len(addrs))
+	for i, a := range addrs {
+		conns[i], err = m.connStore.Get(a)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return conns, nil
+}
+
+func (m *ConnectionManager) RegisterClientToConnection(clientId string, addr string) error {
+	conn, err := m.connStore.Get(addr)
+	if err != nil {
+		return err
+	}
+	if conn == nil {
+		return errors.New(fmt.Sprintf("can not find connection by address %s", addr))
+	}
+	err = m.activeClientStore.Add(clientId, addr)
+	if err != nil {
+		return err
+	}
+	conn.OnClose(func(err error) {
+		m.handleConnectionClosed(conn, err)
+		// delete the clientId-connection record from active client store
+		m.activeClientStore.Delete(clientId, addr)
+	})
+	return nil
+}
+
+func (m *ConnectionManager) WithAllConnections(cb func(iConnection connection.IConnection)) error {
+	conns, err := m.connStore.GetAll()
+	if err != nil {
+		return err
+	}
+	for _, c := range conns {
+		cb(c)
+	}
+	return nil
+}
 
 func init() {
 	container.Container.Singleton(func() IConnectionManager {
-		// TODO use NewFunc
-		return nil
+		return NewConnectionManager()
 	})
 }
