@@ -70,7 +70,7 @@ func (s *MessagingService) Broadcast(request *service.ServiceRequest, pathParams
 	errMsg := strings.Builder{}
 	s.WithAllClients(func(clients []*client.Client) {
 		for _, c := range clients {
-			err := c.Send(request.Message)
+			err = c.Send(request.Message)
 			if err != nil {
 				errMsg.WriteString(err.Error())
 				errMsg.WriteByte('\n')

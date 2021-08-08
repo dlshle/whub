@@ -110,7 +110,7 @@ func (c *Client) onConnected(rawConn base_conn.IConnection) {
 }
 
 func (c *Client) Request(message *messages.Message) (*messages.Message, error) {
-	return c.client.Connection().Request(message)
+	return c.conn.Request(message)
 }
 
 func (c *Client) Role() roles.ICommonClient {

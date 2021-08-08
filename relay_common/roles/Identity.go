@@ -107,7 +107,6 @@ type ClientExtraInfoDescriptor struct {
 
 type ICommonClient interface {
 	ICommonRole
-	Connection() connection.IConnection
 	SetPScope(pscope int)
 	Scopes() []int
 	HasScope(int) bool
@@ -116,10 +115,6 @@ type ICommonClient interface {
 	CType() int
 	SetCType(ctype int)
 	Describe() RoleDescriptor
-}
-
-func (c *CommonClient) Connection() connection.IConnection {
-	return c.IConnection
 }
 
 func (c *CommonClient) Scopes() (scopes []int) {
