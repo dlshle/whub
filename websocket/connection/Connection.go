@@ -26,15 +26,14 @@ type WsConnection struct {
 	connectedTime time.Time
 	lastRecvTime  time.Time
 	lastSendTime  time.Time
-	isClosing     bool
 	state         int
-	rwLock        *sync.RWMutex
+	lock          *sync.Mutex
 	closeChannel  chan bool
 }
 
 func NewWsConnection(conn *websocket.Conn, onMessage func([]byte), onClose func(error), onError func(error)) connection.IConnection {
 	now := time.Now()
-	return &WsConnection{conn, onMessage, onClose, onError, now, now, now, false, 0, new(sync.RWMutex), make(chan bool)}
+	return &WsConnection{conn, onMessage, onClose, onError, now, now, now, 0, new(sync.Mutex), make(chan bool)}
 }
 
 type IWsConnection interface {
@@ -50,31 +49,21 @@ type IWsConnection interface {
 	String() string
 }
 
-func (c *WsConnection) withWrite(cb func()) {
-	c.rwLock.Lock()
-	defer c.rwLock.Unlock()
+func (c *WsConnection) withLock(cb func()) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	cb()
 }
 
-func (c *WsConnection) withRead(cb func() interface{}) interface{} {
-	c.rwLock.RLock()
-	defer c.rwLock.RUnlock()
-	return cb()
-}
-
 func (c *WsConnection) State() int {
-	return c.withRead(func() interface{} {
-		return c.state
-	}).(int)
+	return c.state
 }
 
 func (c *WsConnection) setState(state int) {
 	if state < 0 || state > StateDisconnected {
 		return
 	}
-	c.withWrite(func() {
-		c.state = state
-	})
+	c.state = state
 }
 
 func (c *WsConnection) Close() (err error) {
@@ -82,9 +71,6 @@ func (c *WsConnection) Close() (err error) {
 		return errors.New("err: closing a closing connection")
 	}
 	c.setState(StateClosing)
-	c.rwLock.Lock()
-	c.isClosing = true
-	c.rwLock.Unlock()
 	err = c.conn.Close()
 	if c.onClose != nil {
 		c.onClose(err)
@@ -124,7 +110,7 @@ func (c *WsConnection) Read() ([]byte, error) {
 
 func (c *WsConnection) Write(stream []byte) (err error) {
 	// use write lock to prevent concurrent write
-	c.withWrite(func() {
+	c.withLock(func() {
 		t := time.Now()
 		err = c.conn.WriteMessage(1, stream)
 		if err != nil {
@@ -139,21 +125,15 @@ func (c *WsConnection) Address() string {
 }
 
 func (c *WsConnection) OnClose(cb func(error)) {
-	c.withWrite(func() {
-		c.onClose = cb
-	})
+	c.onClose = cb
 }
 
 func (c *WsConnection) OnError(cb func(error)) {
-	c.withWrite(func() {
-		c.onError = cb
-	})
+	c.onError = cb
 }
 
 func (c *WsConnection) OnMessage(cb func([]byte)) {
-	c.withWrite(func() {
-		c.onMessage = cb
-	})
+	c.onMessage = cb
 }
 
 func (c *WsConnection) String() string {
@@ -170,4 +150,8 @@ func (c *WsConnection) handleError(err error) {
 
 func (c *WsConnection) ConnectionType() uint8 {
 	return connection.TypeWS
+}
+
+func (c *WsConnection) IsLive() bool {
+	return c.State() == StateReading
 }

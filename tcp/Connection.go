@@ -146,3 +146,7 @@ func (c *TCPConnection) String() string {
 func (c *TCPConnection) ConnectionType() uint8 {
 	return connection.TypeTCP
 }
+
+func (c *TCPConnection) IsLive() bool {
+	return c.State() == connection.StateReading
+}

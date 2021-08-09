@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"wsdk/common/data_structures"
 	"wsdk/common/utils"
 )
 
@@ -224,10 +223,9 @@ func (n *trieNode) findByPath(path string) *trieNode {
 			var subPath string
 			subPath, remaining = splitRemaining(remaining)
 			if curr.wildcardChild != nil {
-				// add param
+				curr = curr.wildcardChild
 				break
 			} else if curr.paramChild != nil {
-				// add param
 				curr = curr.paramChild
 			} else {
 				curr = curr.constChildren[fmt.Sprintf("%c%s", token, subPath)]
@@ -323,33 +321,18 @@ func (n *trieNode) path() (path string, isConst bool) {
 }
 
 type TrieTree struct {
-	root              *trieNode
-	constPathMap      map[string]interface{} // initially nil, when a new path has no : or *, it will be registered
-	unCompactedLeaves *data_structures.LinkedList
-	size              int
+	root *trieNode
+	size int
 }
 
 func NewTrieTree() *TrieTree {
 	return &TrieTree{
-		root:              &trieNode{parent: nil},
-		constPathMap:      make(map[string]interface{}),
-		unCompactedLeaves: data_structures.NewLinkedList(false),
+		root: &trieNode{parent: nil},
 	}
 }
 
 func (t *TrieTree) Size() int {
 	return t.size
-}
-
-func (t *TrieTree) compact() {
-	for t.unCompactedLeaves.Size() > 0 {
-		node := t.unCompactedLeaves.Pop().(*trieNode)
-		path, isConst := node.path()
-		if isConst {
-			node.remove()
-			t.constPathMap[path] = node.value
-		}
-	}
 }
 
 func (t *TrieTree) Match(path string) (*MatchContext, error) {
@@ -360,15 +343,6 @@ func (t *TrieTree) Match(path string) (*MatchContext, error) {
 	queryParams, err := parseQueryParams(paramStr)
 	if err != nil {
 		return nil, err
-	}
-	if t.constPathMap[remaining] != nil {
-		if err != nil {
-			return nil, err
-		}
-		return &MatchContext{
-			QueryParams: queryParams,
-			Value:       t.constPathMap[remaining],
-		}, nil
 	}
 	c, e := t.root.matchByPath(remaining, &MatchContext{
 		PathParams:  make(map[string]string),
@@ -381,21 +355,12 @@ func (t *TrieTree) Match(path string) (*MatchContext, error) {
 }
 
 func (t *TrieTree) Add(path string, value interface{}, override bool) error {
-	node, err := t.root.addPath(UriContext{make(map[string]bool)}, path, value, override)
-	t.unCompactedLeaves.Append(node)
-	if t.unCompactedLeaves.Size() >= DefaultCompactSize {
-		t.compact()
-	}
+	_, err := t.root.addPath(UriContext{make(map[string]bool)}, path, value, override)
 	t.size++
 	return err
 }
 
 func (t *TrieTree) Remove(path string) bool {
-	if t.constPathMap[path] != nil {
-		delete(t.constPathMap, path)
-		t.size--
-		return true
-	}
 	node := t.root.findByPath(path)
 	if node == nil {
 		return false
@@ -414,22 +379,13 @@ func (t *TrieTree) SupportsUri(path string) bool {
 	if err != nil {
 		return false
 	}
-	if t.constPathMap[remaining] != nil {
-		if err != nil {
-			return false
-		}
-		return true
-	}
 	n := t.root.findByPath(remaining)
 	if n == nil {
 		return false
 	}
-	return true
+	return n.value != nil
 }
 
 func (t *TrieTree) RemoveAll() {
-	for k, _ := range t.constPathMap {
-		delete(t.constPathMap, k)
-	}
 	t.root.clean()
 }

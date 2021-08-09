@@ -4,9 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"wsdk/common/connection"
 	"wsdk/common/logger"
 )
+
+const DefaultRetryCount = 3
 
 type TCPClient struct {
 	serverAddr      string
@@ -19,6 +22,15 @@ type TCPClient struct {
 	onConnectionErr func(err error)
 
 	conn connection.IConnection
+}
+
+func NewTCPClient(serverAddr string, serverPort int, myId string) connection.IClient {
+	return &TCPClient{
+		serverAddr: serverAddr,
+		serverPort: serverPort,
+		retryCount: DefaultRetryCount,
+		logger:     logger.New(os.Stdout, "[TCPClient]", false),
+	}
 }
 
 func (c *TCPClient) Connect() error {

@@ -66,3 +66,12 @@ func (s *NativeService) UnregisterRoute(shortUri string) (err error) {
 func (s *NativeService) Init() error {
 	return errors.New("current native service did not implement Init() interface")
 }
+
+func (s *NativeService) InitRoutes(routes map[string]service.RequestHandler) (err error) {
+	for k, v := range routes {
+		if err = s.RegisterRoute(k, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}

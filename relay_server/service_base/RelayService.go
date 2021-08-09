@@ -21,7 +21,8 @@ type IRelayService interface {
 	Update(descriptor service.ServiceDescriptor) error
 }
 
-func (s *RelayService) Init(descriptor service.ServiceDescriptor,
+func (s *RelayService) Init(
+	descriptor service.ServiceDescriptor,
 	provider IServiceProvider,
 	executor service.IRequestExecutor) {
 	s.Service = NewService(descriptor.Id, descriptor.Description, provider, executor, descriptor.ServiceUris, descriptor.ServiceType, descriptor.AccessType, descriptor.ExecutionType)

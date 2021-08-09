@@ -12,6 +12,7 @@ type IConnection interface {
 	State() int
 	ReadLoop()
 	String() string
+	IsLive() bool
 }
 
 const (

@@ -99,5 +99,17 @@ func TestTrieTree(t *testing.T) {
 		test_utils.NewTestCase("Add wildcard over const", "", func() bool {
 			return tree.Add("/x/*stuff", true, true) != nil
 		}),
+		test_utils.NewTestCase("/x/:y, and then /x should not return err", "", func() bool {
+			tree.RemoveAll()
+			err := tree.Add("/x/:y", true, true)
+			if err != nil {
+				return false
+			}
+			err = tree.Add("/x", true, true)
+			if err != nil {
+				return false
+			}
+			return true
+		}),
 	}).Do(t)
 }

@@ -20,7 +20,7 @@ import (
 // TODO
 type Client struct {
 	connectionType uint8
-	wclient        WSClient.IWClient
+	wclient        base_conn.IClient
 	client         roles.ICommonClient
 	// serviceMap map[string]IClientService // id -- [listener functions]
 	service                     IClientService

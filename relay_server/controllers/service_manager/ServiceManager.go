@@ -47,6 +47,7 @@ type IServiceManager interface {
 	FindServiceByUri(uri string) server_service.IService
 	SupportsUri(uri string) bool
 
+	DescribeAllRelayServices() []service.ServiceDescriptor
 	DescribeAllServices() []service.ServiceDescriptor
 	UpdateService(descriptor service.ServiceDescriptor) error
 }
@@ -244,6 +245,18 @@ func (s *ServiceManager) UpdateService(descriptor service.ServiceDescriptor) err
 		}
 		return nil
 	})
+}
+
+func (s *ServiceManager) DescribeAllRelayServices() []service.ServiceDescriptor {
+	descriptors := s.DescribeAllServices()
+	// var relayDescriptors []service.ServiceDescriptor
+	relayDescriptors := []service.ServiceDescriptor{}
+	for _, d := range descriptors {
+		if d.ServiceType == service.ServiceTypeRelay {
+			relayDescriptors = append(relayDescriptors, d)
+		}
+	}
+	return relayDescriptors
 }
 
 func (s *ServiceManager) addUriRoute(service server_service.IService, route string) (err error) {

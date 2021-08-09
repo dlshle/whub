@@ -70,20 +70,8 @@ type WClient struct {
 	conn      base_conn.IConnection
 }
 
-func New(config *WClientConfig) IWClient {
-	return &WClient{config.serverUrl, config.WClientConnectionHandler, logger.New(os.Stdout, "[wclient]", true), nil}
-}
-
-type IWClient interface {
-	Connect() error
-	Disconnect() error
-	Write(data []byte) error
-	Read() ([]byte, error)
-	ReadLoop()
-	OnConnectionEstablished(func(conn base_conn.IConnection))
-	OnDisconnect(func(error))
-	OnMessage(func([]byte))
-	OnError(func(error))
+func New(config *WClientConfig) base_conn.IClient {
+	return &WClient{config.serverUrl, config.WClientConnectionHandler, logger.New(os.Stdout, "[WebSocketClient]", true), nil}
 }
 
 func (c *WClient) Connect() error {

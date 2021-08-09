@@ -75,24 +75,17 @@ func (s *RelayManagementService) initNotificationHandlers() {
 	})
 }
 
-func (s *RelayManagementService) initRoutes() (err error) {
-	err = s.RegisterRoute(RouteRegisterService, s.RegisterService)
-	if err != nil {
-		return
-	}
-	err = s.RegisterRoute(RouteUnregisterService, s.UnregisterService)
-	if err != nil {
-		return
-	}
-	err = s.RegisterRoute(RouteUpdateService, s.UpdateService)
-	if err != nil {
-		return
-	}
-	err = s.RegisterRoute(RouteGetServicesByClientId, s.GetServiceByClientId)
-	return
+func (s *RelayManagementService) initRoutes() error {
+	routeMap := make(map[string]service_common.RequestHandler)
+	routeMap[RouteRegisterService] = s.RegisterService
+	routeMap[RouteUnregisterService] = s.UnregisterService
+	routeMap[RouteUpdateService] = s.UpdateService
+	routeMap[RouteGetAllServices] = s.GetAllRelayServices
+	routeMap[RouteGetServicesByClientId] = s.GetServiceByClientId
+	return s.InitRoutes(routeMap)
 }
 
-func (s *RelayManagementService) validateClient(clientId string) error {
+func (s *RelayManagementService) validateClientConnection(clientId string) error {
 	if !s.clientManager.HasClient(clientId) {
 		return errors.New(fmt.Sprintf("invalid client id %s, can not find client id from client manager.", clientId))
 	}
@@ -109,12 +102,11 @@ func (s *RelayManagementService) validateClient(clientId string) error {
 }
 
 func (s *RelayManagementService) RegisterService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	// TODO only async connections can register a new service
 	defer s.Logger().Printf("service %v registration result: %s",
 		utils.ConditionalPick(request != nil, request.Message, nil),
 		utils.ConditionalPick(err != nil, err, "success"))
 	s.Logger().Println("register service: ", utils.ConditionalPick(request != nil, request.Message, nil))
-	if err = s.validateClient(request.From()); err != nil {
+	if err = s.validateClientConnection(request.From()); err != nil {
 		return err
 	}
 	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
@@ -147,7 +139,7 @@ func (s *RelayManagementService) UnregisterService(request *service_common.Servi
 		utils.ConditionalPick(request != nil, request.Message, nil),
 		utils.ConditionalPick(err != nil, err, "success"))
 	s.Logger().Println("un-register service: ", utils.ConditionalPick(request != nil, request.Message, nil))
-	if err = s.validateClient(request.From()); err != nil {
+	if err = s.validateClientConnection(request.From()); err != nil {
 		return err
 	}
 	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
@@ -175,7 +167,7 @@ func (s *RelayManagementService) UnregisterService(request *service_common.Servi
 }
 
 func (s *RelayManagementService) UpdateService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
-	if err := s.validateClient(request.From()); err != nil {
+	if err := s.validateClientConnection(request.From()); err != nil {
 		return err
 	}
 	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
@@ -209,6 +201,16 @@ func (s *RelayManagementService) GetServiceByClientId(request *service_common.Se
 		return err
 	}
 	request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, marshalled))
+	return nil
+}
+
+func (s *RelayManagementService) GetAllRelayServices(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+	services := s.serviceManager.DescribeAllRelayServices()
+	marshalled, err := json.Marshal(services)
+	if err != nil {
+		return err
+	}
+	s.ResolveByResponse(request, marshalled)
 	return nil
 }
 
