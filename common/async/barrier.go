@@ -5,19 +5,19 @@ import (
 	"sync/atomic"
 )
 
-type Barrier struct {
+type WaitLock struct {
 	cond   *sync.Cond
 	isOpen atomic.Value
 }
 
-func (b *Barrier) Open() {
+func (b *WaitLock) Open() {
 	if !b.IsOpen() {
 		b.isOpen.Store(true)
 		b.cond.Broadcast()
 	}
 }
 
-func (b *Barrier) Wait() {
+func (b *WaitLock) Wait() {
 	if b.IsOpen() {
 		return
 	}
@@ -26,12 +26,18 @@ func (b *Barrier) Wait() {
 	b.cond.L.Unlock()
 }
 
-func (b *Barrier) IsOpen() bool {
+func (b *WaitLock) IsOpen() bool {
 	return b.isOpen.Load().(bool)
 }
 
-func NewBarrier() *Barrier {
-	b := &Barrier{
+func (b *WaitLock) Lock() {
+	if b.IsOpen() {
+		b.isOpen.Store(false)
+	}
+}
+
+func NewWaitLock() *WaitLock {
+	b := &WaitLock{
 		sync.NewCond(&sync.Mutex{}),
 		atomic.Value{},
 	}
@@ -40,7 +46,7 @@ func NewBarrier() *Barrier {
 }
 
 type StatefulBarrier struct {
-	b     *Barrier
+	b     *WaitLock
 	state atomic.Value
 }
 
@@ -63,7 +69,7 @@ func (s *StatefulBarrier) Get() interface{} {
 
 func NewStatefulBarrier() *StatefulBarrier {
 	return &StatefulBarrier{
-		b:     NewBarrier(),
+		b:     NewWaitLock(),
 		state: atomic.Value{},
 	}
 }

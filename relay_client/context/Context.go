@@ -38,7 +38,7 @@ type Context struct {
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
 	logger              *logger.SimpleLogger
-	barrier             *async.Barrier
+	startWaiter         *async.WaitLock
 }
 
 type IContext interface {
@@ -58,7 +58,7 @@ func NewContext() IContext {
 		lock:          new(sync.Mutex),
 		messageParser: messages.NewFBMessageParser(),
 		logger:        logger.New(os.Stdout, "[WClient]", true),
-		barrier:       async.NewBarrier(),
+		startWaiter:   async.NewWaitLock(),
 	}
 }
 
@@ -71,11 +71,11 @@ func (c *Context) withLock(cb func()) {
 func (c *Context) Start(identity roles.IDescribableRole, server roles.ICommonServer) {
 	c.identity = identity
 	c.server = server
-	c.barrier.Open()
+	c.startWaiter.Open()
 }
 
 func (c *Context) Identity() roles.IDescribableRole {
-	c.barrier.Wait()
+	c.startWaiter.Wait()
 	return c.identity
 }
 

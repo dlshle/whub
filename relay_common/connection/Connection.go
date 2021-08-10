@@ -128,7 +128,7 @@ func (c *Connection) Request(message *messages.Message) (response *messages.Mess
 }
 
 func (c *Connection) RequestWithTimeout(message *messages.Message, timeout time.Duration) (response *messages.Message, err error) {
-	barrier := async.NewBarrier()
+	barrier := async.NewWaitLock()
 	if err = c.Send(message); err != nil {
 		return
 	}

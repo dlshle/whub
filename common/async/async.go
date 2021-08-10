@@ -51,7 +51,7 @@ type IAsyncPool interface {
 	start()
 	Stop()
 	schedule(task AsyncTask)
-	Schedule(task AsyncTask) *Barrier
+	Schedule(task AsyncTask) *WaitLock
 	ScheduleComputable(computableTask ComputableAsyncTask) *StatefulBarrier
 	Verbose(use bool)
 	NumMaxWorkers() int
@@ -202,8 +202,8 @@ func (p *AsyncPool) schedule(task AsyncTask) {
 }
 
 // will block on channel buffer size exceeded
-func (p *AsyncPool) Schedule(task AsyncTask) *Barrier {
-	promise := NewBarrier()
+func (p *AsyncPool) Schedule(task AsyncTask) *WaitLock {
+	promise := NewWaitLock()
 	p.schedule(func() {
 		task()
 		promise.Open()

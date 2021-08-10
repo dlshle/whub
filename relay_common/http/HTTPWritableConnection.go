@@ -14,10 +14,10 @@ import (
 )
 
 type HTTPWritableConnection struct {
-	w      http.ResponseWriter
-	addr   string
-	logger *logger.SimpleLogger
-	b      *async.Barrier
+	w        http.ResponseWriter
+	addr     string
+	logger   *logger.SimpleLogger
+	waitLock *async.WaitLock
 }
 
 func (h *HTTPWritableConnection) Address() string {
@@ -38,11 +38,11 @@ func (h *HTTPWritableConnection) RequestWithTimeout(message *messages.Message, d
 }
 
 func (h *HTTPWritableConnection) Send(m *messages.Message) error {
-	if h.b.IsOpen() {
+	if h.waitLock.IsOpen() {
 		h.logger.Println("send to the same HTTP connection more than once")
 		return errors.New("unable to send more than once for HTTP connection")
 	}
-	defer h.b.Open()
+	defer h.waitLock.Open()
 	var err error
 	h.w.Header().Set("message-id", m.Id())
 	h.w.Header().Set("from", m.From())
@@ -97,11 +97,11 @@ func (h *HTTPWritableConnection) Init(w http.ResponseWriter, addr string, logger
 	h.w = w
 	h.addr = addr
 	h.logger = logger
-	h.b = async.NewBarrier()
+	h.waitLock = async.NewWaitLock()
 }
 
 func (h *HTTPWritableConnection) WaitDone() {
-	h.b.Wait()
+	h.waitLock.Wait()
 }
 
 func (h *HTTPWritableConnection) ConnectionType() uint8 {

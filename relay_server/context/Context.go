@@ -38,7 +38,7 @@ type Context struct {
 	serviceTaskPool     async.IAsyncPool
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
-	startBarrier        *async.Barrier
+	startWaiter         *async.WaitLock
 	logger              *logger.SimpleLogger
 }
 
@@ -68,7 +68,7 @@ func NewContext() *Context {
 		lock:                new(sync.Mutex),
 		ctx:                 &ctx,
 		cancelFunc:          cancel,
-		startBarrier:        async.NewBarrier(),
+		startWaiter:         async.NewWaitLock(),
 		logger:              logger.New(os.Stdout, "[WServer]", true),
 	}
 }
@@ -82,12 +82,12 @@ func (c *Context) withLock(cb func()) {
 func (c *Context) Start(server roles.ICommonServer) {
 	c.withLock(func() {
 		c.server = server
-		c.startBarrier.Open()
+		c.startWaiter.Open()
 	})
 }
 
 func (c *Context) Server() roles.IDescribableRole {
-	c.startBarrier.Wait()
+	c.startWaiter.Wait()
 	return c.server
 }
 

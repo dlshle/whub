@@ -16,7 +16,7 @@ const (
 type IServiceTaskQueue interface {
 	Get(id string) *ServiceRequest
 	Stop()
-	Schedule(message *ServiceRequest) *async.Barrier
+	Schedule(message *ServiceRequest) *async.WaitLock
 	Remove(id string) bool
 	Has(id string) bool
 	KillAll() error
@@ -88,7 +88,7 @@ func (p *ServiceTaskQueue) Remove(id string) bool {
 	return true
 }
 
-func (p *ServiceTaskQueue) Schedule(request *ServiceRequest) *async.Barrier {
+func (p *ServiceTaskQueue) Schedule(request *ServiceRequest) *async.WaitLock {
 	if p.Has(request.Id()) {
 		return nil
 	}
