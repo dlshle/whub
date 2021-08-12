@@ -1,9 +1,3 @@
-// deepcopy makes deep copies of things. A standard copy will copy the
-// pointers: deep copy copies the values pointed to.  Unexported field
-// values are not copied.
-//
-// Copyright (c)2014-2016, Joel Scoble (github.com/mohae), all rights reserved.
-// License: MIT, for more details check the included LICENSE file.
 package deepcopy
 
 import (

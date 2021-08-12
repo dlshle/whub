@@ -7,6 +7,7 @@ import (
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/controllers/client_manager"
+	"wsdk/relay_server/controllers/client_manager_v1"
 	"wsdk/relay_server/controllers/connection_manager"
 	"wsdk/relay_server/controllers/topic"
 )
@@ -72,7 +73,7 @@ func (c *PubSubController) Publish(topicId string, message *messages.Message) er
 func (c *PubSubController) Subscribe(clientId, topicId string) error {
 	client := c.clientManager.GetClient(clientId)
 	if client == nil {
-		return client_manager.NewClientNotFoundError(clientId)
+		return client_manager_v1.NewClientNotFoundError(clientId)
 	}
 	return c.topicManager.SubscribeClientToTopic(client.Id(), topicId)
 }
@@ -80,7 +81,7 @@ func (c *PubSubController) Subscribe(clientId, topicId string) error {
 func (c *PubSubController) Unsubscribe(clientId, topicId string) error {
 	client := c.clientManager.GetClient(clientId)
 	if client == nil {
-		return client_manager.NewClientNotFoundError(clientId)
+		return client_manager_v1.NewClientNotFoundError(clientId)
 	}
 	return c.topicManager.UnSubscribeClientToTopic(client.Id(), topicId)
 }
@@ -92,7 +93,7 @@ func (c *PubSubController) Topics() ([]topic.TopicDescriptor, error) {
 func (c *PubSubController) Remove(clientId, topicId string, removalMessage *messages.Message) error {
 	client := c.clientManager.GetClient(clientId)
 	if client == nil {
-		return client_manager.NewClientNotFoundError(clientId)
+		return client_manager_v1.NewClientNotFoundError(clientId)
 	}
 	topic, err := c.topicManager.GetTopic(topicId)
 	if err != nil {

@@ -12,4 +12,6 @@ require (
 	github.com/satori/go.uuid v1.2.0 // indirect
 	go.mongodb.org/mongo-driver v1.5.3
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6 // indirect
+	gorm.io/driver/mysql v1.1.2
+	gorm.io/gorm v1.21.13
 )

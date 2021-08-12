@@ -1,4 +1,4 @@
-package client_manager
+package client_manager_v1
 
 import (
 	"fmt"
