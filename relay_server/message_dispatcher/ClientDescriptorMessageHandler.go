@@ -14,16 +14,14 @@ import (
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/anonymous_client_manager"
 	"wsdk/relay_server/controllers/client_manager"
 	"wsdk/relay_server/controllers/connection_manager"
 )
 
 type ClientDescriptorMessageHandler struct {
-	anonymousClientManager anonymous_client_manager.IAnonymousClientManager `$inject:""`
-	clientManager          client_manager.IClientManager                    `$inject:""`
-	connectionManager      connection_manager.IConnectionManager            `$inject:""`
-	logger                 *logger.SimpleLogger
+	clientManager     client_manager.IClientManager         `$inject:""`
+	connectionManager connection_manager.IConnectionManager `$inject:""`
+	logger            *logger.SimpleLogger
 }
 
 func NewClientDescriptorMessageHandler() message_actions.IMessageHandler {
@@ -98,7 +96,7 @@ func (h *ClientDescriptorMessageHandler) unmarshallClientDescriptor(message *mes
 func (h *ClientDescriptorMessageHandler) handleClientRegistration(clientDescriptor roles.RoleDescriptor, clientExtraInfo roles.ClientExtraInfoDescriptor, conn connection.IConnection) {
 	// TODO remove this later
 	// h.anonymousClientManager.RemoveClient(conn.Address())
-	client := client.NewClient(conn, clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.CType, clientExtraInfo.CKey, clientExtraInfo.PScope)
+	client := client.NewClient(clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.CType, clientExtraInfo.CKey, clientExtraInfo.PScope)
 	h.connectionManager.RegisterClientToConnection(client.Id(), conn.Address())
-	h.clientManager.AcceptClient(client.Id(), client)
+	h.clientManager.AcceptClient(client.Id(), client, conn)
 }

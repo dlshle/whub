@@ -9,16 +9,13 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/anonymous_client_manager"
 	"wsdk/relay_server/controllers/client_manager"
 	"wsdk/relay_server/controllers/connection_manager"
 )
 
 type ClientConnectionHandler struct {
-	messageDispatcher      message_actions.IMessageDispatcher
-	clientManager          client_manager.IClientManager                    `$inject:""`
-	anonymousClientManager anonymous_client_manager.IAnonymousClientManager `$inject:""`
-	// TODO remove anonymousClientManager, keep for now just for compatibility
+	messageDispatcher message_actions.IMessageDispatcher
+	clientManager     client_manager.IClientManager         `$inject:""`
 	connectionManager connection_manager.IConnectionManager `$inject:""`
 	logger            *logger.SimpleLogger
 }

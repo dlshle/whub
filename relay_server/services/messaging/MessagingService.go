@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/controllers/client_manager"
+	"wsdk/relay_server/controllers/connection_manager"
 	"wsdk/relay_server/service_base"
 )
 
@@ -20,6 +22,7 @@ const (
 type MessagingService struct {
 	*service_base.NativeService
 	client_manager.IClientManager `$inject:""`
+	connManager                   connection_manager.IConnectionManager `$inject:""`
 	// logger *logger.SimpleLogger
 }
 
@@ -52,12 +55,28 @@ func (s *MessagingService) Init() (err error) {
 	return s.RegisterRoute(RouteBroadcast, s.Broadcast)
 }
 
-func (s *MessagingService) Send(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *MessagingService) sendToClient(id string, message *messages.Message, onSendErr func(err error)) error {
+	conns, err := s.connManager.GetConnectionsByClientId(id)
+	if err != nil {
+		return err
+	}
+	for _, conn := range conns {
+		err = conn.Send(message)
+		if err != nil && onSendErr != nil {
+			onSendErr(err)
+		}
+	}
+	return nil
+}
+
+func (s *MessagingService) Send(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	recv := s.GetClient(request.Message.To())
 	if recv == nil {
 		return errors.New(fmt.Sprintf("client %s is not online", request.Message.To()))
 	}
-	err := recv.Send(request.Message)
+	err = s.sendToClient(recv.Id(), request.Message, func(cerr error) {
+		err = cerr
+	})
 	if err != nil {
 		return err
 	}
@@ -70,7 +89,9 @@ func (s *MessagingService) Broadcast(request *service.ServiceRequest, pathParams
 	errMsg := strings.Builder{}
 	s.WithAllClients(func(clients []*client.Client) {
 		for _, c := range clients {
-			err = c.Send(request.Message)
+			err = s.sendToClient(c.Id(), request.Message, func(cerr error) {
+				err = cerr
+			})
 			if err != nil {
 				errMsg.WriteString(err.Error())
 				errMsg.WriteByte('\n')

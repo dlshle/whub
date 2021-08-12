@@ -73,7 +73,7 @@ func (c *Client) onConnected(rawConn base_conn.IConnection) {
 	conn := connection.NewConnection(context.Ctx.Logger().WithPrefix("[ServerConnection]"), rawConn, connection.DefaultTimeout, context.Ctx.MessageParser(), context.Ctx.NotificationEmitter())
 	c.conn = conn
 	c.logger.Println("connection to server has been established: ", conn.Address())
-	c.client = roles.NewClient(conn, "aa", "bb", roles.RoleTypeClient, "asd", 2)
+	c.client = roles.NewClient("aa", "bb", roles.RoleTypeClient, "asd", 2)
 	c.logger.Println("new client has been instantiated")
 	go c.wclient.ReadLoop()
 	serverDesc, err := conn.Request(messages.DraftMessage(c.client.Id(), "", "", messages.MessageTypeClientDescriptor, ([]byte)(c.client.Describe().String())))

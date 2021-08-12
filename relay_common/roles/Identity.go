@@ -2,7 +2,6 @@ package roles
 
 import (
 	"fmt"
-	"wsdk/relay_common/connection"
 )
 
 // Role types
@@ -91,7 +90,6 @@ func (rd RoleDescriptor) String() string {
 }
 
 type CommonClient struct {
-	connection.IConnection
 	*CommonRole
 	pScope     int // a 16-bit
 	cKey       string
@@ -156,14 +154,14 @@ func (c *CommonClient) Describe() RoleDescriptor {
 			c.Description(),
 			RoleTypeClientStr,
 			fmt.Sprintf("{\\\"pScope\\\": %d, \\\"cKey\\\": \\\"%s\\\", \\\"cType\\\": %d}", c.pScope, c.cKey, c.cType),
-			c.Address(),
+			"",
 		}
 	}
 	return *c.descriptor
 }
 
-func NewClient(conn connection.IConnection, id string, description string, cType int, cKey string, pScope int) *CommonClient {
-	return &CommonClient{IConnection: conn, CommonRole: NewCommonRole(id, description, RoleTypeClient), pScope: pScope, cKey: cKey, cType: cType}
+func NewClient(id string, description string, cType int, cKey string, pScope int) *CommonClient {
+	return &CommonClient{CommonRole: NewCommonRole(id, description, RoleTypeClient), pScope: pScope, cKey: cKey, cType: cType}
 }
 
 type CommonServer struct {

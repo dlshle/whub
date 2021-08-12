@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"wsdk/common/logger"
+	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
@@ -19,8 +20,13 @@ func init() {
 
 const ClientManagerId = "ClientManager"
 
+type ClientWithConn struct {
+	*client.Client
+	connection.IConnection
+}
+
 type ClientManager struct {
-	clients map[string]*client.Client
+	clients map[string]*ClientWithConn
 	lock    *sync.RWMutex
 	logger  *logger.SimpleLogger
 }
@@ -33,14 +39,12 @@ type IClientManager interface {
 	DisconnectClient(id string) error
 	DisconnectClientByAddr(addr string) error
 	DisconnectAllClients() error
-	AcceptClient(id string, client *client.Client) error
-	HandleClientConnectionClosed(c *client.Client, err error)
-	HandleClientConnectionError(c *client.Client, err error)
+	AcceptClient(id string, client *client.Client, conn connection.IConnection) error
 }
 
 func NewClientManager() IClientManager {
 	manager := &ClientManager{
-		clients: make(map[string]*client.Client),
+		clients: make(map[string]*ClientWithConn),
 		lock:    new(sync.RWMutex),
 		logger:  context.Ctx.Logger().WithPrefix("[ClientManager]"),
 	}
@@ -68,10 +72,23 @@ func (m *ClientManager) HasClient(id string) bool {
 func (m *ClientManager) GetClient(id string) *client.Client {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
+	if m.clients[id] == nil {
+		return nil
+	}
+	return m.clients[id].Client
+}
+
+func (m *ClientManager) GetClientWithConn(id string) *ClientWithConn {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	return m.clients[id]
 }
 
-func (m *ClientManager) AcceptClient(id string, client *client.Client) error {
+func (m *ClientManager) AcceptClient(id string, c *client.Client, conn connection.IConnection) error {
+	client := &ClientWithConn{
+		c,
+		conn,
+	}
 	if m.HasClient(id) {
 		return servererror.NewClientAlreadyConnectedError(id)
 	}
@@ -83,12 +100,12 @@ func (m *ClientManager) AcceptClient(id string, client *client.Client) error {
 	return nil
 }
 
-func (m *ClientManager) handleClientAccepted(client *client.Client) {
+func (m *ClientManager) handleClientAccepted(client *ClientWithConn) {
 	m.initClientCallbackHandlers(client)
 	events.EmitEvent(events.EventClientConnected, client.Id())
 }
 
-func (m *ClientManager) initClientCallbackHandlers(client *client.Client) {
+func (m *ClientManager) initClientCallbackHandlers(client *ClientWithConn) {
 	client.OnClose(func(err error) {
 		m.HandleClientConnectionClosed(client, err)
 	})
@@ -98,7 +115,7 @@ func (m *ClientManager) initClientCallbackHandlers(client *client.Client) {
 }
 
 func (m *ClientManager) DisconnectClient(id string) (err error) {
-	client := m.GetClient(id)
+	client := m.GetClientWithConn(id)
 	defer func() {
 		if err != nil {
 			m.logger.Printf("error while disconnecting client %s due to %v", id, err)
@@ -121,7 +138,7 @@ func (m *ClientManager) findClientByAddr(addr string) *client.Client {
 	defer m.lock.RUnlock()
 	for _, c := range m.clients {
 		if c.Address() == addr {
-			return c
+			return c.Client
 		}
 	}
 	return nil
@@ -136,7 +153,7 @@ func (m *ClientManager) WithAllClients(cb func(clients []*client.Client)) {
 	defer m.lock.RUnlock()
 	var clients []*client.Client
 	for _, c := range m.clients {
-		clients = append(clients, c)
+		clients = append(clients, c.Client)
 	}
 	cb(clients)
 }
@@ -159,7 +176,7 @@ func (m *ClientManager) DisconnectAllClients() error {
 	return errors.New(errMsgBuilder.String())
 }
 
-func (m *ClientManager) HandleClientConnectionClosed(c *client.Client, err error) {
+func (m *ClientManager) HandleClientConnectionClosed(c *ClientWithConn, err error) {
 	if err == nil {
 		// remove client_manager from connection
 		m.DisconnectClient(c.Id())
@@ -173,7 +190,7 @@ func (m *ClientManager) HandleClientConnectionClosed(c *client.Client, err error
 	}
 }
 
-func (m *ClientManager) HandleClientConnectionError(c *client.Client, err error) {
+func (m *ClientManager) HandleClientConnectionError(c *ClientWithConn, err error) {
 	// just log it
 	m.logger.Printf("client (%s, %s) on connection error %s", c.Id(), c.Address(), err.Error())
 }

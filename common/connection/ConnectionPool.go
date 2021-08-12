@@ -159,6 +159,7 @@ func (p *ConnectionPool) safeGet() (conn IConnection, err error) {
 	return
 }
 
+// TODO  we need to somehow return err on get timeout, Get should be something like doGet
 func (p *ConnectionPool) doGet() (IConnection, error) {
 	select {
 	case conn := <-p.consumerPool:
@@ -173,7 +174,6 @@ func (p *ConnectionPool) doGet() (IConnection, error) {
 	}
 }
 
-// TODO not quite right, we need to somehow return err on get timeout, refer to doGet
 func (p *ConnectionPool) Get() (IConnection, error) {
 	if p.IsClosed() {
 		return nil, NewConnectionPoolError(ConnectionPoolErrPoolClosed, "pool already closed")

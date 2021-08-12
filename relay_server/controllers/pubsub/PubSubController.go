@@ -2,16 +2,19 @@ package pubsub
 
 import (
 	"wsdk/common/logger"
+	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/controllers/client_manager"
+	"wsdk/relay_server/controllers/connection_manager"
 	"wsdk/relay_server/controllers/topic"
 )
 
 type PubSubController struct {
-	topicManager  topic.ITopicManager           `$inject:""`
-	clientManager client_manager.IClientManager `$inject:""`
+	topicManager  topic.ITopicManager                   `$inject:""`
+	clientManager client_manager.IClientManager         `$inject:""`
+	connManager   connection_manager.IConnectionManager `$inject:""`
 	logger        *logger.SimpleLogger
 }
 
@@ -34,6 +37,19 @@ func NewPubSubController() IPubSubController {
 	return c
 }
 
+func (c *PubSubController) getConnectionsAndSendByClientId(id string, message *messages.Message, onSendError func(connection.IConnection, error)) error {
+	conns, err := c.connManager.GetConnectionsByClientId(id)
+	if err != nil {
+		return err
+	}
+	for _, conn := range conns {
+		if cerr := conn.Send(message); cerr != nil {
+			onSendError(conn, cerr)
+		}
+	}
+	return nil
+}
+
 func (c *PubSubController) Publish(topicId string, message *messages.Message) error {
 	topic, err := c.topicManager.GetTopic(topicId)
 	if err != nil {
@@ -41,8 +57,12 @@ func (c *PubSubController) Publish(topicId string, message *messages.Message) er
 	}
 	for _, subscriber := range topic.Subscribers() {
 		if client := c.clientManager.GetClient(subscriber); client != nil {
-			if cerr := client.Send(message); cerr != nil {
+			cerr := c.getConnectionsAndSendByClientId(client.Id(), message, func(conn connection.IConnection, err error) {
+				c.logger.Printf("unable to broadcast message %d on topic %s to client %s(connection %s) due to %s", message.Id(), topicId, client.Id(), conn.Address(), err.Error())
+			})
+			if cerr != nil {
 				c.logger.Printf("unable to broadcast message %d on topic %s to %s due to %s", message.Id(), topicId, client.Id(), cerr.Error())
+				continue
 			}
 		}
 	}
@@ -90,9 +110,14 @@ func (s *PubSubController) notifySubscribersForTopicRemoval(topic topic.Topic, m
 	subscribers := topic.Subscribers()
 	for _, subscriber := range subscribers {
 		if c := s.clientManager.GetClient(subscriber); c != nil {
-			err := c.Send(messages.DraftMessage(context.Ctx.Server().Id(), c.Id(), message.Uri(), message.MessageType(), message.Payload()))
+			err := s.getConnectionsAndSendByClientId(c.Id(),
+				messages.DraftMessage(context.Ctx.Server().Id(), c.Id(), message.Uri(), message.MessageType(), message.Payload()),
+				func(conn connection.IConnection, err error) {
+					s.logger.Printf("err while sending topic %s removal message to client %s(connection %s) due to %s", topic.Id(), c.Id(), conn.Address(), err.Error())
+				},
+			)
 			if err != nil {
-				s.logger.Printf("err while sending topic %s removal message to %s", topic.Id(), c.Id())
+				s.logger.Printf("err while sending topic %s removal message to client %s due to %s", topic.Id(), c.Id(), err.Error())
 			}
 		}
 	}
