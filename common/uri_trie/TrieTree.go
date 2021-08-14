@@ -287,6 +287,9 @@ func (n *trieNode) matchByPath(pathWithoutQueryParams string, ctx *MatchContext)
 	if err != nil || node == nil {
 		return
 	}
+	if node.value == nil {
+		return nil, errors.New(fmt.Sprintf("no value associated with path %s", pathWithoutQueryParams))
+	}
 	c = ctx
 	return
 }

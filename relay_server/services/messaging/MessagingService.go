@@ -8,7 +8,7 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/controllers/client_manager"
+	client_manager "wsdk/relay_server/controllers/client_manager"
 	"wsdk/relay_server/controllers/connection_manager"
 	"wsdk/relay_server/service_base"
 )
@@ -60,6 +60,9 @@ func (s *MessagingService) sendToClient(id string, message *messages.Message, on
 	if err != nil {
 		return err
 	}
+	if len(conns) == 0 {
+		return errors.New(fmt.Sprintf("unable to send message to %s because the client is not online", id))
+	}
 	for _, conn := range conns {
 		err = conn.Send(message)
 		if err != nil && onSendErr != nil {
@@ -70,11 +73,10 @@ func (s *MessagingService) sendToClient(id string, message *messages.Message, on
 }
 
 func (s *MessagingService) Send(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	recv := s.GetClient(request.Message.To())
-	if recv == nil {
-		return errors.New(fmt.Sprintf("client %s is not online", request.Message.To()))
+	if _, err = s.GetClient(request.From()); err != nil {
+		return err
 	}
-	err = s.sendToClient(recv.Id(), request.Message, func(cerr error) {
+	err = s.sendToClient(request.From(), request.Message, func(cerr error) {
 		err = cerr
 	})
 	if err != nil {

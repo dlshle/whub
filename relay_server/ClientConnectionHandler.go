@@ -9,13 +9,11 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/client_manager"
 	"wsdk/relay_server/controllers/connection_manager"
 )
 
 type ClientConnectionHandler struct {
 	messageDispatcher message_actions.IMessageDispatcher
-	clientManager     client_manager.IClientManager         `$inject:""`
 	connectionManager connection_manager.IConnectionManager `$inject:""`
 	logger            *logger.SimpleLogger
 }
@@ -49,9 +47,6 @@ func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IC
 	wrappedConn.OnIncomingMessage(func(message *messages.Message) {
 		h.messageDispatcher.Dispatch(message, wrappedConn)
 	})
-	// rawClient := client.NewAnonymousClient(wrappedConn)
-	// h.anonymousClientManager.AcceptClient(rawClient.Address(), rawClient)
-	// TODO remove above line, keep for now just for compatibility
 	h.connectionManager.Accept(wrappedConn)
 	// no need to run this on a different goroutine since each new connection is on its own coroutine
 	wrappedConn.ReadingLoop()

@@ -7,7 +7,6 @@ import (
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/controllers/client_manager"
-	"wsdk/relay_server/controllers/client_manager_v1"
 	"wsdk/relay_server/controllers/connection_manager"
 	"wsdk/relay_server/controllers/topic"
 )
@@ -51,18 +50,19 @@ func (c *PubSubController) getConnectionsAndSendByClientId(id string, message *m
 	return nil
 }
 
-func (c *PubSubController) Publish(topicId string, message *messages.Message) error {
-	topic, err := c.topicManager.GetTopic(topicId)
-	if err != nil {
-		return err
-	}
-	for _, subscriber := range topic.Subscribers() {
-		if client := c.clientManager.GetClient(subscriber); client != nil {
+func (c *PubSubController) broadcastMessageTo(topicId string, subscribers []string, message *messages.Message) error {
+	for _, subscriber := range subscribers {
+		client, err := c.clientManager.GetClient(subscriber)
+		if err != nil {
+			c.logger.Printf("unable to broadcast message %s on topic %s to %s due to %s", message.Id(), topicId, client.Id(), err.Error())
+			continue
+		}
+		if client != nil {
 			cerr := c.getConnectionsAndSendByClientId(client.Id(), message, func(conn connection.IConnection, err error) {
-				c.logger.Printf("unable to broadcast message %d on topic %s to client %s(connection %s) due to %s", message.Id(), topicId, client.Id(), conn.Address(), err.Error())
+				c.logger.Printf("unable to broadcast message %s on topic %s to client %s(connection %s) due to %s", message.Id(), topicId, client.Id(), conn.Address(), err.Error())
 			})
 			if cerr != nil {
-				c.logger.Printf("unable to broadcast message %d on topic %s to %s due to %s", message.Id(), topicId, client.Id(), cerr.Error())
+				c.logger.Printf("unable to broadcast message %s on topic %s to %s due to %s", message.Id(), topicId, client.Id(), cerr.Error())
 				continue
 			}
 		}
@@ -70,18 +70,26 @@ func (c *PubSubController) Publish(topicId string, message *messages.Message) er
 	return nil
 }
 
+func (c *PubSubController) Publish(topicId string, message *messages.Message) error {
+	topic, err := c.topicManager.GetTopic(topicId)
+	if err != nil {
+		return err
+	}
+	return c.broadcastMessageTo(topicId, topic.Subscribers(), message)
+}
+
 func (c *PubSubController) Subscribe(clientId, topicId string) error {
-	client := c.clientManager.GetClient(clientId)
-	if client == nil {
-		return client_manager_v1.NewClientNotFoundError(clientId)
+	client, err := c.clientManager.GetClient(clientId)
+	if err != nil {
+		return err
 	}
 	return c.topicManager.SubscribeClientToTopic(client.Id(), topicId)
 }
 
 func (c *PubSubController) Unsubscribe(clientId, topicId string) error {
-	client := c.clientManager.GetClient(clientId)
-	if client == nil {
-		return client_manager_v1.NewClientNotFoundError(clientId)
+	client, err := c.clientManager.GetClient(clientId)
+	if err != nil {
+		return err
 	}
 	return c.topicManager.UnSubscribeClientToTopic(client.Id(), topicId)
 }
@@ -91,9 +99,9 @@ func (c *PubSubController) Topics() ([]topic.TopicDescriptor, error) {
 }
 
 func (c *PubSubController) Remove(clientId, topicId string, removalMessage *messages.Message) error {
-	client := c.clientManager.GetClient(clientId)
-	if client == nil {
-		return client_manager_v1.NewClientNotFoundError(clientId)
+	_, err := c.clientManager.GetClient(clientId)
+	if err != nil {
+		return err
 	}
 	topic, err := c.topicManager.GetTopic(topicId)
 	if err != nil {
@@ -107,20 +115,10 @@ func (c *PubSubController) Remove(clientId, topicId string, removalMessage *mess
 	return nil
 }
 
-func (s *PubSubController) notifySubscribersForTopicRemoval(topic topic.Topic, message *messages.Message) {
-	subscribers := topic.Subscribers()
-	for _, subscriber := range subscribers {
-		if c := s.clientManager.GetClient(subscriber); c != nil {
-			err := s.getConnectionsAndSendByClientId(c.Id(),
-				messages.DraftMessage(context.Ctx.Server().Id(), c.Id(), message.Uri(), message.MessageType(), message.Payload()),
-				func(conn connection.IConnection, err error) {
-					s.logger.Printf("err while sending topic %s removal message to client %s(connection %s) due to %s", topic.Id(), c.Id(), conn.Address(), err.Error())
-				},
-			)
-			if err != nil {
-				s.logger.Printf("err while sending topic %s removal message to client %s due to %s", topic.Id(), c.Id(), err.Error())
-			}
-		}
+func (c *PubSubController) notifySubscribersForTopicRemoval(topic topic.Topic, message *messages.Message) {
+	err := c.broadcastMessageTo(topic.Id(), topic.Subscribers(), message)
+	if err != nil {
+		c.logger.Printf("error while broadcasting topic removal message: %s", err.Error())
 	}
 }
 

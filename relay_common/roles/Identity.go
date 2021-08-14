@@ -17,9 +17,9 @@ const (
 
 // Client types
 const (
-	ClientTypeAnonymous     = 0
 	ClientTypeAuthenticated = 1
-	ClientTypeRoot          = 2
+	ClientTypeManager       = 2
+	ClientTypeRoot          = 3
 )
 
 // Authenticated privileges
@@ -121,6 +121,10 @@ func (c *CommonClient) Scopes() (scopes []int) {
 		scopes[i] = c.pScope & i
 	}
 	return scopes
+}
+
+func (c *CommonClient) PScope() int {
+	return c.pScope
 }
 
 func (c *CommonClient) HasScope(scope int) bool {

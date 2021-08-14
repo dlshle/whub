@@ -19,17 +19,15 @@ const (
 	defaultServicePoolWorkerFactor = 16
 	defaultMaxConcurrentConnection = 2048
 	defaultMaxServicePerClient     = 8
-	defaultGreetingMessage         = ""
 
 	// config keys
 	MaxAsyncPoolSize             = "MaxAsyncPoolSize"
-	MaxServiceAsyncPoolSize      = "MaxServiceAsyncPoolSize "
-	AsyncPoolWorkerFactor        = "AsyncPoolWorkerFactor "
-	ServiceAsyncPoolWorkerFactor = "ServiceAsyncPoolWorkerFactor "
-	MaxListenerCount             = "MaxListenerCount "
-	MaxConnectionCount           = "MaxConnectionCount "
-	MaxServicePerClient          = "MaxServicePerClient "
-	GreetingMessage              = "GreetingMessage"
+	MaxServiceAsyncPoolSize      = "MaxServiceAsyncPoolSize"
+	AsyncPoolWorkerFactor        = "AsyncPoolWorkerFactor"
+	ServiceAsyncPoolWorkerFactor = "ServiceAsyncPoolWorkerFactor"
+	MaxListenerCount             = "MaxListenerCount"
+	MaxConnectionCount           = "MaxConnectionCount"
+	MaxServicePerClient          = "MaxServicePerClient"
 )
 
 var configKeysMap map[string]bool
@@ -43,20 +41,16 @@ func initConfigKeysMap() {
 	configKeysMap[MaxListenerCount] = true
 	configKeysMap[MaxConnectionCount] = true
 	configKeysMap[MaxServicePerClient] = true
-	configKeysMap[GreetingMessage] = true
 }
 
 type ServerConfig struct {
-	MaxAsyncPoolSize             int `json:"maxAsyncPoolSize""`
+	MaxAsyncPoolSize             int `json:"maxAsyncPoolSize"`
 	MaxServiceAsyncPoolSize      int `json:"maxServiceAsyncPoolSize"`
 	AsyncPoolWorkerFactor        int `json:"asyncPoolWorkerFactor"`
 	ServiceAsyncPoolWorkerFactor int `json:"serviceAsyncPoolWorkerFactor"`
 	MaxListenerCount             int `json:"maxListenerCount"`
-
-	MaxConnectionCount  int `json:"maxConnectionCount"`
-	MaxServicePerClient int `json:"maxServicePerClient"`
-
-	GreetingMessage string `json:"greetingMessage"`
+	MaxConnectionCount           int `json:"maxConnectionCount"`
+	MaxServicePerClient          int `json:"maxServicePerClient"`
 }
 
 func checkConfigKey(key string) error {
@@ -77,6 +71,7 @@ type IServerConfigManager interface {
 	UpdateConfigs(config ServerConfig) error
 	UpdateConfig(key string, value interface{}) error
 	GetConfig(key string) interface{}
+	GetConfigs() map[string]interface{}
 	OnConfigChange(key string, cb func(value interface{}))
 }
 
@@ -132,6 +127,10 @@ func (m *ServerConfigController) GetConfig(key string) interface{} {
 	return m.configMap[key]
 }
 
+func (m *ServerConfigController) GetConfigs() map[string]interface{} {
+	return m.configMap
+}
+
 func (m *ServerConfigController) OnConfigChange(key string, cb func(value interface{})) {
 	m.observableUpdatedKey.On(func(configKey interface{}) {
 		ckey := configKey.(string)
@@ -152,7 +151,6 @@ func init() {
 		MaxListenerCount:             defaultMaxListenerCount,
 		MaxConnectionCount:           defaultMaxConcurrentConnection,
 		MaxServicePerClient:          defaultMaxServicePerClient,
-		GreetingMessage:              defaultGreetingMessage,
 	}
 	configManager := NewServerConfigController()
 	configManager.UpdateConfigs(defaultConfig)

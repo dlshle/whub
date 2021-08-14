@@ -59,6 +59,7 @@ type IAsyncPool interface {
 	NumPendingTasks() int
 	NumBusyWorkers() int
 	Status() string
+	IncreaseWorkerSizeTo(size int) bool
 }
 
 func NewAsyncPool(id string, maxPoolSize, workerSize int) IAsyncPool {
@@ -254,6 +255,16 @@ func (p *AsyncPool) NumStartedWorkers() int {
 
 func (p *AsyncPool) Status() string {
 	return statusStringMap[p.getStatus()]
+}
+
+func (p *AsyncPool) IncreaseWorkerSizeTo(size int) bool {
+	if size > p.NumMaxWorkers() {
+		p.withWrite(func() {
+			p.numTotWorkers = size
+		})
+		return true
+	}
+	return false
 }
 
 // utils

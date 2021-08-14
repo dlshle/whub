@@ -18,6 +18,9 @@ import (
 	"wsdk/relay_server/controllers/connection_manager"
 )
 
+// TODO move this logic to client_management_service???
+// Can't do this in cms as it doesn't have the connection info
+
 type ClientDescriptorMessageHandler struct {
 	clientManager     client_manager.IClientManager         `$inject:""`
 	connectionManager connection_manager.IConnectionManager `$inject:""`
@@ -52,12 +55,10 @@ func (h *ClientDescriptorMessageHandler) Handle(message *messages.Message, conn 
 		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
 		return err
 	}
-	// TODO remove later
-	// anonymousClient := h.anonymousClientManager.GetClient(conn.Address())
 	if c, err := h.connectionManager.GetConnectionByAddress(conn.Address()); c != nil && err == nil {
 		h.logger.Printf("handle client connection(%s) promotion", conn.Address())
 		// registration
-		h.handleClientRegistration(roleDescriptor, extraInfoDescriptor, conn)
+		h.handleClientConnectionRegistration(roleDescriptor, extraInfoDescriptor, conn)
 		serverDescMsg := messages.NewMessage(message.Id(),
 			context.Ctx.Server().Id(),
 			message.From(),
@@ -67,10 +68,11 @@ func (h *ClientDescriptorMessageHandler) Handle(message *messages.Message, conn 
 		return conn.Send(serverDescMsg)
 	}
 	// client_manager info update
-	client := h.clientManager.GetClient(message.From())
-	if client == nil {
-		h.logger.Printf("can not find the client by %s from connection %s.", message.From(), conn.Address())
-		err = errors.New(fmt.Sprintf("can not find client by id %s, conn %s", message.From(), conn.Address()))
+	client, err := h.clientManager.GetClient(message.From())
+	if err != nil {
+		errMsg := fmt.Sprintf("err while finding client %s from connection %s: %s", message.From(), conn.Address(), err.Error())
+		h.logger.Println(errMsg)
+		err = errors.New(errMsg)
 		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
 		return err
 	}
@@ -93,10 +95,7 @@ func (h *ClientDescriptorMessageHandler) unmarshallClientDescriptor(message *mes
 	return
 }
 
-func (h *ClientDescriptorMessageHandler) handleClientRegistration(clientDescriptor roles.RoleDescriptor, clientExtraInfo roles.ClientExtraInfoDescriptor, conn connection.IConnection) {
-	// TODO remove this later
-	// h.anonymousClientManager.RemoveClient(conn.Address())
+func (h *ClientDescriptorMessageHandler) handleClientConnectionRegistration(clientDescriptor roles.RoleDescriptor, clientExtraInfo roles.ClientExtraInfoDescriptor, conn connection.IConnection) {
 	client := client.NewClient(clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.CType, clientExtraInfo.CKey, clientExtraInfo.PScope)
 	h.connectionManager.RegisterClientToConnection(client.Id(), conn.Address())
-	h.clientManager.AcceptClient(client.Id(), client, conn)
 }

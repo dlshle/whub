@@ -10,7 +10,7 @@ import (
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/controllers/client_manager"
+	client_manager "wsdk/relay_server/controllers/client_manager"
 	"wsdk/relay_server/controllers/connection_manager"
 	"wsdk/relay_server/controllers/service_manager"
 	servererror "wsdk/relay_server/errors"
@@ -86,8 +86,8 @@ func (s *RelayManagementService) initRoutes() error {
 }
 
 func (s *RelayManagementService) validateClientConnection(clientId string) error {
-	if !s.clientManager.HasClient(clientId) {
-		return errors.New(fmt.Sprintf("invalid client id %s, can not find client id from client manager.", clientId))
+	if _, err := s.clientManager.GetClient(clientId); err != nil {
+		return err
 	}
 	conns, err := s.connectionManager.GetConnectionsByClientId(clientId)
 	if err != nil {
@@ -113,9 +113,9 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 	if err != nil {
 		return err
 	}
-	client := s.clientManager.GetClient(descriptor.Provider.Id)
-	if client == nil {
-		return errors.New("unable to find the client by providerId " + descriptor.Provider.Id)
+	client, err := s.clientManager.GetClient(descriptor.Provider.Id)
+	if err != nil {
+		return err
 	}
 	if s.serviceManager.HasService(descriptor.Id) {
 		// service already running, notify service executor to add extra connection
@@ -218,9 +218,9 @@ func (s *RelayManagementService) tryToRestoreDeadServicesFromReconnectedClient(c
 	defer s.Logger().Printf("restore service from client %s result: %s", clientId, utils.ConditionalPick(err != nil, err, "success"))
 	s.Logger().Println("restore services from client ", clientId)
 	s.serviceManager.WithServicesFromClientId(clientId, func(services []service_base.IService) {
-		client := s.clientManager.GetClient(clientId)
-		if client == nil {
-			err = servererror.NewNoSuchClientError(clientId)
+		client, cerr := s.clientManager.GetClient(clientId)
+		if cerr != nil {
+			err = cerr
 			return
 		}
 		for i := range services {

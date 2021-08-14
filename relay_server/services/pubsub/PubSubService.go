@@ -26,7 +26,10 @@ type PubSubService struct {
 
 func (s *PubSubService) Init() error {
 	s.NativeService = service_base.NewNativeService(ID, "message pub/sub service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionAsync)
-	container.Container.Fill(s)
+	err := container.Container.Fill(s)
+	if err != nil {
+		return err
+	}
 	if s.pubSubController == nil {
 		return errors.New("can not get PubSubController from container")
 	}

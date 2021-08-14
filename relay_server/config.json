@@ -1,0 +1,18 @@
+{
+  "maxAsyncPoolSize": 2048,
+  "maxServiceAsyncPoolSize": 1024,
+  "asyncPoolWorkerFactor": 32,
+  "serviceAsyncPoolWorkerFactor": 16,
+  "maxListenerCount": 1024,
+  "maxConnectionCount": 2048,
+  "maxServicePerClient": 8,
+  "clientManager": {
+    "store": {
+      "driver": "mysql",
+      "server": "192.168.0.164:3307",
+      "username": "root",
+      "password": "Lxr000518!",
+      "db": "wr_test"
+    }
+  }
+}

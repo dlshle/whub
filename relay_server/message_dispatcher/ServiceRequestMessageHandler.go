@@ -31,6 +31,11 @@ func (h *ServiceRequestMessageHandler) Type() int {
 
 func (h *ServiceRequestMessageHandler) Handle(message *messages.Message, conn connection.IConnection) (err error) {
 	h.metering.Track(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()), "in service handler")
+	// remove redundant / at the end of the uri
+	uri := message.Uri()
+	if uri[len(uri)-1] == '/' {
+		message = message.SetUri(uri[:len(uri)-1])
+	}
 	svc := h.manager.FindServiceByUri(message.Uri())
 	if svc == nil {
 		err = service_base.NewCanNotFindServiceError(message.Uri())

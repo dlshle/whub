@@ -120,6 +120,7 @@ const (
 const (
 	ServiceExecutionAsync = 0
 	ServiceExecutionSync  = 1
+	ServiceExecutionBoth  = 2
 )
 
 // Service type
