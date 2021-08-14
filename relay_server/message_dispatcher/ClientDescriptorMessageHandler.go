@@ -14,8 +14,8 @@ import (
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/client_manager"
-	"wsdk/relay_server/controllers/connection_manager"
+	"wsdk/relay_server/core/client_manager"
+	"wsdk/relay_server/core/connection_manager"
 )
 
 // TODO move this logic to client_management_service???

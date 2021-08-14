@@ -6,8 +6,8 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/metering"
-	service "wsdk/relay_server/controllers/service_manager"
+	"wsdk/relay_server/core/metering"
+	service "wsdk/relay_server/core/service_manager"
 	"wsdk/relay_server/service_base"
 )
 
@@ -44,7 +44,11 @@ func (h *ServiceRequestMessageHandler) Handle(message *messages.Message, conn co
 		return err
 	}
 	response := svc.Handle(message)
-	err = conn.Send(response)
+	if response == nil {
+		err = conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(), "service does not support sync requests"))
+	} else {
+		err = conn.Send(response)
+	}
 	h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
 	return
 }

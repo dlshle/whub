@@ -9,7 +9,7 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/connection_manager"
+	"wsdk/relay_server/core/connection_manager"
 )
 
 type ClientConnectionHandler struct {

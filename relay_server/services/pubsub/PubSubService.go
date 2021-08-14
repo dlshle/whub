@@ -5,7 +5,7 @@ import (
 	"errors"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/controllers/pubsub"
+	"wsdk/relay_server/core/pubsub"
 	"wsdk/relay_server/service_base"
 )
 

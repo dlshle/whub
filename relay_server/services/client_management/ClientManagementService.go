@@ -9,8 +9,8 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/controllers/client_manager"
-	"wsdk/relay_server/controllers/connection_manager"
+	"wsdk/relay_server/core/client_manager"
+	"wsdk/relay_server/core/connection_manager"
 	"wsdk/relay_server/service_base"
 )
 

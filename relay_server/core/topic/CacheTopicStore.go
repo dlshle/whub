@@ -3,7 +3,7 @@ package topic
 import (
 	"sync"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/controllers"
+	"wsdk/relay_server/core"
 )
 
 const DefaultTopicCacheSize = 512
@@ -56,11 +56,11 @@ func (s *CacheTopicStore) set(id string, topic *Topic) {
 	})
 }
 
-func (s *CacheTopicStore) Has(id string) (bool, controllers.IControllerError) {
+func (s *CacheTopicStore) Has(id string) (bool, core.IControllerError) {
 	return s.get(id) != nil, nil
 }
 
-func (s *CacheTopicStore) Create(id string, creatorClientId string) (ret *Topic, err controllers.IControllerError) {
+func (s *CacheTopicStore) Create(id string, creatorClientId string) (ret *Topic, err core.IControllerError) {
 	s.withWrite(func() {
 		if len(s.topics) >= s.cacheSize {
 			err = NewTopicCacheSizeExceededError(s.cacheSize)
@@ -73,7 +73,7 @@ func (s *CacheTopicStore) Create(id string, creatorClientId string) (ret *Topic,
 	return
 }
 
-func (s *CacheTopicStore) Update(t *Topic) controllers.IControllerError {
+func (s *CacheTopicStore) Update(t *Topic) core.IControllerError {
 	ret := s.get(t.Id())
 	if ret == nil {
 		_, err := s.Create(t.Id(), t.Creator())
@@ -83,14 +83,14 @@ func (s *CacheTopicStore) Update(t *Topic) controllers.IControllerError {
 	return nil
 }
 
-func (s *CacheTopicStore) Get(id string) (*Topic, controllers.IControllerError) {
+func (s *CacheTopicStore) Get(id string) (*Topic, core.IControllerError) {
 	if t := s.get(id); t != nil {
 		return t, nil
 	}
 	return nil, NewTopicNotFoundError(id)
 }
 
-func (s *CacheTopicStore) Delete(id string) controllers.IControllerError {
+func (s *CacheTopicStore) Delete(id string) core.IControllerError {
 	t := s.get(id)
 	if t == nil {
 		return NewTopicNotFoundError(id)
@@ -102,7 +102,7 @@ func (s *CacheTopicStore) Delete(id string) controllers.IControllerError {
 	return nil
 }
 
-func (s *CacheTopicStore) Topics() ([]*Topic, controllers.IControllerError) {
+func (s *CacheTopicStore) Topics() ([]*Topic, core.IControllerError) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	topics := make([]*Topic, 0, len(s.topics))

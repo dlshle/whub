@@ -7,7 +7,7 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/metering"
+	"wsdk/relay_server/core/metering"
 )
 
 type ServerMessageDispatcher struct {

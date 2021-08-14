@@ -62,7 +62,7 @@ func (p *ServiceTaskQueue) withAll(operation func(message *ServiceRequest) error
 }
 
 func (p *ServiceTaskQueue) Stop() {
-	p.pool.Stop()
+	p.executor = nil
 }
 
 func (p *ServiceTaskQueue) Has(id string) bool {

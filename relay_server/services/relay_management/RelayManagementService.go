@@ -10,9 +10,9 @@ import (
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	client_manager "wsdk/relay_server/controllers/client_manager"
-	"wsdk/relay_server/controllers/connection_manager"
-	"wsdk/relay_server/controllers/service_manager"
+	client_manager "wsdk/relay_server/core/client_manager"
+	"wsdk/relay_server/core/connection_manager"
+	"wsdk/relay_server/core/service_manager"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 	request_executor "wsdk/relay_server/request"
@@ -57,7 +57,7 @@ func (s *RelayManagementService) init() error {
 }
 
 func (s *RelayManagementService) initNotificationHandlers() {
-	events.OnEvent(events.EventClientDisconnected, func(message *messages.Message) {
+	events.OnEvent(events.EventClientConnectionGone, func(message *messages.Message) {
 		clientId := string(message.Payload()[:])
 		s.serviceManager.UnregisterAllServicesFromClientId(clientId)
 	})
@@ -69,7 +69,7 @@ func (s *RelayManagementService) initNotificationHandlers() {
 			}
 		})
 	})
-	events.OnEvent(events.EventClientConnected, func(message *messages.Message) {
+	events.OnEvent(events.EventServiceNewProvider, func(message *messages.Message) {
 		clientId := string(message.Payload()[:])
 		s.tryToRestoreDeadServicesFromReconnectedClient(clientId)
 	})

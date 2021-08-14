@@ -11,7 +11,7 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/metering"
+	"wsdk/relay_server/core/metering"
 )
 
 const (
@@ -148,9 +148,8 @@ func (s *Service) Stop() error {
 	}
 	s.setStatus(service.ServiceStatusStopping)
 	s.logger.Println("service is stopping")
-	// DO NOT STOP THE POOL, IT'S SHARED!!!
-	// s.serviceQueue.Stop()
-	// after pool is stopped
+	// set executor to nil
+	s.serviceQueue.Stop()
 	s.setStatus(service.ServiceStatusIdle)
 	s.logger.Println("service has stopped, current status is ", service.ServiceStatusStringMap[s.Status()])
 	if s.onStoppedCallback != nil {

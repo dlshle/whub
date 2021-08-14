@@ -10,8 +10,6 @@ import (
 	"wsdk/relay_server/events"
 )
 
-// TODO replace anonymous client manager with this, then change client manager to actual registered client manager
-
 type ConnectionManager struct {
 	logger            *logger.SimpleLogger
 	connStore         IConnectionStore             // all connection management
@@ -65,6 +63,18 @@ func (m *ConnectionManager) handleConnectionClosed(conn connection.IConnection, 
 		m.logger.Printf("connection %s closed", conn.Address())
 	} else {
 		m.logger.Printf("connection %s closed with error %s", conn.Address(), err.Error())
+	}
+}
+
+func (m *ConnectionManager) handleClientConnectionClosed(clientId string) {
+	conns, err := m.activeClientStore.Get(clientId)
+	if err != nil {
+		m.logger.Printf("unable to handle client connection closure due to %s", err.Error())
+		return
+	}
+	if len(conns) == 0 {
+		m.logger.Printf("all connections from client %s is gone", clientId)
+		events.EmitEvent(events.EventClientConnectionGone, clientId)
 	}
 }
 
@@ -141,6 +151,7 @@ func (m *ConnectionManager) RegisterClientToConnection(clientId string, addr str
 		// delete the clientId-connection record from active client store
 		m.activeClientStore.Delete(clientId, addr)
 		events.EmitEvent(events.EventClientConnectionClosed, clientId)
+		m.handleClientConnectionClosed(clientId)
 	})
 	events.EmitEvent(events.EventClientConnectionEstablished, clientId)
 	return nil

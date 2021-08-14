@@ -5,8 +5,8 @@ import (
 	"wsdk/common/utils"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/controllers/service_manager"
-	"wsdk/relay_server/controllers/status"
+	"wsdk/relay_server/core/service_manager"
+	"wsdk/relay_server/core/status"
 	"wsdk/relay_server/service_base"
 )
 

@@ -1,6 +1,7 @@
 package request
 
 import (
+	"errors"
 	"fmt"
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
@@ -8,7 +9,7 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/connection_manager"
+	"wsdk/relay_server/core/connection_manager"
 	"wsdk/relay_server/events"
 )
 
@@ -66,14 +67,12 @@ func (e *RelayServiceRequestExecutor) initNotifications() {
 
 func (e *RelayServiceRequestExecutor) handleNewServiceProviderEvent(event *messages.Message) {
 	if (string)(event.Payload()) == e.serviceId {
-		e.logger.Printf("receive new service provider event for %s", e.serviceId)
 		e.updateConnections()
 	}
 }
 
 func (e *RelayServiceRequestExecutor) handleClientConnectionChangeEvent(event *messages.Message) {
 	if (string)(event.Payload()) == e.providerId {
-		e.logger.Printf("receive client connection change event for %s", e.providerId)
 		e.updateConnections()
 	}
 }
@@ -85,7 +84,7 @@ func (e *RelayServiceRequestExecutor) updateConnections() error {
 		return err
 	}
 	e.connections = conns
-	e.logger.Println("new connections:", conns)
+	e.logger.Println("connections:", conns)
 	return nil
 }
 
@@ -103,6 +102,9 @@ func (e *RelayServiceRequestExecutor) Execute(request *service.ServiceRequest) {
 
 // try all connections until one succeeded
 func (e *RelayServiceRequestExecutor) doRequest(request *service.ServiceRequest) (msg *messages.Message, err error) {
+	if len(e.connections) == 0 {
+		return nil, errors.New("all service connection is down")
+	}
 	for _, conn := range e.connections {
 		msg, err = conn.Request(request.Message)
 		if err == nil {

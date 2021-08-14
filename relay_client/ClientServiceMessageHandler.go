@@ -7,7 +7,7 @@ import (
 	"wsdk/relay_client/controllers"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
-	"wsdk/relay_server/controllers/metering"
+	"wsdk/relay_server/core/metering"
 )
 
 type ClientServiceMessageHandler struct {

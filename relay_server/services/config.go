@@ -2,7 +2,7 @@ package services
 
 import (
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/service_manager"
+	"wsdk/relay_server/core/service_manager"
 	"wsdk/relay_server/service_base"
 	"wsdk/relay_server/services/config"
 	"wsdk/relay_server/services/messaging"

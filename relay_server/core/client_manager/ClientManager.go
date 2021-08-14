@@ -6,7 +6,7 @@ import (
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/controllers/client_manager/client_store"
+	"wsdk/relay_server/core/client_manager/client_store"
 )
 
 type IClientManager interface {

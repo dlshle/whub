@@ -2,7 +2,7 @@ package topic
 
 import (
 	"sync"
-	"wsdk/relay_server/controllers"
+	"wsdk/relay_server/core"
 )
 
 const MaxSubscribersPerTopic = 128
@@ -75,7 +75,7 @@ func (t *Topic) removeSubscriber(subscriber string) {
 	})
 }
 
-func (t *Topic) CheckAndAddSubscriber(subscriber string) controllers.IControllerError {
+func (t *Topic) CheckAndAddSubscriber(subscriber string) core.IControllerError {
 	if t.NumSubscribers() >= MaxSubscribersPerTopic {
 		return NewTopicMaxSubscribersExceededError(t.id, MaxSubscribersPerTopic)
 	}
@@ -86,7 +86,7 @@ func (t *Topic) CheckAndAddSubscriber(subscriber string) controllers.IController
 	return nil
 }
 
-func (t *Topic) CheckAndRemoveSubscriber(subscriber string) controllers.IControllerError {
+func (t *Topic) CheckAndRemoveSubscriber(subscriber string) core.IControllerError {
 	if !t.subscribersMap[subscriber] {
 		return NewTopicClientNotValidSubscriberError(t.id, subscriber)
 	}

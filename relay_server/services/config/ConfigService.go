@@ -7,7 +7,7 @@ import (
 	"wsdk/common/logger"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/controllers/config"
+	"wsdk/relay_server/core/config"
 	"wsdk/relay_server/service_base"
 )
 
