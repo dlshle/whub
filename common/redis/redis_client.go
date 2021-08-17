@@ -7,6 +7,8 @@ import (
 
 const (
 	ErrNotFound = 404
+
+	ErrNotFoundStr = "not found"
 )
 
 type RedisClientErr struct {
@@ -29,10 +31,15 @@ func NewRedisClientErr(code int, msg string) *RedisClientErr {
 	}
 }
 
+func NewRedisNotFoundErr() *RedisClientErr {
+	return NewRedisClientErr(ErrNotFound, ErrNotFoundStr)
+}
+
 type IRedisClient interface {
 	Ping() (err error)
 	Set(key string, value interface{}) error
 	SetWithExp(key string, value interface{}, expiration time.Duration) error
+	HExists(key string, field string) error
 	HGet(key string) (map[string]string, error)
 	HSet(key string, m map[string]interface{}) error
 	Get(key string) (string, error)
@@ -71,10 +78,22 @@ func (c *RedisClient) Set(key string, value interface{}) error {
 	return c.client.Set(key, value, 0).Err()
 }
 
+// will return not found when dne
+func (c *RedisClient) HExists(key string, field string) error {
+	x, e := c.client.HExists(key, field).Result()
+	if e != nil {
+		return e
+	}
+	if !x {
+		return NewRedisNotFoundErr()
+	}
+	return nil
+}
+
 func (c *RedisClient) HGet(key string) (map[string]string, error) {
 	m, e := c.client.HGetAll(key).Result()
 	if isErrNotFound(e) {
-		return nil, NewRedisClientErr(ErrNotFound, "not found")
+		return nil, NewRedisNotFoundErr()
 	}
 	return m, e
 }
@@ -90,7 +109,7 @@ func (c *RedisClient) SetWithExp(key string, value interface{}, expiration time.
 func (c *RedisClient) Get(key string) (v string, e error) {
 	v, e = c.client.Get(key).Result()
 	if isErrNotFound(e) {
-		return "", NewRedisClientErr(ErrNotFound, "not found")
+		return "", NewRedisNotFoundErr()
 	}
 	return v, e
 }
@@ -98,7 +117,7 @@ func (c *RedisClient) Get(key string) (v string, e error) {
 func (c *RedisClient) Delete(key string) error {
 	err := c.client.Del(key).Err()
 	if err == redis.Nil {
-		return NewRedisClientErr(ErrNotFound, "not found")
+		return NewRedisNotFoundErr()
 	}
 	return err
 }

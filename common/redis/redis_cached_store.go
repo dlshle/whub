@@ -1,8 +1,14 @@
 package redis
 
+import (
+	"wsdk/common/logger"
+)
+
 const (
 	CachePolicyWriteThrough = 1
 	CachePolicyWriteBack    = 2
+
+	CacheMark = "RCS-mark"
 )
 
 type ISingleEntityStore interface {
@@ -20,9 +26,10 @@ type RedisCachedStore struct {
 	cacheOnCreate         bool
 	skipErrOnCacheFailure bool
 	writePolicy           uint8
+	logger                *logger.SimpleLogger
 }
 
-func NewRedisCachedStore(store ISingleEntityStore, cache *RedisClient, cacheOnCreate bool, skipErrOnCacheFailure bool, writePolicy uint8) *RedisCachedStore {
+func NewRedisCachedStore(logger *logger.SimpleLogger, store ISingleEntityStore, cache *RedisClient, cacheOnCreate bool, skipErrOnCacheFailure bool, writePolicy uint8) *RedisCachedStore {
 	if writePolicy > CachePolicyWriteBack {
 		writePolicy = CachePolicyWriteBack
 	}
@@ -32,17 +39,49 @@ func NewRedisCachedStore(store ISingleEntityStore, cache *RedisClient, cacheOnCr
 		cacheOnCreate:         cacheOnCreate,
 		skipErrOnCacheFailure: skipErrOnCacheFailure,
 		writePolicy:           writePolicy,
+		logger:                logger,
 	}
+}
+
+func (s *RedisCachedStore) ToHashMap(entity interface{}) (map[string]interface{}, error) {
+	m, e := s.store.ToHashMap(entity)
+	if e != nil {
+		return nil, e
+	}
+	m[CacheMark] = true
+	return m, e
+}
+
+func (s *RedisCachedStore) checkAndGet(id string) (map[string]string, error) {
+	err := s.cache.HExists(id, CacheMark)
+	if err != nil {
+		return nil, err
+	}
+	return s.cache.HGet(id)
 }
 
 func (s *RedisCachedStore) Get(id string) (entity interface{}, err error) {
 	var m map[string]string
-	m, err = s.cache.HGet(id)
-	if err != nil && err.Error() != "not found" && err != nil {
+	m, err = s.checkAndGet(id)
+	if err == nil {
+		s.logger.Printf("Fetch %s hit", id)
+	}
+	if err != nil && err.Error() != ErrNotFoundStr {
+		// conn error
 		return
 	}
-	if err != nil && err.Error() == "not found" {
+	if err != nil && err.Error() == ErrNotFoundStr {
+		s.logger.Printf("Fetch %s miss", id)
 		entity, err = s.store.Get(id)
+		if err != nil {
+			return
+		}
+		hm, terr := s.ToHashMap(entity)
+		if terr != nil {
+			err = terr
+			return
+		}
+		err = s.cache.HSet(id, hm)
 		if s.skipErrOnCacheFailure {
 			err = nil
 		}
@@ -52,7 +91,7 @@ func (s *RedisCachedStore) Get(id string) (entity interface{}, err error) {
 }
 
 func (s *RedisCachedStore) Update(id string, value interface{}) error {
-	m, err := s.store.ToHashMap(value)
+	m, err := s.ToHashMap(value)
 	if err != nil {
 		return err
 	}
@@ -90,7 +129,7 @@ func (s *RedisCachedStore) Create(id string, value interface{}) (err error) {
 	if err = s.store.Create(id, value); err != nil {
 		return
 	}
-	m, err := s.store.ToHashMap(value)
+	m, err := s.ToHashMap(value)
 	if err != nil {
 		return err
 	}
@@ -102,7 +141,7 @@ func (s *RedisCachedStore) Create(id string, value interface{}) (err error) {
 
 func (s *RedisCachedStore) cacheSafeDelete(key string) error {
 	err := s.Delete(key)
-	if err != nil && err.Error() == "not found" {
+	if err != nil && err.Error() == ErrNotFoundStr {
 		return nil
 	}
 	return err

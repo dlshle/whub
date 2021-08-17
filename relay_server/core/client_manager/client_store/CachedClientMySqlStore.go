@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"wsdk/common/redis"
 	"wsdk/relay_server/client"
+	"wsdk/relay_server/context"
 )
 
 var InCompatibleError error
@@ -32,7 +33,7 @@ func (s *CachedClientMySqlStore) Init(fullDBUri, username, password, dbname stri
 	if err := s.redisClient.Ping(); err != nil {
 		return err
 	}
-	s.cachedStore = redis.NewRedisCachedStore(NewMySqlStoreCacheAdaptor(s.mySqlStore), s.redisClient, true, false, redis.CachePolicyWriteBack)
+	s.cachedStore = redis.NewRedisCachedStore(context.Ctx.Logger().WithPrefix("[ClientCacheStoreLogger]"), NewMySqlStoreCacheAdaptor(s.mySqlStore), s.redisClient, true, false, redis.CachePolicyWriteBack)
 	return nil
 }
 

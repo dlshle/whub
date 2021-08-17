@@ -121,11 +121,11 @@ func (s *ClientMySqlStore) buildQueryTx(query *DClientQuery) *gorm.DB {
 }
 
 func (s *ClientMySqlStore) batchFindOperations(tx *gorm.DB) ([]*client.Client, error) {
-	var allClients []DClient
-	if err := tx.Find(allClients).Error; err != nil {
+	var allClients []*DClient
+	if err := tx.Find(&allClients).Error; err != nil {
 		return nil, err
 	}
-	transformedClients := make([]*client.Client, 0, len(allClients))
+	transformedClients := make([]*client.Client, len(allClients), len(allClients))
 	for i, c := range allClients {
 		transformedClients[i] = c.toClient()
 	}
