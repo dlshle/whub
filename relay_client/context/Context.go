@@ -104,7 +104,7 @@ func (c *Context) AsyncTaskPool() async.IAsyncPool {
 func (c *Context) ServiceTaskPool() async.IAsyncPool {
 	c.withLock(func() {
 		if c.serviceTaskPool == nil {
-			c.serviceTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-service_manager-pool]"), 1024, runtime.NumCPU()*defaultServicePoolWorkerFactor)
+			c.serviceTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), 1024, runtime.NumCPU()*defaultServicePoolWorkerFactor)
 		}
 	})
 	return c.serviceTaskPool

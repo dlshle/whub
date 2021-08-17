@@ -10,6 +10,7 @@ import (
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/core/connection_manager"
+	server_errors "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
 )
 
@@ -25,7 +26,7 @@ func (e *InternalServiceRequestExecutor) Execute(request *service.ServiceRequest
 	// internal service will resolve the request if no error is present
 	err := e.handler.Handle(request)
 	if err != nil {
-		request.Resolve(messages.NewErrorMessage(request.Id(), context.Ctx.Server().Id(), request.From(), request.Uri(), err.Error()))
+		request.Resolve(messages.NewErrorMessage(request.Id(), context.Ctx.Server().Id(), request.From(), request.Uri(), server_errors.NewJsonMessageError(err.Error())))
 	}
 }
 
@@ -34,6 +35,7 @@ type RelayServiceRequestExecutor struct {
 	providerId        string
 	hostId            string
 	connections       []connection.IConnection
+	lastSucceededConn int
 	connectionManager connection_manager.IConnectionManager `$inject:""`
 	logger            *logger.SimpleLogger
 }
@@ -100,14 +102,15 @@ func (e *RelayServiceRequestExecutor) Execute(request *service.ServiceRequest) {
 	}
 }
 
-// try all connections until one succeeded
+// try all connections from lastSucceededConn until one succeeded
 func (e *RelayServiceRequestExecutor) doRequest(request *service.ServiceRequest) (msg *messages.Message, err error) {
 	if len(e.connections) == 0 {
 		return nil, errors.New("all service connection is down")
 	}
-	for _, conn := range e.connections {
-		msg, err = conn.Request(request.Message)
-		if err == nil {
+	size := len(e.connections)
+	for i := 0; i < size; i++ {
+		e.lastSucceededConn++
+		if msg, err = e.connections[(e.lastSucceededConn % len(e.connections))].Request(request.Message); err != nil {
 			// once the first connection successfully handles the request, return
 			return
 		}

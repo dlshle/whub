@@ -8,6 +8,7 @@ import (
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/core/metering"
 	service "wsdk/relay_server/core/service_manager"
+	"wsdk/relay_server/errors"
 	"wsdk/relay_server/service_base"
 )
 
@@ -39,13 +40,15 @@ func (h *ServiceRequestMessageHandler) Handle(message *messages.Message, conn co
 	svc := h.manager.FindServiceByUri(message.Uri())
 	if svc == nil {
 		err = service_base.NewCanNotFindServiceError(message.Uri())
-		conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(), err.Error()))
+		conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(),
+			errors.NewJsonMessageError(err.Error())))
 		h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
 		return err
 	}
 	response := svc.Handle(message)
 	if response == nil {
-		err = conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(), "service does not support sync requests"))
+		err = conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(),
+			errors.NewJsonMessageError("service does not support sync requests")))
 	} else {
 		err = conn.Send(response)
 	}

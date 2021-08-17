@@ -8,5 +8,5 @@ type ServerService struct {
 	id       string
 	host     string
 	provider roles.IDescribableRole
-	// TODO some service_manager descriptions here and a connection to send requests
+	// TODO some service descriptions here and a connection to send requests
 }

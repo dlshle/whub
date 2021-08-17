@@ -7,7 +7,7 @@ import (
 	"wsdk/common/uri_trie"
 )
 
-// ServiceHandler handles service_manager requests
+// ServiceHandler handles service requests
 type ServiceHandler struct {
 	trieTree *uri_trie.TrieTree
 	lock     *sync.RWMutex

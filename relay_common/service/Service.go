@@ -10,9 +10,9 @@ import (
 
 /*
  * Service can be provided by both client_manager and server.
- * A server service_manager is a collection of local/remote(to client_manager) requests identified by a set of service_manager uris.
- * A client_manager service_manager is a collection of function calls identified by a set of service_manager uris.
- * Client service_manager anatomy:
+ * A server service is a collection of local/remote(to client_manager) requests identified by a set of service uris.
+ * A client_manager service is a collection of function calls identified by a set of service uris.
+ * Client service anatomy:
  *  Service { handlers(deprecated)[path]handler }
  * Usual Service Flow:
  *  ClientX -request-> Server -request-> servicePool -request-> serverRequestExecutor -request-> Client -request-> servicePool -request-> clientRequestExecutor -request-> clientServiceHandler -response-> Server -response-> ClientX
@@ -107,7 +107,7 @@ func initServiceStatusStrMap() {
 	ServiceStatusStringMap[ServiceStatusStopping] = "stopping"
 }
 
-// Service Uri should always be /service_manager/serviceId/uri_trie/params
+// Service Uri should always be /service/serviceId/uri_trie/params
 
 // Service access type
 const (

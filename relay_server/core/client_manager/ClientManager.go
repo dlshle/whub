@@ -28,14 +28,16 @@ type ClientManager struct {
 
 func NewClientManager() IClientManager {
 	// TODO remove later test only
-	sqlStore := client_store.NewMySqlClientStore()
-	err := sqlStore.Init(client_store.SQLServer, client_store.SQLUserName, client_store.SQLPassword, client_store.SQLDBName)
+	// sqlStore := client_store.NewMySqlClientStore()
+	// redisClient := redis.NewRedisClient(client_store.RedisAddr, client_store.RedisPass, 5)
+	store := client_store.NewCachedClientMySqlStore()
+	err := store.Init(client_store.SQLServer, client_store.SQLUserName, client_store.SQLPassword, client_store.SQLDBName, client_store.RedisAddr, client_store.RedisPass)
 	if err != nil {
 		panic(err)
 	}
 	// ^^ TEST ONLY
 	manager := &ClientManager{
-		store:  sqlStore,
+		store:  store,
 		logger: context.Ctx.Logger().WithPrefix("[ClientManager]"),
 	}
 	// err := container.Container.Fill(manager)

@@ -31,3 +31,7 @@ func (e *ServerError) Json() string {
 	}
 	return (string)(jsonErr)
 }
+
+func NewJsonMessageError(message string) string {
+	return fmt.Sprintf("{\"message\":\"%s\"}", message)
+}

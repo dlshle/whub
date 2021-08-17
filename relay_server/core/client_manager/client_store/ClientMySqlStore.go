@@ -17,6 +17,9 @@ const (
 	SQLUserName = "root"
 	SQLPassword = "Lxr000518!"
 	SQLDBName   = "wr_test"
+
+	RedisAddr = "192.168.0.132:6379"
+	RedisPass = "19950416"
 )
 
 type DClient struct {
@@ -33,15 +36,15 @@ func (d *DClient) toClient() *client.Client {
 	return client.NewClient(d.ID, d.Description, d.CType, d.CKey, d.PScope)
 }
 
-type MySqlClientStore struct {
+type ClientMySqlStore struct {
 	db *gorm.DB
 }
 
-func NewMySqlClientStore() *MySqlClientStore {
-	return &MySqlClientStore{}
+func NewMySqlClientStore() *ClientMySqlStore {
+	return &ClientMySqlStore{}
 }
 
-func (s *MySqlClientStore) clientToDClient(client *client.Client) *DClient {
+func (s *ClientMySqlStore) clientToDClient(client *client.Client) *DClient {
 	return &DClient{
 		ID:          client.Id(),
 		Description: client.Description(),
@@ -51,7 +54,7 @@ func (s *MySqlClientStore) clientToDClient(client *client.Client) *DClient {
 	}
 }
 
-func (s *MySqlClientStore) Init(fullDBUri, username, password, dbname string) error {
+func (s *ClientMySqlStore) Init(fullDBUri, username, password, dbname string) error {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", username, password, fullDBUri, dbname)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -61,7 +64,7 @@ func (s *MySqlClientStore) Init(fullDBUri, username, password, dbname string) er
 	return s.db.AutoMigrate(&DClient{})
 }
 
-func (s *MySqlClientStore) Get(id string) (*client.Client, error) {
+func (s *ClientMySqlStore) Get(id string) (*client.Client, error) {
 	queryHolder := &DClient{ID: id}
 	result := s.db.First(queryHolder)
 	if result.Error != nil {
@@ -70,15 +73,15 @@ func (s *MySqlClientStore) Get(id string) (*client.Client, error) {
 	return queryHolder.toClient(), nil
 }
 
-func (s *MySqlClientStore) Create(client *client.Client) error {
+func (s *ClientMySqlStore) Create(client *client.Client) error {
 	return s.db.Create(s.clientToDClient(client)).Error
 }
 
-func (s *MySqlClientStore) Update(client *client.Client) error {
+func (s *ClientMySqlStore) Update(client *client.Client) error {
 	return s.db.Updates(s.clientToDClient(client)).Error
 }
 
-func (s *MySqlClientStore) Has(id string) (bool, error) {
+func (s *ClientMySqlStore) Has(id string) (bool, error) {
 	c, e := s.Get(id)
 	if e != nil {
 		return false, e
@@ -86,19 +89,19 @@ func (s *MySqlClientStore) Has(id string) (bool, error) {
 	return c != nil, e
 }
 
-func (s *MySqlClientStore) Delete(id string) error {
+func (s *ClientMySqlStore) Delete(id string) error {
 	return s.db.Delete(&DClient{ID: id}).Error
 }
 
-func (s *MySqlClientStore) GetAll() ([]*client.Client, error) {
+func (s *ClientMySqlStore) GetAll() ([]*client.Client, error) {
 	return s.batchFindOperations(s.db.Where("1 = ?", "1"))
 }
 
-func (s *MySqlClientStore) Find(query *DClientQuery) ([]*client.Client, error) {
+func (s *ClientMySqlStore) Find(query *DClientQuery) ([]*client.Client, error) {
 	return s.batchFindOperations(s.buildQueryTx(query))
 }
 
-func (s *MySqlClientStore) buildQueryTx(query *DClientQuery) *gorm.DB {
+func (s *ClientMySqlStore) buildQueryTx(query *DClientQuery) *gorm.DB {
 	var clauses []string
 	if query.cType > -1 {
 		clauses = append(clauses, "c_type = ?", strconv.Itoa(query.cType))
@@ -117,7 +120,7 @@ func (s *MySqlClientStore) buildQueryTx(query *DClientQuery) *gorm.DB {
 	return tx
 }
 
-func (s *MySqlClientStore) batchFindOperations(tx *gorm.DB) ([]*client.Client, error) {
+func (s *ClientMySqlStore) batchFindOperations(tx *gorm.DB) ([]*client.Client, error) {
 	var allClients []DClient
 	if err := tx.Find(allClients).Error; err != nil {
 		return nil, err

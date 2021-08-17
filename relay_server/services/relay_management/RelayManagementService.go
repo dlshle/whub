@@ -10,7 +10,7 @@ import (
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	client_manager "wsdk/relay_server/core/client_manager"
+	"wsdk/relay_server/core/client_manager"
 	"wsdk/relay_server/core/connection_manager"
 	"wsdk/relay_server/core/service_manager"
 	servererror "wsdk/relay_server/errors"
@@ -190,6 +190,10 @@ func (s *RelayManagementService) GetServiceByClientId(request *service_common.Se
 	clientId := pathParams["clientId"]
 	if clientId == "" {
 		return errors.New("parameter [:clientId] is missing")
+	}
+	_, err := s.clientManager.GetClient(clientId)
+	if err != nil {
+		return err
 	}
 	services := s.serviceManager.GetServicesByClientId(clientId)
 	descriptors := make([]service_common.ServiceDescriptor, len(services), len(services))
