@@ -1,12 +1,10 @@
 package message_dispatcher
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	base_conn "wsdk/common/connection"
 	"wsdk/common/logger"
-	"wsdk/common/utils"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
@@ -20,6 +18,8 @@ import (
 
 // TODO move this logic to client_management_service???
 // Can't do this in cms as it doesn't have the connection info
+
+// TODO new: Move Client Info Update logic to ClientManagementService!!
 
 type ClientDescriptorMessageHandler struct {
 	clientManager     client_manager.IClientManager         `$inject:""`
@@ -42,32 +42,31 @@ func (h *ClientDescriptorMessageHandler) Type() int {
 	return messages.MessageTypeClientDescriptor
 }
 
-func (h *ClientDescriptorMessageHandler) Handle(message *messages.Message, conn connection.IConnection) (err error) {
+func (h *ClientDescriptorMessageHandler) Handle(message messages.IMessage, conn connection.IConnection) (err error) {
 	if !base_conn.IsAsyncType(conn.ConnectionType()) {
-		return errors.New("non async connection type can not be used to initiate async client registration")
+		err = errors.New("non async connection type can not be used to initiate async client registration")
+		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
+		return err
 	}
 	if message == nil {
-		return errors.New("nil message")
+		err = errors.New("nil message")
+		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
+		return err
 	}
-	roleDescriptor, extraInfoDescriptor, err := h.unmarshallClientDescriptor(message)
+	roleDescriptor, extraInfoDescriptor, err := client_manager.UnmarshallClientDescriptor(message)
 	if err != nil {
 		h.logger.Printf("failed to unmarshall descriptors from message by %s due to %s", conn.Address(), err.Error())
 		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
 		return err
 	}
-	if c, err := h.connectionManager.GetConnectionByAddress(conn.Address()); c != nil && err == nil {
-		h.logger.Printf("handle client connection(%s) promotion", conn.Address())
-		// registration
-		h.handleClientConnectionRegistration(roleDescriptor, extraInfoDescriptor, conn)
-		serverDescMsg := messages.NewMessage(message.Id(),
-			context.Ctx.Server().Id(),
-			message.From(),
-			message.Uri(),
-			messages.MessageTypeServerDescriptor,
-			([]byte)(context.Ctx.Server().Describe().String()))
-		return conn.Send(serverDescMsg)
+	if message.From() != roleDescriptor.Id {
+		errMsg := fmt.Sprintf("client identity mismatch from(%s), descriptor(%s)", message.From(), roleDescriptor.Id)
+		h.logger.Printf(errMsg)
+		err = errors.New(errMsg)
+		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), errMsg))
+		return err
 	}
-	// client_manager info update
+
 	client, err := h.clientManager.GetClient(message.From())
 	if err != nil {
 		errMsg := fmt.Sprintf("err while finding client %s from connection %s: %s", message.From(), conn.Address(), err.Error())
@@ -76,26 +75,49 @@ func (h *ClientDescriptorMessageHandler) Handle(message *messages.Message, conn 
 		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
 		return err
 	}
-	h.logger.Println("update client with ", roleDescriptor, extraInfoDescriptor)
-	client.SetDescription(roleDescriptor.Description)
-	client.SetCKey(extraInfoDescriptor.CKey)
-	client.SetPScope(extraInfoDescriptor.PScope)
-	return conn.Send(messages.NewACKMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri()))
+	if client == nil {
+		// client registration, do we do it here or route the request to the service?
+		client, err = h.handleClientRegistration(roleDescriptor, extraInfoDescriptor)
+		if err != nil {
+			h.logger.Printf("err while conn %s registering client %s due to %s", conn.Address(), roleDescriptor.Id, err.Error())
+			conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
+			return err
+		}
+		h.logger.Printf("conn %s has successfully registered client %s", conn.Address(), client.Id())
+	}
+	// login => associate connection with client info
+	h.logger.Printf("handle client async connection(%s) login to %s", conn.Address(), client.Id())
+	if err = h.handleClientLogin(client, extraInfoDescriptor.CKey, conn); err != nil {
+		h.logger.Printf("conn %s unable to login client %s due to %s", conn.Address(), client.Id(), err.Error())
+		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
+		return err
+	}
+	h.logger.Printf("client async connection(%s) login to %s succeeded", conn.Address(), client.Id())
+	return conn.Send(h.assembleServiceDescriptorMessageFrom(message))
 }
 
-func (h *ClientDescriptorMessageHandler) unmarshallClientDescriptor(message *messages.Message) (roleDescriptor roles.RoleDescriptor, extraInfoDescriptor roles.ClientExtraInfoDescriptor, err error) {
-	err = utils.ProcessWithError([]func() error{
-		func() error {
-			return json.Unmarshal(message.Payload(), &roleDescriptor)
-		},
-		func() error {
-			return json.Unmarshal(([]byte)(roleDescriptor.ExtraInfo), &extraInfoDescriptor)
-		},
-	})
-	return
+func (h *ClientDescriptorMessageHandler) handleClientLogin(client *client.Client, cKey string, conn connection.IConnection) error {
+	if client.CKey() != cKey {
+		err := errors.New("invalid authorization(mismatched cKey)")
+		return err
+	}
+	return h.connectionManager.RegisterClientToConnection(client.Id(), conn.Address())
 }
 
-func (h *ClientDescriptorMessageHandler) handleClientConnectionRegistration(clientDescriptor roles.RoleDescriptor, clientExtraInfo roles.ClientExtraInfoDescriptor, conn connection.IConnection) {
-	client := client.NewClient(clientDescriptor.Id, clientDescriptor.Description, clientExtraInfo.CType, clientExtraInfo.CKey, clientExtraInfo.PScope)
-	h.connectionManager.RegisterClientToConnection(client.Id(), conn.Address())
+func (h *ClientDescriptorMessageHandler) handleClientRegistration(desc roles.RoleDescriptor, extra roles.ClientExtraInfoDescriptor) (*client.Client, error) {
+	client := client.NewClientFromDescriptor(desc, extra)
+	err := h.clientManager.AddClient(client)
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func (h *ClientDescriptorMessageHandler) assembleServiceDescriptorMessageFrom(message messages.IMessage) messages.IMessage {
+	return messages.NewMessage(message.Id(),
+		context.Ctx.Server().Id(),
+		message.From(),
+		message.Uri(),
+		messages.MessageTypeServerDescriptor,
+		([]byte)(context.Ctx.Server().Describe().String()))
 }

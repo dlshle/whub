@@ -6,6 +6,7 @@ import (
 	"sync"
 	"wsdk/common/connection"
 	"wsdk/common/logger"
+	common_connection "wsdk/relay_common/connection"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
@@ -68,7 +69,7 @@ func NewServer(identity roles.ICommonServer) *Server {
 	logger := context.Ctx.Logger()
 	logger.SetPrefix(fmt.Sprintf("[Server-%s]", identity.Id()))
 	context.Ctx.Start(identity)
-	wServer := wserver.NewWServer(wserver.NewServerConfig(identity.Id(), identity.Url(), identity.Port(), wserver.DefaultWsConnHandler()))
+	wServer := wserver.NewWServer(wserver.NewServerConfig(identity.Id(), identity.Url(), identity.Port(), common_connection.WSConnectionPath, wserver.DefaultWsConnHandler()))
 	wServer.SetLogger(logger)
 	messageDispatcher := message_dispatcher.NewServerMessageDispatcher()
 	// wServer.SetAsyncPool(context.Ctx.AsyncTaskPool())
@@ -83,6 +84,10 @@ func NewServer(identity roles.ICommonServer) *Server {
 	}
 	server.OnClientConnected(server.handleInitialConnection)
 	server.OnNonUpgradableRequest(server.handleHTTPRequests)
+	server.SetBeforeUpgradeChecker(func(r *http.Request) error {
+		// TODO check token to see if we are willing to upgrade this http request
+		return nil
+	})
 	server.clientConnectionHandler = NewClientConnectionHandler(server.messageDispatcher)
 	/*
 		onHttpRequest func(u func(w http.ResponseWriter, r *http.Handle) error, w http.ResponseWriter, r *http.Handle),

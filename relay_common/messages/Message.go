@@ -49,11 +49,17 @@ type Message struct {
 type IMessage interface {
 	Id() string
 	From() string
+	SetFrom(string) IMessage
 	To() string
+	SetTo(string) IMessage
 	MessageType() int
+	SetMessageType(int) IMessage
 	Uri() string
+	SetUri(string) IMessage
 	Payload() []byte
+	SetPayload([]byte) IMessage
 	String() string
+	Copy() IMessage
 }
 
 func (t *Message) Id() string {
@@ -64,7 +70,7 @@ func (t *Message) From() string {
 	return t.from
 }
 
-func (t *Message) SetFrom(from string) *Message {
+func (t *Message) SetFrom(from string) IMessage {
 	t.from = from
 	return t
 }
@@ -73,7 +79,7 @@ func (t *Message) To() string {
 	return t.to
 }
 
-func (t *Message) SetTo(to string) *Message {
+func (t *Message) SetTo(to string) IMessage {
 	t.to = to
 	return t
 }
@@ -82,7 +88,7 @@ func (t *Message) MessageType() int {
 	return t.messageType
 }
 
-func (t *Message) SetMessageType(mType int) *Message {
+func (t *Message) SetMessageType(mType int) IMessage {
 	t.messageType = mType
 	return t
 }
@@ -91,7 +97,7 @@ func (t *Message) Uri() string {
 	return t.uri
 }
 
-func (t *Message) SetUri(uri string) *Message {
+func (t *Message) SetUri(uri string) IMessage {
 	t.uri = uri
 	return t
 }
@@ -100,7 +106,7 @@ func (t *Message) Payload() []byte {
 	return t.payload
 }
 
-func (t *Message) SetPayload(payload []byte) *Message {
+func (t *Message) SetPayload(payload []byte) IMessage {
 	t.payload = payload
 	return t
 }
@@ -112,42 +118,42 @@ func (t *Message) String() string {
 	return fmt.Sprintf("{id: \"%s\", from: \"%s\", to: \"%s\", uri: \"%s\", messageType: %d, payload: \"%s\"}", t.id, t.from, t.to, t.uri, t.messageType, t.payload)
 }
 
-func (t *Message) Equals(m *Message) bool {
-	return t.Id() == m.Id() && t.From() == m.From() && t.To() == m.To() && t.Uri() == m.Uri() && t.MessageType() == m.MessageType() && (string)(t.payload) == (string)(m.payload)
+func (t *Message) Equals(m IMessage) bool {
+	return t.Id() == m.Id() && t.From() == m.From() && t.To() == m.To() && t.Uri() == m.Uri() && t.MessageType() == m.MessageType() && (string)(t.payload) == (string)(m.Payload())
 }
 
-func (t *Message) Copy() *Message {
+func (t *Message) Copy() IMessage {
 	return NewMessage(t.id, t.from, t.to, t.uri, t.messageType, t.payload)
 }
 
-func NewMessage(id string, from string, to string, uri string, messageType int, payload []byte) *Message {
+func NewMessage(id string, from string, to string, uri string, messageType int, payload []byte) IMessage {
 	return &Message{id, from, to, uri, messageType, payload}
 }
 
-func DraftMessage(from string, to string, uri string, messageType int, payload []byte) *Message {
+func DraftMessage(from string, to string, uri string, messageType int, payload []byte) IMessage {
 	return NewMessage(utils.GenStringId(), from, to, uri, messageType, payload)
 }
 
-func NewErrorMessage(id string, from string, to string, uri string, errorMessage string) *Message {
+func NewErrorMessage(id string, from string, to string, uri string, errorMessage string) IMessage {
 	return &Message{id, from, to, uri, MessageTypeError, ([]byte)(errorMessage)}
 }
 
-func NewPingMessage(id string, from string, to string) *Message {
+func NewPingMessage(id string, from string, to string) IMessage {
 	return &Message{id, from, to, "", MessageTypePing, nil}
 }
 
-func NewPongMessage(id string, from string, to string) *Message {
+func NewPongMessage(id string, from string, to string) IMessage {
 	return &Message{id, from, to, "", MessageTypePong, nil}
 }
 
-func NewACKMessage(id string, from string, to string, uri string) *Message {
+func NewACKMessage(id string, from string, to string, uri string) IMessage {
 	return &Message{id: id, from: from, to: to, uri: uri, messageType: MessageTypeACK}
 }
 
-func NewNotification(id string, message string) *Message {
+func NewNotification(id string, message string) IMessage {
 	return &Message{id: id, messageType: MessageTypeInternalNotification, payload: ([]byte)(message)}
 }
 
-func NewErrorResponseMessage(request *Message, from string, errMsg string) *Message {
-	return &Message{id: request.id, from: from, to: request.from, uri: request.uri, messageType: MessageTypeError, payload: ([]byte)(errMsg)}
+func NewErrorResponseMessage(request IMessage, from string, errMsg string) IMessage {
+	return &Message{id: request.Id(), from: from, to: request.From(), uri: request.Uri(), messageType: MessageTypeError, payload: ([]byte)(errMsg)}
 }

@@ -129,7 +129,7 @@ const (
 	ServiceTypeRelay    = 1
 )
 
-type RequestHandler func(request *ServiceRequest, pathParams map[string]string, queryParams map[string]string) error
+type RequestHandler func(request IServiceRequest, pathParams map[string]string, queryParams map[string]string) error
 
 type IBaseService interface {
 	Id() string
@@ -149,7 +149,7 @@ type IBaseService interface {
 	OnStarted(func(IBaseService))
 	OnStopped(func(IBaseService))
 
-	Handle(message *messages.Message) *messages.Message
+	Handle(request IServiceRequest) messages.IMessage
 
 	Cancel(messageId string) error
 

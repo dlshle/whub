@@ -19,11 +19,11 @@ type PubSubController struct {
 }
 
 type IPubSubController interface {
-	Publish(topicId string, message *messages.Message) error
+	Publish(topicId string, message messages.IMessage) error
 	Subscribe(clientId, topicId string) error
 	Unsubscribe(clientId, topicId string) error
 	Topics() ([]topic.TopicDescriptor, error)
-	Remove(clientId, topicId string, removalMessage *messages.Message) error
+	Remove(clientId, topicId string, removalMessage messages.IMessage) error
 }
 
 func NewPubSubController() IPubSubController {
@@ -37,7 +37,7 @@ func NewPubSubController() IPubSubController {
 	return c
 }
 
-func (c *PubSubController) getConnectionsAndSendByClientId(id string, message *messages.Message, onSendError func(connection.IConnection, error)) error {
+func (c *PubSubController) getConnectionsAndSendByClientId(id string, message messages.IMessage, onSendError func(connection.IConnection, error)) error {
 	conns, err := c.connManager.GetConnectionsByClientId(id)
 	if err != nil {
 		return err
@@ -50,9 +50,9 @@ func (c *PubSubController) getConnectionsAndSendByClientId(id string, message *m
 	return nil
 }
 
-func (c *PubSubController) broadcastMessageTo(topicId string, subscribers []string, message *messages.Message) error {
+func (c *PubSubController) broadcastMessageTo(topicId string, subscribers []string, message messages.IMessage) error {
 	for _, subscriber := range subscribers {
-		client, err := c.clientManager.GetClient(subscriber)
+		client, err := c.clientManager.GetClientWithErrOnNotFound(subscriber)
 		if err != nil {
 			c.logger.Printf("unable to broadcast message %s on topic %s to %s due to %s", message.Id(), topicId, client.Id(), err.Error())
 			continue
@@ -70,7 +70,7 @@ func (c *PubSubController) broadcastMessageTo(topicId string, subscribers []stri
 	return nil
 }
 
-func (c *PubSubController) Publish(topicId string, message *messages.Message) error {
+func (c *PubSubController) Publish(topicId string, message messages.IMessage) error {
 	topic, err := c.topicManager.GetTopic(topicId)
 	if err != nil {
 		return err
@@ -79,7 +79,7 @@ func (c *PubSubController) Publish(topicId string, message *messages.Message) er
 }
 
 func (c *PubSubController) Subscribe(clientId, topicId string) error {
-	client, err := c.clientManager.GetClient(clientId)
+	client, err := c.clientManager.GetClientWithErrOnNotFound(clientId)
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func (c *PubSubController) Subscribe(clientId, topicId string) error {
 }
 
 func (c *PubSubController) Unsubscribe(clientId, topicId string) error {
-	client, err := c.clientManager.GetClient(clientId)
+	client, err := c.clientManager.GetClientWithErrOnNotFound(clientId)
 	if err != nil {
 		return err
 	}
@@ -98,8 +98,8 @@ func (c *PubSubController) Topics() ([]topic.TopicDescriptor, error) {
 	return c.topicManager.GetAllDescribedTopics()
 }
 
-func (c *PubSubController) Remove(clientId, topicId string, removalMessage *messages.Message) error {
-	_, err := c.clientManager.GetClient(clientId)
+func (c *PubSubController) Remove(clientId, topicId string, removalMessage messages.IMessage) error {
+	_, err := c.clientManager.GetClientWithErrOnNotFound(clientId)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (c *PubSubController) Remove(clientId, topicId string, removalMessage *mess
 	return nil
 }
 
-func (c *PubSubController) notifySubscribersForTopicRemoval(topic topic.Topic, message *messages.Message) {
+func (c *PubSubController) notifySubscribersForTopicRemoval(topic topic.Topic, message messages.IMessage) {
 	err := c.broadcastMessageTo(topic.Id(), topic.Subscribers(), message)
 	if err != nil {
 		c.logger.Printf("error while broadcasting topic removal message: %s", err.Error())

@@ -43,7 +43,7 @@ func (d *ServerMessageDispatcher) init() {
 	d.registerHandler(NewServiceRequestMessageHandler())
 }
 
-func (d *ServerMessageDispatcher) Dispatch(message *messages.Message, conn connection.IConnection) {
+func (d *ServerMessageDispatcher) Dispatch(message messages.IMessage, conn connection.IConnection) {
 	/*
 	 * this function can either be called from a reading loop coroutine or from http handler goroutine, in order to
 	 * make the reading loop more effective(less blocking time), actual message dispatching will be done on another

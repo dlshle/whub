@@ -6,6 +6,7 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v2.1.8+incompatible
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
 	github.com/go-redis/redis v6.14.2+incompatible
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/flatbuffers v2.0.0+incompatible
 	github.com/gorilla/websocket v1.4.2
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect

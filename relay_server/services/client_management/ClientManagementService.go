@@ -1,10 +1,8 @@
 package client_management
 
 import (
-	"encoding/json"
-	"wsdk/common/logger"
-	"wsdk/common/utils"
-	"wsdk/relay_common/messages"
+	"errors"
+	"fmt"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
@@ -29,7 +27,6 @@ type ClientManagementService struct {
 	*service_base.NativeService
 	clientManager client_manager.IClientManager         `$inject:""`
 	connManager   connection_manager.IConnectionManager `$inject:""`
-	logger        *logger.SimpleLogger
 }
 
 func (s *ClientManagementService) Init() (err error) {
@@ -44,25 +41,19 @@ func (s *ClientManagementService) Init() (err error) {
 	}
 	routeMap := make(map[string]service.RequestHandler)
 	routeMap[RouteSignUp] = s.SignUp
+	routeMap[RouteUpdate] = s.Update
 	// TODO
 	return s.InitRoutes(routeMap)
 }
 
-func (s *ClientManagementService) unmarshallClientDescriptor(message *messages.Message) (roleDescriptor roles.RoleDescriptor, extraInfoDescriptor roles.ClientExtraInfoDescriptor, err error) {
-	err = utils.ProcessWithError([]func() error{
-		func() error {
-			return json.Unmarshal(message.Payload(), &roleDescriptor)
-		},
-		func() error {
-			return json.Unmarshal(([]byte)(roleDescriptor.ExtraInfo), &extraInfoDescriptor)
-		},
-	})
-	return
+func (s *ClientManagementService) validateClientIdentity(request service.IServiceRequest) error {
+	// TODO
+	panic("implement me")
 }
 
-func (s *ClientManagementService) SignUp(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *ClientManagementService) SignUp(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	// body should be client descriptor
-	roleDesc, extraDesc, err := s.unmarshallClientDescriptor(request.Message)
+	roleDesc, extraDesc, err := client_manager.UnmarshallClientDescriptor(request.Message())
 	if err != nil {
 		return err
 	}
@@ -74,6 +65,31 @@ func (s *ClientManagementService) SignUp(request *service.ServiceRequest, pathPa
 	return nil
 }
 
-func (s *ClientManagementService) Login(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *ClientManagementService) Login(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	panic("implement")
+}
+
+func (s *ClientManagementService) Update(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	from := request.From()
+	roleDesc, extraDesc, err := client_manager.UnmarshallClientDescriptor(request.Message())
+	if err != nil {
+		return err
+	}
+	if from != roleDesc.Id {
+		err = errors.New(fmt.Sprintf("mismatch identity from(%s):desc(%s)", from, roleDesc.Id))
+		s.Logger().Printf(err.Error())
+		return err
+	}
+	client := client.NewClientFromDescriptor(roleDesc, extraDesc)
+	err = s.clientManager.UpdateClient(client)
+	if err != nil {
+		s.Logger().Printf("error while updating client info due to %s", err.Error())
+		return err
+	}
+	s.ResolveByResponse(request, ([]byte)(client.Describe().String()))
+	return nil
+}
+
+func (s *ClientManagementService) GetById(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	panic("implement me")
 }

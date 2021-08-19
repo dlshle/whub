@@ -7,6 +7,7 @@ import (
 	"wsdk/relay_client/controllers"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/service"
 	"wsdk/relay_server/core/metering"
 )
 
@@ -32,7 +33,7 @@ func (h *ClientServiceMessageHandler) Type() int {
 	return messages.MessageTypeServiceRequest
 }
 
-func (h *ClientServiceMessageHandler) Handle(msg *messages.Message, conn connection.IConnection) error {
+func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connection.IConnection) error {
 	h.m.Track(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()), "in service handler")
 	if h.service == nil {
 		h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
@@ -52,7 +53,9 @@ func (h *ClientServiceMessageHandler) Handle(msg *messages.Message, conn connect
 			msg.Uri(),
 			fmt.Sprintf("uri %s is not supported by service %s", msg.Uri(), h.service.Id())))
 	}
-	resp := h.service.Handle(msg)
+	// TODO use middlewares
+	request := service.NewServiceRequest(msg)
+	resp := h.service.Handle(request)
 	err := conn.Send(resp)
 	h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
 	return err

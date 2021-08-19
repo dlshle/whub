@@ -37,7 +37,7 @@ func (s *ConfigService) Init() (err error) {
 	return s.InitRoutes(routeMap)
 }
 
-func (s *ConfigService) GetAll(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *ConfigService) GetAll(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	configs := s.manager.GetConfigs()
 	marshalled, err := json.Marshal(configs)
 	if err != nil {
@@ -47,7 +47,7 @@ func (s *ConfigService) GetAll(request *service.ServiceRequest, pathParams map[s
 	return
 }
 
-func (s *ConfigService) Get(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *ConfigService) Get(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	configKey := pathParams["key"]
 	config := s.manager.GetConfig(configKey)
 	if config == nil {
@@ -61,7 +61,7 @@ func (s *ConfigService) Get(request *service.ServiceRequest, pathParams map[stri
 	return
 }
 
-func (s *ConfigService) Set(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *ConfigService) Set(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	return errors.New("unsupported")
 }
 

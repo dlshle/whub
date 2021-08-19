@@ -57,11 +57,11 @@ func (s *RelayManagementService) init() error {
 }
 
 func (s *RelayManagementService) initNotificationHandlers() {
-	events.OnEvent(events.EventClientConnectionGone, func(message *messages.Message) {
+	events.OnEvent(events.EventClientConnectionGone, func(message messages.IMessage) {
 		clientId := string(message.Payload()[:])
 		s.serviceManager.UnregisterAllServicesFromClientId(clientId)
 	})
-	events.OnEvent(events.EventClientUnexpectedClosure, func(message *messages.Message) {
+	events.OnEvent(events.EventClientUnexpectedClosure, func(message messages.IMessage) {
 		clientId := string(message.Payload()[:])
 		s.serviceManager.WithServicesFromClientId(clientId, func(services []service_base.IService) {
 			for _, svc := range services {
@@ -69,7 +69,7 @@ func (s *RelayManagementService) initNotificationHandlers() {
 			}
 		})
 	})
-	events.OnEvent(events.EventServiceNewProvider, func(message *messages.Message) {
+	events.OnEvent(events.EventServiceNewProvider, func(message messages.IMessage) {
 		clientId := string(message.Payload()[:])
 		s.tryToRestoreDeadServicesFromReconnectedClient(clientId)
 	})
@@ -86,7 +86,7 @@ func (s *RelayManagementService) initRoutes() error {
 }
 
 func (s *RelayManagementService) validateClientConnection(clientId string) error {
-	if _, err := s.clientManager.GetClient(clientId); err != nil {
+	if _, err := s.clientManager.GetClientWithErrOnNotFound(clientId); err != nil {
 		return err
 	}
 	conns, err := s.connectionManager.GetConnectionsByClientId(clientId)
@@ -101,11 +101,11 @@ func (s *RelayManagementService) validateClientConnection(clientId string) error
 	return errors.New("only async connection type supports relay service")
 }
 
-func (s *RelayManagementService) RegisterService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *RelayManagementService) RegisterService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	defer s.Logger().Printf("service %v registration result: %s",
-		utils.ConditionalPick(request != nil, request.Message, nil),
+		utils.ConditionalPick(request != nil, request.Message(), nil),
 		utils.ConditionalPick(err != nil, err, "success"))
-	s.Logger().Println("register service: ", utils.ConditionalPick(request != nil, request.Message, nil))
+	s.Logger().Println("register service: ", utils.ConditionalPick(request != nil, request.Message(), nil))
 	if err = s.validateClientConnection(request.From()); err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 	if err != nil {
 		return err
 	}
-	client, err := s.clientManager.GetClient(descriptor.Provider.Id)
+	client, err := s.clientManager.GetClientWithErrOnNotFound(descriptor.Provider.Id)
 	if err != nil {
 		return err
 	}
@@ -134,11 +134,11 @@ func (s *RelayManagementService) RegisterService(request *service_common.Service
 	return nil
 }
 
-func (s *RelayManagementService) UnregisterService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *RelayManagementService) UnregisterService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	defer s.Logger().Printf("service %v un-registration result: %s",
-		utils.ConditionalPick(request != nil, request.Message, nil),
+		utils.ConditionalPick(request != nil, request.Message(), nil),
 		utils.ConditionalPick(err != nil, err, "success"))
-	s.Logger().Println("un-register service: ", utils.ConditionalPick(request != nil, request.Message, nil))
+	s.Logger().Println("un-register service: ", utils.ConditionalPick(request != nil, request.Message(), nil))
 	if err = s.validateClientConnection(request.From()); err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (s *RelayManagementService) UnregisterService(request *service_common.Servi
 	return nil
 }
 
-func (s *RelayManagementService) UpdateService(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *RelayManagementService) UpdateService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	if err := s.validateClientConnection(request.From()); err != nil {
 		return err
 	}
@@ -186,12 +186,12 @@ func (s *RelayManagementService) UpdateService(request *service_common.ServiceRe
 	return nil
 }
 
-func (s *RelayManagementService) GetServiceByClientId(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *RelayManagementService) GetServiceByClientId(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	clientId := pathParams["clientId"]
 	if clientId == "" {
 		return errors.New("parameter [:clientId] is missing")
 	}
-	_, err := s.clientManager.GetClient(clientId)
+	_, err := s.clientManager.GetClientWithErrOnNotFound(clientId)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (s *RelayManagementService) GetServiceByClientId(request *service_common.Se
 	return nil
 }
 
-func (s *RelayManagementService) GetAllRelayServices(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *RelayManagementService) GetAllRelayServices(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	services := s.serviceManager.DescribeAllRelayServices()
 	marshalled, err := json.Marshal(services)
 	if err != nil {
@@ -222,7 +222,7 @@ func (s *RelayManagementService) tryToRestoreDeadServicesFromReconnectedClient(c
 	defer s.Logger().Printf("restore service from client %s result: %s", clientId, utils.ConditionalPick(err != nil, err, "success"))
 	s.Logger().Println("restore services from client ", clientId)
 	s.serviceManager.WithServicesFromClientId(clientId, func(services []service_base.IService) {
-		client, cerr := s.clientManager.GetClient(clientId)
+		client, cerr := s.clientManager.GetClientWithErrOnNotFound(clientId)
 		if cerr != nil {
 			err = cerr
 			return

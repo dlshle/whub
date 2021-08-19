@@ -82,7 +82,7 @@ type IClientService interface {
 	RegisterRoute(shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
 	UnregisterRoute(shortUri string) error                               // should update service descriptor to the host
 	NotifyHostForUpdate() error
-	NewMessage(to string, uri string, msgType int, payload []byte) *messages.Message
+	NewMessage(to string, uri string, msgType int, payload []byte) messages.IMessage
 
 	Register() error
 
@@ -90,8 +90,8 @@ type IClientService interface {
 	OnHealthCheckFails(cb func(service IClientService))
 	OnHealthRestored(cb func(service IClientService))
 
-	ResolveByAck(request *service.ServiceRequest) error
-	ResolveByResponse(request *service.ServiceRequest, responseData []byte) error
+	ResolveByAck(request service.IServiceRequest) error
+	ResolveByResponse(request service.IServiceRequest, responseData []byte) error
 
 	Logger() *logger.SimpleLogger
 }
@@ -185,16 +185,15 @@ func (s *ClientService) matchUri(uri string) (string, error) {
 	return "", errors.New("no matched uri_trie")
 }
 
-func (s *ClientService) Handle(message *messages.Message) *messages.Message {
-	if strings.HasPrefix(message.Uri(), s.uriPrefix) {
-		message = message.Copy().SetUri(strings.TrimPrefix(message.Uri(), s.uriPrefix))
+func (s *ClientService) Handle(request service.IServiceRequest) messages.IMessage {
+	if strings.HasPrefix(request.Uri(), s.uriPrefix) {
+		request.SetMessage(request.Copy().SetUri(strings.TrimPrefix(request.Uri(), s.uriPrefix)))
 	}
-	request := service.NewServiceRequest(message)
 	s.serviceTaskQueue.Schedule(request)
-	s.m.Track(s.m.GetAssembledTraceId(controllers.TMessagePerformance, message.Id()), "request in queue")
+	s.m.Track(s.m.GetAssembledTraceId(controllers.TMessagePerformance, request.Id()), "request in queue")
 	if s.executionType == service.ServiceExecutionSync {
 		resp := request.Response()
-		s.m.Track(s.m.GetAssembledTraceId(controllers.TMessagePerformance, message.Id()), "sync request handled")
+		s.m.Track(s.m.GetAssembledTraceId(controllers.TMessagePerformance, request.Id()), "sync request handled")
 		return resp
 	} else {
 		return nil
@@ -247,7 +246,7 @@ func (s *ClientService) NotifyHostForUpdate() error {
 	return errors.New("no serviceManagerClient found")
 }
 
-func (s *ClientService) NewMessage(to string, uri string, msgType int, payload []byte) *messages.Message {
+func (s *ClientService) NewMessage(to string, uri string, msgType int, payload []byte) messages.IMessage {
 	return messages.DraftMessage(s.ctx.Identity().Id(), to, uri, msgType, payload)
 }
 
@@ -382,11 +381,11 @@ func (s *ClientService) OnStopped(cb func(service.IBaseService)) {
 	s.onStoppedCallback = cb
 }
 
-func (s *ClientService) ResolveByAck(request *service.ServiceRequest) error {
+func (s *ClientService) ResolveByAck(request service.IServiceRequest) error {
 	return request.Resolve(messages.NewACKMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri()))
 }
 
-func (s *ClientService) ResolveByResponse(request *service.ServiceRequest, responseData []byte) error {
+func (s *ClientService) ResolveByResponse(request service.IServiceRequest, responseData []byte) error {
 	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, responseData))
 }
 

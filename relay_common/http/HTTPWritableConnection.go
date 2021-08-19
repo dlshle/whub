@@ -28,16 +28,16 @@ func (h *HTTPWritableConnection) ReadingLoop() {
 	return
 }
 
-func (h *HTTPWritableConnection) Request(message *messages.Message) (*messages.Message, error) {
+func (h *HTTPWritableConnection) Request(message messages.IMessage) (messages.IMessage, error) {
 	err := h.Send(message)
 	return nil, err
 }
 
-func (h *HTTPWritableConnection) RequestWithTimeout(message *messages.Message, duration time.Duration) (*messages.Message, error) {
+func (h *HTTPWritableConnection) RequestWithTimeout(message messages.IMessage, duration time.Duration) (messages.IMessage, error) {
 	return h.Request(message)
 }
 
-func (h *HTTPWritableConnection) Send(m *messages.Message) error {
+func (h *HTTPWritableConnection) Send(m messages.IMessage) error {
 	if h.waitLock.IsOpen() {
 		h.logger.Println("send to the same HTTP connection more than once")
 		return errors.New("unable to send more than once for HTTP connection")
@@ -62,18 +62,18 @@ func (h *HTTPWritableConnection) Send(m *messages.Message) error {
 	return nil
 }
 
-func (h *HTTPWritableConnection) OnIncomingMessage(f func(message *messages.Message)) {
+func (h *HTTPWritableConnection) OnIncomingMessage(f func(message messages.IMessage)) {
 }
 
-func (h *HTTPWritableConnection) OnceMessage(s string, f func(*messages.Message)) (notification.Disposable, error) {
+func (h *HTTPWritableConnection) OnceMessage(s string, f func(messages.IMessage)) (notification.Disposable, error) {
 	return nil, nil
 }
 
-func (h *HTTPWritableConnection) OnMessage(s string, f func(*messages.Message)) (notification.Disposable, error) {
+func (h *HTTPWritableConnection) OnMessage(s string, f func(messages.IMessage)) (notification.Disposable, error) {
 	return nil, nil
 }
 
-func (h *HTTPWritableConnection) OffMessage(s string, f func(*messages.Message)) {
+func (h *HTTPWritableConnection) OffMessage(s string, f func(messages.IMessage)) {
 }
 
 func (h *HTTPWritableConnection) OffAll(s string) {

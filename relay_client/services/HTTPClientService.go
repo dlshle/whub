@@ -31,10 +31,10 @@ func (s *HTTPClientService) Init(server roles.ICommonServer, serverConn connecti
 	return err
 }
 
-func (s *HTTPClientService) Request(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *HTTPClientService) Request(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	whr, err := http.DecodeToWHttpRequest(request.Payload())
 	if err != nil {
-		s.Logger().Println("unable to unmarshall WHTTPRequest from message", request.Message)
+		s.Logger().Println("unable to unmarshall WHTTPRequest from message", (string)(request.Payload()))
 		return err
 	}
 	path := s.assembleRequestUrl(pathParams["path"], queryParams)

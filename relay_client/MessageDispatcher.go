@@ -32,7 +32,7 @@ func (d *ClientMessageDispatcher) init() {
 	d.RegisterHandler(message_actions.NewPingMessageHandler(context2.Ctx.Identity()))
 }
 
-func (d *ClientMessageDispatcher) Dispatch(message *messages.Message, conn connection.IConnection) {
+func (d *ClientMessageDispatcher) Dispatch(message messages.IMessage, conn connection.IConnection) {
 	if message == nil {
 		return
 	}

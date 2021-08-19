@@ -37,7 +37,7 @@ func NewTopicManager() ITopicManager {
 }
 
 func (m *TopicManager) initNotificationHandlers() {
-	events.OnEvent(events.EventClientDisconnected, func(e *messages.Message) {
+	events.OnEvent(events.EventClientDisconnected, func(e messages.IMessage) {
 		clientId := string(e.Payload()[:])
 		topics, err := m.topics()
 		if err != nil {

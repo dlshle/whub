@@ -14,9 +14,9 @@ const (
 )
 
 type IServiceTaskQueue interface {
-	Get(id string) *ServiceRequest
+	Get(id string) IServiceRequest
 	Stop()
-	Schedule(message *ServiceRequest) *async.WaitLock
+	Schedule(request IServiceRequest) *async.WaitLock
 	Remove(id string) bool
 	Has(id string) bool
 	KillAll() error
@@ -29,12 +29,12 @@ type ServiceTaskQueue struct {
 	hostId     string
 	pool       async.IAsyncPool
 	executor   IRequestExecutor
-	messageSet map[string]*ServiceRequest
+	requestSet map[string]IServiceRequest
 	lock       *sync.RWMutex
 }
 
 func NewServiceTaskQueue(hostId string, executor IRequestExecutor, pool async.IAsyncPool) *ServiceTaskQueue {
-	return &ServiceTaskQueue{hostId, pool, executor, make(map[string]*ServiceRequest), new(sync.RWMutex)}
+	return &ServiceTaskQueue{hostId, pool, executor, make(map[string]IServiceRequest), new(sync.RWMutex)}
 }
 
 func (p *ServiceTaskQueue) withWrite(cb func()) {
@@ -43,11 +43,11 @@ func (p *ServiceTaskQueue) withWrite(cb func()) {
 	cb()
 }
 
-func (p *ServiceTaskQueue) withAll(operation func(message *ServiceRequest) error) error {
+func (p *ServiceTaskQueue) withAll(operation func(request IServiceRequest) error) error {
 	errorMessage := ""
 	hasError := false
 	p.withWrite(func() {
-		for _, v := range p.messageSet {
+		for _, v := range p.requestSet {
 			err := operation(v)
 			if err != nil {
 				hasError = true
@@ -68,14 +68,14 @@ func (p *ServiceTaskQueue) Stop() {
 func (p *ServiceTaskQueue) Has(id string) bool {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
-	return p.messageSet[id] != nil
+	return p.requestSet[id] != nil
 }
 
-func (p *ServiceTaskQueue) Get(id string) *ServiceRequest {
+func (p *ServiceTaskQueue) Get(id string) IServiceRequest {
 	if !p.Has(id) {
 		return nil
 	}
-	return p.messageSet[id]
+	return p.requestSet[id]
 }
 
 func (p *ServiceTaskQueue) Remove(id string) bool {
@@ -83,17 +83,17 @@ func (p *ServiceTaskQueue) Remove(id string) bool {
 		return false
 	}
 	p.withWrite(func() {
-		delete(p.messageSet, id)
+		delete(p.requestSet, id)
 	})
 	return true
 }
 
-func (p *ServiceTaskQueue) Schedule(request *ServiceRequest) *async.WaitLock {
+func (p *ServiceTaskQueue) Schedule(request IServiceRequest) *async.WaitLock {
 	if p.Has(request.Id()) {
 		return nil
 	}
 	p.withWrite(func() {
-		p.messageSet[request.Id()] = request
+		p.requestSet[request.Id()] = request
 	})
 	return p.pool.Schedule(func() {
 		// check if message_dispatcher is processable
@@ -109,7 +109,7 @@ func (p *ServiceTaskQueue) Schedule(request *ServiceRequest) *async.WaitLock {
 }
 
 func (p *ServiceTaskQueue) KillAll() (errMsg error) {
-	return p.withAll(func(message *ServiceRequest) error {
+	return p.withAll(func(message IServiceRequest) error {
 		return message.Kill()
 	})
 }
@@ -123,7 +123,7 @@ func (p *ServiceTaskQueue) Cancel(id string) error {
 }
 
 func (p *ServiceTaskQueue) CancelAll() error {
-	return p.withAll(func(message *ServiceRequest) error {
+	return p.withAll(func(message IServiceRequest) error {
 		return message.Cancel()
 	})
 }
@@ -131,5 +131,5 @@ func (p *ServiceTaskQueue) CancelAll() error {
 func (p *ServiceTaskQueue) Size() int {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
-	return len(p.messageSet)
+	return len(p.requestSet)
 }

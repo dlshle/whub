@@ -57,7 +57,7 @@ func (s *PubSubService) initRoutes() (err error) {
 	return
 }
 
-func (s *PubSubService) Subscribe(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *PubSubService) Subscribe(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	err := s.pubSubController.Subscribe(request.From(), pathParams["topic"])
 	if err != nil {
 		return err
@@ -66,7 +66,7 @@ func (s *PubSubService) Subscribe(request *service_common.ServiceRequest, pathPa
 	return nil
 }
 
-func (s *PubSubService) Unsubscribe(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *PubSubService) Unsubscribe(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	err := s.pubSubController.Unsubscribe(request.From(), pathParams["topic"])
 	if err != nil {
 		return err
@@ -75,8 +75,8 @@ func (s *PubSubService) Unsubscribe(request *service_common.ServiceRequest, path
 	return nil
 }
 
-func (s *PubSubService) Publish(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
-	err := s.pubSubController.Publish(pathParams["topic"], request.Message)
+func (s *PubSubService) Publish(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+	err := s.pubSubController.Publish(pathParams["topic"], request.Message())
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (s *PubSubService) Publish(request *service_common.ServiceRequest, pathPara
 	return nil
 }
 
-func (s *PubSubService) Topics(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *PubSubService) Topics(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	topics, err := s.pubSubController.Topics()
 	if err != nil {
 		return err
@@ -97,8 +97,8 @@ func (s *PubSubService) Topics(request *service_common.ServiceRequest, pathParam
 	return nil
 }
 
-func (s *PubSubService) Remove(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
-	err := s.pubSubController.Remove(request.From(), pathParams["topic"], request.Message)
+func (s *PubSubService) Remove(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+	err := s.pubSubController.Remove(request.From(), pathParams["topic"], request.Message())
 	if err != nil {
 		return err
 	}

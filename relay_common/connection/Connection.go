@@ -12,7 +12,7 @@ import (
 	"wsdk/relay_common/notification"
 )
 
-const WSConnectionPath = "/"
+const WSConnectionPath = "/ws"
 
 const DefaultTimeout = time.Second * 30
 const DefaultAlivenessTimeout = time.Minute * 5
@@ -23,7 +23,7 @@ type Connection struct {
 	requestTimeout      time.Duration
 	messageParser       messages.IMessageParser
 	notificationEmitter notification.IWRNotificationEmitter
-	messageCallback     func(*messages.Message)
+	messageCallback     func(messages.IMessage)
 	logger              *logger.SimpleLogger
 	ttlTimedJob         ctimer.ICTimer
 }
@@ -31,13 +31,13 @@ type Connection struct {
 type IConnection interface {
 	Address() string
 	ReadingLoop()
-	Request(*messages.Message) (*messages.Message, error)
-	RequestWithTimeout(*messages.Message, time.Duration) (*messages.Message, error)
-	Send(*messages.Message) error
-	OnIncomingMessage(func(message *messages.Message))
-	OnceMessage(string, func(*messages.Message)) (notification.Disposable, error)
-	OnMessage(string, func(*messages.Message)) (notification.Disposable, error)
-	OffMessage(string, func(*messages.Message))
+	Request(messages.IMessage) (messages.IMessage, error)
+	RequestWithTimeout(messages.IMessage, time.Duration) (messages.IMessage, error)
+	Send(messages.IMessage) error
+	OnIncomingMessage(func(message messages.IMessage))
+	OnceMessage(string, func(messages.IMessage)) (notification.Disposable, error)
+	OnMessage(string, func(messages.IMessage)) (notification.Disposable, error)
+	OffMessage(string, func(messages.IMessage))
 	OffAll(string)
 	OnError(func(error))
 	OnClose(func(error))
@@ -123,11 +123,11 @@ func (c *Connection) ReadingLoop() {
 }
 
 // Request naive way to conduct async in Go to give better error hint
-func (c *Connection) Request(message *messages.Message) (response *messages.Message, err error) {
+func (c *Connection) Request(message messages.IMessage) (response messages.IMessage, err error) {
 	return c.RequestWithTimeout(message, c.requestTimeout)
 }
 
-func (c *Connection) RequestWithTimeout(message *messages.Message, timeout time.Duration) (response *messages.Message, err error) {
+func (c *Connection) RequestWithTimeout(message messages.IMessage, timeout time.Duration) (response messages.IMessage, err error) {
 	barrier := async.NewWaitLock()
 	if err = c.Send(message); err != nil {
 		return
@@ -137,7 +137,7 @@ func (c *Connection) RequestWithTimeout(message *messages.Message, timeout time.
 		barrier.Open()
 	})
 	timeoutEvt.Start()
-	c.OnceMessage(message.Id(), func(msg *messages.Message) {
+	c.OnceMessage(message.Id(), func(msg messages.IMessage) {
 		timeoutEvt.Cancel()
 		if msg == nil {
 			err = errors.New("invalid(nil) response for request " + message.Id())
@@ -150,7 +150,7 @@ func (c *Connection) RequestWithTimeout(message *messages.Message, timeout time.
 	return
 }
 
-func (c *Connection) Send(message *messages.Message) (err error) {
+func (c *Connection) Send(message messages.IMessage) (err error) {
 	defer func() {
 		if err != nil {
 			c.logger.Println("write error: ", err)
@@ -163,19 +163,19 @@ func (c *Connection) Send(message *messages.Message) (err error) {
 	}
 }
 
-func (c *Connection) OnIncomingMessage(cb func(*messages.Message)) {
+func (c *Connection) OnIncomingMessage(cb func(messages.IMessage)) {
 	c.messageCallback = cb
 }
 
-func (c *Connection) OnMessage(id string, cb func(*messages.Message)) (notification.Disposable, error) {
+func (c *Connection) OnMessage(id string, cb func(messages.IMessage)) (notification.Disposable, error) {
 	return c.notificationEmitter.On(id, cb)
 }
 
-func (c *Connection) OnceMessage(id string, cb func(*messages.Message)) (notification.Disposable, error) {
+func (c *Connection) OnceMessage(id string, cb func(messages.IMessage)) (notification.Disposable, error) {
 	return c.notificationEmitter.Once(id, cb)
 }
 
-func (c *Connection) OffMessage(id string, cb func(*messages.Message)) {
+func (c *Connection) OffMessage(id string, cb func(messages.IMessage)) {
 	c.notificationEmitter.Off(id, cb)
 }
 

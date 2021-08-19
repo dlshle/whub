@@ -22,7 +22,7 @@ type IServiceManagerClient interface {
 	RegisterService(descriptor service.ServiceDescriptor) error
 	UnregisterService(descriptor service.ServiceDescriptor) error
 	UpdateService(descriptor service.ServiceDescriptor) error
-	Response(message *messages.Message) error
+	Response(message messages.IMessage) error
 	HealthCheck() error
 }
 
@@ -40,7 +40,7 @@ func NewServiceCenterClient(id string, serverId string, conn connection.IConnect
 	}
 }
 
-func (c *ServiceManagerClient) draftDescriptorMessageWith(uri string, descriptor service.ServiceDescriptor) *messages.Message {
+func (c *ServiceManagerClient) draftDescriptorMessageWith(uri string, descriptor service.ServiceDescriptor) messages.IMessage {
 	return c.draftMessage(
 		uri,
 		messages.MessageTypeServiceRequest,
@@ -48,7 +48,7 @@ func (c *ServiceManagerClient) draftDescriptorMessageWith(uri string, descriptor
 	)
 }
 
-func (c *ServiceManagerClient) requestMessage(message *messages.Message) (err error) {
+func (c *ServiceManagerClient) requestMessage(message messages.IMessage) (err error) {
 	resp, err := c.serverConn.Request(message)
 	if resp != nil && resp.MessageType() == messages.MessageTypeError {
 		return errors.New((string)(resp.Payload()))
@@ -72,10 +72,10 @@ func (c *ServiceManagerClient) UpdateService(descriptor service.ServiceDescripto
 	return c.requestMessage(c.draftDescriptorMessageWith(ServiceManagerUpdateService, descriptor))
 }
 
-func (c *ServiceManagerClient) Response(message *messages.Message) error {
+func (c *ServiceManagerClient) Response(message messages.IMessage) error {
 	return c.serverConn.Send(message)
 }
 
-func (c *ServiceManagerClient) draftMessage(uri string, msgType int, payload []byte) *messages.Message {
+func (c *ServiceManagerClient) draftMessage(uri string, msgType int, payload []byte) messages.IMessage {
 	return messages.DraftMessage(c.clientId, c.serverId, uri, msgType, payload)
 }

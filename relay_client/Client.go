@@ -49,7 +49,7 @@ func NewClient(connType uint8, serverUri string, serverPort int, myId string) *C
 
 type IWRClient interface {
 	Connect() error
-	Request(message *messages.Message) (*messages.Message, error)
+	Request(message messages.IMessage) (messages.IMessage, error)
 	Send([]byte) error
 	OnMessage(string, func())
 	OffMessage(string, func())
@@ -100,7 +100,7 @@ func (c *Client) onConnected(rawConn base_conn.IConnection) {
 	c.initDispatchers()
 	err = conn.Send(messages.NewMessage("hello", c.client.Id(), "123", "", messages.MessageTypeACK, ([]byte)("aaa")))
 	c.logger.Println("greeting message has been sent")
-	conn.OnIncomingMessage(func(msg *messages.Message) {
+	conn.OnIncomingMessage(func(msg messages.IMessage) {
 		c.dispatcher.Dispatch(msg, conn)
 	})
 	if err != nil {
@@ -109,7 +109,7 @@ func (c *Client) onConnected(rawConn base_conn.IConnection) {
 	}
 }
 
-func (c *Client) Request(message *messages.Message) (*messages.Message, error) {
+func (c *Client) Request(message messages.IMessage) (messages.IMessage, error) {
 	return c.conn.Request(message)
 }
 

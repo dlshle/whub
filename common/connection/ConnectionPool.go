@@ -34,8 +34,9 @@ func (e ConnectionPoolError) Code() uint8 {
 
 type ConnectionPool struct {
 	consumerPool   chan IConnection
-	producerChan   chan bool // works kinda like producer sem
-	getTimeoutInMS time.Duration
+	producerChan   chan bool     // works kinda like producer sem
+	getTimeoutInMS time.Duration // max timeout for waiting for an idle conn(create new conn after timeout).
+	idleTimeoutMs  time.Duration // how long should an idle connection be omitted from the pool
 	numInUse       int
 	numMaxSize     int
 	rwLock         *sync.RWMutex

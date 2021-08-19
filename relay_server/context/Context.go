@@ -27,6 +27,8 @@ const (
 	defaultAsyncPoolWorkerFactor   = 32
 	defaultServicePoolWorkerFactor = 16
 	defaultMaxConcurrentConnection = 2048
+	defaultMaxMiddlewareCount      = 64
+	defaultSignKey                 = "d1s7218U7!d-r5b"
 )
 
 type Context struct {
@@ -40,6 +42,7 @@ type Context struct {
 	messageParser       messages.IMessageParser
 	startWaiter         *async.WaitLock
 	logger              *logger.SimpleLogger
+	signKey             []byte
 }
 
 type IContext interface {
@@ -70,6 +73,7 @@ func NewContext() *Context {
 		cancelFunc:          cancel,
 		startWaiter:         async.NewWaitLock(),
 		logger:              logger.New(os.Stdout, "[WServer]", true),
+		signKey:             ([]byte)(defaultSignKey),
 	}
 }
 
@@ -137,4 +141,8 @@ func (c *Context) Stop() {
 
 func (c *Context) Context() *context.Context {
 	return c.ctx
+}
+
+func (c *Context) SignKey() []byte {
+	return c.signKey
 }

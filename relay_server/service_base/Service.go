@@ -48,8 +48,8 @@ type IService interface {
 	Provider() IServiceProvider
 	Kill() error
 	UriPrefix() string
-	ResolveByAck(request *service.ServiceRequest) error
-	ResolveByResponse(request *service.ServiceRequest, responseData []byte) error
+	ResolveByAck(request service.IServiceRequest) error
+	ResolveByResponse(request service.IServiceRequest, responseData []byte) error
 	Logger() *logger.SimpleLogger
 }
 
@@ -172,19 +172,18 @@ func (s *Service) Status() int {
 	return s.status
 }
 
-func (s *Service) Handle(message *messages.Message) *messages.Message {
-	if strings.HasPrefix(message.Uri(), s.uriPrefix) {
-		message = message.SetUri(strings.TrimPrefix(message.Uri(), s.uriPrefix))
+func (s *Service) Handle(request service.IServiceRequest) messages.IMessage {
+	if strings.HasPrefix(request.Uri(), s.uriPrefix) {
+		request.SetMessage(request.Message().SetUri(strings.TrimPrefix(request.Uri(), s.uriPrefix)))
 	}
-	serviceRequest := service.NewServiceRequest(message)
-	s.logger.Println("handle new request ", message)
-	s.serviceQueue.Schedule(serviceRequest)
-	s.traceMessagePerformance(message.Id(), "request in queue")
+	s.logger.Println("handle new request ", request)
+	s.serviceQueue.Schedule(request)
+	s.traceMessagePerformance(request.Id(), "request in queue")
 	if s.ExecutionType() == service.ServiceExecutionAsync {
 		return nil
 	} else {
-		resp := serviceRequest.Response()
-		s.traceMessagePerformance(message.Id(), "sync request handled")
+		resp := request.Response()
+		s.traceMessagePerformance(request.Id(), "sync request handled")
 		return resp
 	}
 }
@@ -262,11 +261,11 @@ func (s *Service) UriPrefix() string {
 	return s.uriPrefix
 }
 
-func (s *Service) ResolveByAck(request *service.ServiceRequest) error {
+func (s *Service) ResolveByAck(request service.IServiceRequest) error {
 	return request.Resolve(messages.NewACKMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri()))
 }
 
-func (s *Service) ResolveByResponse(request *service.ServiceRequest, responseData []byte) error {
+func (s *Service) ResolveByResponse(request service.IServiceRequest, responseData []byte) error {
 	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, responseData))
 }
 

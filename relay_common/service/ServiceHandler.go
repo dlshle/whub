@@ -17,7 +17,7 @@ type IServiceHandler interface {
 	SupportsUri(uri string) bool
 	Register(uri string, handler RequestHandler) error
 	Unregister(uri string) error
-	Handle(request *ServiceRequest) error
+	Handle(request IServiceRequest) error
 }
 
 func NewServiceHandler() IServiceHandler {
@@ -60,7 +60,7 @@ func (m *ServiceHandler) Unregister(uri string) (err error) {
 	return err
 }
 
-func (m *ServiceHandler) Handle(request *ServiceRequest) error {
+func (m *ServiceHandler) Handle(request IServiceRequest) error {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	matchContext, err := m.trieTree.Match(request.Uri())

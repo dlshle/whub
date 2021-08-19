@@ -22,7 +22,7 @@ func NewInternalServiceRequestExecutor(handler service.IServiceHandler) service.
 	return &InternalServiceRequestExecutor{handler}
 }
 
-func (e *InternalServiceRequestExecutor) Execute(request *service.ServiceRequest) {
+func (e *InternalServiceRequestExecutor) Execute(request service.IServiceRequest) {
 	// internal service will resolve the request if no error is present
 	err := e.handler.Handle(request)
 	if err != nil {
@@ -67,13 +67,13 @@ func (e *RelayServiceRequestExecutor) initNotifications() {
 	events.OnEvent(events.EventClientConnectionGone, e.handleClientConnectionChangeEvent)
 }
 
-func (e *RelayServiceRequestExecutor) handleNewServiceProviderEvent(event *messages.Message) {
+func (e *RelayServiceRequestExecutor) handleNewServiceProviderEvent(event messages.IMessage) {
 	if (string)(event.Payload()) == e.serviceId {
 		e.updateConnections()
 	}
 }
 
-func (e *RelayServiceRequestExecutor) handleClientConnectionChangeEvent(event *messages.Message) {
+func (e *RelayServiceRequestExecutor) handleClientConnectionChangeEvent(event messages.IMessage) {
 	if (string)(event.Payload()) == e.providerId {
 		e.updateConnections()
 	}
@@ -90,7 +90,7 @@ func (e *RelayServiceRequestExecutor) updateConnections() error {
 	return nil
 }
 
-func (e *RelayServiceRequestExecutor) Execute(request *service.ServiceRequest) {
+func (e *RelayServiceRequestExecutor) Execute(request service.IServiceRequest) {
 	response, err := e.doRequest(request)
 	if request.Status() == service.ServiceRequestStatusDead {
 		// last check on if message_dispatcher is killed
@@ -103,14 +103,14 @@ func (e *RelayServiceRequestExecutor) Execute(request *service.ServiceRequest) {
 }
 
 // try all connections from lastSucceededConn until one succeeded
-func (e *RelayServiceRequestExecutor) doRequest(request *service.ServiceRequest) (msg *messages.Message, err error) {
+func (e *RelayServiceRequestExecutor) doRequest(request service.IServiceRequest) (msg messages.IMessage, err error) {
 	if len(e.connections) == 0 {
 		return nil, errors.New("all service connection is down")
 	}
 	size := len(e.connections)
 	for i := 0; i < size; i++ {
 		e.lastSucceededConn++
-		if msg, err = e.connections[(e.lastSucceededConn % len(e.connections))].Request(request.Message); err != nil {
+		if msg, err = e.connections[(e.lastSucceededConn % len(e.connections))].Request(request.Message()); err != nil {
 			// once the first connection successfully handles the request, return
 			return
 		}

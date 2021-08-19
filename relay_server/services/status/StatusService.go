@@ -51,7 +51,7 @@ func (s *StatusService) initPubSubTopic() error {
 	return nil
 }
 
-func (s *StatusService) GetStatus(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *StatusService) GetStatus(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	// TODO should check auth scope
 	sysStatusJsonByte, err := s.systemStatusController.GetServerStat().JsonByte()
 	if err != nil {
@@ -61,7 +61,7 @@ func (s *StatusService) GetStatus(request *service_common.ServiceRequest, pathPa
 	return nil
 }
 
-func (s *StatusService) GetAllInternalServices(request *service_common.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *StatusService) GetAllInternalServices(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	// TODO should check auth scope
 	servicesJsonByte, err := json.Marshal(s.serviceManager.DescribeAllServices())
 	if err != nil {

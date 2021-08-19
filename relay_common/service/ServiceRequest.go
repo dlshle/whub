@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"sync"
 	"wsdk/common/async"
 	"wsdk/relay_common/messages"
 )
@@ -38,17 +37,20 @@ func initServiceRequest() {
 type ServiceRequest struct {
 	barrier *async.StatefulBarrier
 	status  int
-	lock    *sync.RWMutex
-	*messages.Message
+	messages.IMessage
 	onStatusChangeCallback func(int)
+	requestContext         map[string]interface{}
 }
 
-func NewServiceRequest(m *messages.Message) *ServiceRequest {
-	return &ServiceRequest{async.NewStatefulBarrier(), ServiceRequestStatusQueued, new(sync.RWMutex), m, nil}
+func NewServiceRequest(m messages.IMessage) IServiceRequest {
+	return &ServiceRequest{async.NewStatefulBarrier(), ServiceRequestStatusQueued, m, nil, make(map[string]interface{})}
 }
 
+// TODO not good, need refactor
 type IServiceRequest interface {
-	Id() string
+	messages.IMessage
+	Message() messages.IMessage
+	SetMessage(message messages.IMessage)
 	Status() int
 	Kill() error
 	Cancel() error
@@ -56,16 +58,12 @@ type IServiceRequest interface {
 	IsCancelled() bool
 	IsFinished() bool
 	OnStatusChange(func(int))
-	Resolve(*messages.Message) error
+	Resolve(messages.IMessage) error
 	Wait() error // wait for the state to transit to final (dead/finished/cancelled)
-	Response() *messages.Message
+	Response() messages.IMessage
 	TransitStatus(int)
-}
-
-func (t *ServiceRequest) withWrite(cb func()) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-	cb()
+	GetContext(key string) interface{}
+	SetContext(key string, value interface{})
 }
 
 func (t *ServiceRequest) setStatus(status int) {
@@ -73,17 +71,13 @@ func (t *ServiceRequest) setStatus(status int) {
 		// can not set status of a finished service message_dispatcher
 		return
 	}
-	t.withWrite(func() {
-		t.status = status
-	})
+	t.status = status
 	if t.onStatusChangeCallback != nil {
 		t.onStatusChangeCallback(status)
 	}
 }
 
 func (t *ServiceRequest) Status() int {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
 	return t.status
 }
 
@@ -91,10 +85,8 @@ func (t *ServiceRequest) Kill() error {
 	if t.Status() > 1 {
 		return errors.New("unable to kill a " + statusCodeStringMap[t.Status()] + " ServiceRequest")
 	}
-	t.withWrite(func() {
-		t.status = ServiceRequestStatusDead
-		t.barrier.OpenWith(nil)
-	})
+	t.status = ServiceRequestStatusDead
+	t.barrier.OpenWith(nil)
 	return nil
 }
 
@@ -102,21 +94,17 @@ func (t *ServiceRequest) Cancel() error {
 	if t.Status() > 1 {
 		return errors.New("unable to cancel a " + statusCodeStringMap[t.Status()] + " ServiceRequest")
 	}
-	t.withWrite(func() {
-		t.status = ServiceRequestStatusCancelled
-		t.barrier.OpenWith(nil)
-	})
+	t.status = ServiceRequestStatusCancelled
+	t.barrier.OpenWith(nil)
 	return nil
 }
 
-func (t *ServiceRequest) Resolve(m *messages.Message) error {
+func (t *ServiceRequest) Resolve(m messages.IMessage) error {
 	if t.Status() != ServiceRequestStatusProcessing {
 		return errors.New("can not Resolve a non-processing ServiceRequest")
 	}
-	t.withWrite(func() {
-		t.status = ServiceRequestStatusFinished
-		t.barrier.OpenWith(m)
-	})
+	t.status = ServiceRequestStatusFinished
+	t.barrier.OpenWith(m)
 	return nil
 }
 
@@ -133,8 +121,6 @@ func (t *ServiceRequest) IsFinished() bool {
 }
 
 func (t *ServiceRequest) OnStatusChange(cb func(int)) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
 	t.onStatusChangeCallback = cb
 }
 
@@ -146,10 +132,26 @@ func (t *ServiceRequest) Wait() error {
 	return nil
 }
 
-func (t *ServiceRequest) Response() *messages.Message {
-	return t.barrier.Get().(*messages.Message)
+func (t *ServiceRequest) Response() messages.IMessage {
+	return t.barrier.Get().(messages.IMessage)
 }
 
 func (t *ServiceRequest) TransitStatus(status int) {
 	t.setStatus(status)
+}
+
+func (t *ServiceRequest) SetContext(key string, value interface{}) {
+	t.requestContext[key] = value
+}
+
+func (t *ServiceRequest) GetContext(key string) interface{} {
+	return t.requestContext[key]
+}
+
+func (t *ServiceRequest) Message() messages.IMessage {
+	return t.IMessage
+}
+
+func (t *ServiceRequest) SetMessage(message messages.IMessage) {
+	t.IMessage = message
 }

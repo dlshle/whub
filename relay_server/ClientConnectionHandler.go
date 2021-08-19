@@ -2,6 +2,7 @@ package relay_server
 
 import (
 	"fmt"
+	"sync"
 	"wsdk/common/connection"
 	"wsdk/common/logger"
 	common_connection "wsdk/relay_common/connection"
@@ -16,6 +17,7 @@ type ClientConnectionHandler struct {
 	messageDispatcher message_actions.IMessageDispatcher
 	connectionManager connection_manager.IConnectionManager `$inject:""`
 	logger            *logger.SimpleLogger
+	connPool          *sync.Pool
 }
 
 type IClientConnectionHandler interface {
@@ -26,6 +28,9 @@ func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispat
 	h := &ClientConnectionHandler{
 		messageDispatcher: messageDispatcher,
 		logger:            context.Ctx.Logger().WithPrefix("[ClientConnectionHandler]"),
+		connPool: &sync.Pool{New: func() interface{} {
+			return &common_connection.Connection{}
+		}},
 	}
 	err := container.Container.Fill(h)
 	if err != nil {
@@ -36,7 +41,8 @@ func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispat
 
 func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IConnection) {
 	loggerPrefix := fmt.Sprintf("[conn-%s]", conn.Address())
-	wrappedConn := common_connection.NewConnection(
+	wrappedConn := h.connPool.Get().(*common_connection.Connection)
+	wrappedConn.Init(
 		context.Ctx.Logger().WithPrefix(loggerPrefix),
 		conn,
 		common_connection.DefaultTimeout,
@@ -44,11 +50,12 @@ func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IC
 		context.Ctx.NotificationEmitter())
 	h.logger.Printf("new connection %s received", wrappedConn.Address())
 	// any message from any connection needs to go through here
-	wrappedConn.OnIncomingMessage(func(message *messages.Message) {
+	wrappedConn.OnIncomingMessage(func(message messages.IMessage) {
 		h.messageDispatcher.Dispatch(message, wrappedConn)
 	})
-	h.connectionManager.Accept(wrappedConn)
+	h.connectionManager.AddConnection(wrappedConn)
 	// no need to run this on a different goroutine since each new connection is on its own coroutine
 	wrappedConn.ReadingLoop()
 	h.logger.Printf("connection %s cycle done", conn.Address())
+	h.connPool.Put(wrappedConn)
 }

@@ -17,7 +17,7 @@ type ConnectionManager struct {
 }
 
 type IConnectionManager interface {
-	Accept(connection.IConnection) error
+	AddConnection(connection.IConnection) error
 	Disconnect(string) error
 	DisconnectAllConnections() error
 	GetConnectionByAddress(string) (connection.IConnection, error)
@@ -39,8 +39,8 @@ func (m *ConnectionManager) initNotifications() {
 	// events.OnEvent()
 }
 
-func (m *ConnectionManager) Accept(conn connection.IConnection) (err error) {
-	defer logger.LogError(m.logger, "Accept", err)
+func (m *ConnectionManager) AddConnection(conn connection.IConnection) (err error) {
+	defer logger.LogError(m.logger, "AddConnection", err)
 	err = m.connStore.Add(conn)
 	if err != nil {
 		return err

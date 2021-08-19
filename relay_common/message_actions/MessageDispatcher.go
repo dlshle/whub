@@ -8,7 +8,7 @@ import (
 )
 
 type IMessageDispatcher interface {
-	Dispatch(message *messages.Message, conn connection.IConnection)
+	Dispatch(message messages.IMessage, conn connection.IConnection)
 }
 
 type MessageDispatcher struct {
@@ -51,7 +51,7 @@ func (d *MessageDispatcher) UnregisterHandler(msgType int) (success bool) {
 	return
 }
 
-func (d *MessageDispatcher) Dispatch(message *messages.Message, conn connection.IConnection) {
+func (d *MessageDispatcher) Dispatch(message messages.IMessage, conn connection.IConnection) {
 	handler := d.handlers[message.MessageType()]
 	if handler == nil {
 		d.Logger.Println("can not find handler for message: ", message.String())
@@ -61,7 +61,6 @@ func (d *MessageDispatcher) Dispatch(message *messages.Message, conn connection.
 	if err != nil {
 		d.Logger.Printf("message %s handler error due to %s", message.String(), err.Error())
 	}
-	message = nil
 }
 
 func (d *MessageDispatcher) GetHandler(msgType int) IMessageHandler {

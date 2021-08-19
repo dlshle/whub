@@ -64,7 +64,7 @@ func NewServiceManager() IServiceManager {
 }
 
 func (m *ServiceManager) initNotificationHandlers() {
-	events.OnEvent(events.EventServerClosed, func(msg *messages.Message) {
+	events.OnEvent(events.EventServerClosed, func(msg messages.IMessage) {
 		m.UnregisterAllServices()
 	})
 }

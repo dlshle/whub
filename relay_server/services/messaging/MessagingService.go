@@ -55,7 +55,7 @@ func (s *MessagingService) Init() (err error) {
 	return s.RegisterRoute(RouteBroadcast, s.Broadcast)
 }
 
-func (s *MessagingService) sendToClient(id string, message *messages.Message, onSendErr func(err error)) error {
+func (s *MessagingService) sendToClient(id string, message messages.IMessage, onSendErr func(err error)) error {
 	conns, err := s.connManager.GetConnectionsByClientId(id)
 	if err != nil {
 		return err
@@ -72,11 +72,11 @@ func (s *MessagingService) sendToClient(id string, message *messages.Message, on
 	return nil
 }
 
-func (s *MessagingService) Send(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	if _, err = s.GetClient(request.From()); err != nil {
+func (s *MessagingService) Send(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	if _, err = s.GetClientWithErrOnNotFound(request.From()); err != nil {
 		return err
 	}
-	err = s.sendToClient(request.From(), request.Message, func(cerr error) {
+	err = s.sendToClient(request.From(), request.Message(), func(cerr error) {
 		err = cerr
 	})
 	if err != nil {
@@ -86,12 +86,12 @@ func (s *MessagingService) Send(request *service.ServiceRequest, pathParams map[
 	return nil
 }
 
-func (s *MessagingService) Broadcast(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	defer s.Logger().Printf("%s broadcast result: %v", request.Message.String(), err)
+func (s *MessagingService) Broadcast(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	defer s.Logger().Printf("%s broadcast result: %v", request.Message().String(), err)
 	errMsg := strings.Builder{}
 	s.WithAllClients(func(clients []*client.Client) {
 		for _, c := range clients {
-			err = s.sendToClient(c.Id(), request.Message, func(cerr error) {
+			err = s.sendToClient(c.Id(), request.Message(), func(cerr error) {
 				err = cerr
 			})
 			if err != nil {

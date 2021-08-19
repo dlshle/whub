@@ -168,6 +168,10 @@ func NewClient(id string, description string, cType int, cKey string, pScope int
 	return &CommonClient{CommonRole: NewCommonRole(id, description, RoleTypeClient), pScope: pScope, cKey: cKey, cType: cType}
 }
 
+func NewClientByDescriptor(descriptor RoleDescriptor, infoDescriptor ClientExtraInfoDescriptor) *CommonClient {
+	return NewClient(descriptor.Id, descriptor.Description, infoDescriptor.CType, infoDescriptor.CKey, infoDescriptor.PScope)
+}
+
 type CommonServer struct {
 	*CommonRole
 	url        string

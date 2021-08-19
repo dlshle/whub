@@ -13,12 +13,13 @@ import (
 )
 
 type WServer struct {
-	name     string
-	address  string
-	listener net.Listener
-	upgrader *websocket.Upgrader
-	handler  *WsConnectionHandler
-	logger   *logger.SimpleLogger
+	name           string
+	address        string
+	listener       net.Listener
+	upgrader       *websocket.Upgrader
+	handler        *WsConnectionHandler
+	logger         *logger.SimpleLogger
+	upgradeUrlPath string
 }
 
 func NewWServer(config WsServerConfig) *WServer {
@@ -29,6 +30,10 @@ func NewWServer(config WsServerConfig) *WServer {
 	wsServer.logger = logger.New(os.Stdout, "[wserver]", true)
 	wsServer.name = name
 	wsServer.address = fmt.Sprintf("%s:%d", address, port)
+	if config.UpgradeUrlPath == "" {
+		config.UpgradeUrlPath = common_connection.WSConnectionPath
+	}
+	wsServer.upgradeUrlPath = config.UpgradeUrlPath
 	wsServer.upgrader = &websocket.Upgrader{
 		ReadBufferSize:  4096,
 		WriteBufferSize: 1024,
@@ -37,7 +42,7 @@ func NewWServer(config WsServerConfig) *WServer {
 				wsServer.logger.Printf("invalid request from %s(METHOD = %s URL = %s)\n", req.RemoteAddr, req.Method, req.URL)
 				return false
 			}
-			if req.URL.Path != common_connection.WSConnectionPath {
+			if req.URL.Path != wsServer.upgradeUrlPath {
 				wsServer.logger.Printf("invalid path from %s(METHOD = %s URL = %s)\n", req.RemoteAddr, req.Method, req.URL)
 				return false
 			}
@@ -45,7 +50,6 @@ func NewWServer(config WsServerConfig) *WServer {
 		},
 	}
 	wsServer.handler = config.WsConnectionHandler
-	wsServer.OnHttpRequest(wsServer.handleHTTPRequest)
 	return wsServer
 }
 
@@ -64,7 +68,7 @@ func (ws *WServer) upgradeHTTP(w http.ResponseWriter, r *http.Request) (err erro
 }
 
 func (ws *WServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ws.handler.HandleHTTPRequest(w, r)
+	ws.handleHTTPRequest(w, r)
 }
 
 func (ws *WServer) Start() (err error) {
@@ -90,13 +94,24 @@ func (ws *WServer) Stop() (err error) {
 	return ws.listener.Close()
 }
 
+func (ws *WServer) handleUpgradeFailure(w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusBadRequest)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Write([]byte(fmt.Sprintf("{\"message\":\"unable to upgrade HTTP request due to %s\"", message)))
+}
+
 func (ws *WServer) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 	// each HTTP request is a new goroutine, so no need to add extra concurrency here
-	if r.URL.Path != common_connection.WSConnectionPath {
+	if r.URL.Path != ws.upgradeUrlPath {
 		ws.handler.HandleNoUpgradableRequest(w, r)
 		return
 	}
-	err := ws.upgradeHTTP(w, r)
+	err := ws.handler.CheckUpgradeRequest(r)
+	if err != nil {
+		ws.handleUpgradeFailure(w, err.Error())
+		return
+	}
+	err = ws.upgradeHTTP(w, r)
 	if err != nil {
 		ws.logger.Printf("err while upgrading HTTP request: %s", err.Error())
 		return
@@ -124,12 +139,12 @@ func (ws *WServer) OnClientClosed(cb func(base_conn.IConnection, error)) {
 	ws.handler.onClientClosed = cb
 }
 
-func (ws *WServer) OnHttpRequest(cb func(w http.ResponseWriter, r *http.Request)) {
-	ws.handler.onHttpRequest = cb
-}
-
 func (ws *WServer) OnNonUpgradableRequest(cb func(w http.ResponseWriter, r *http.Request)) {
 	ws.handler.onNoUpgradableRequest = cb
+}
+
+func (ws *WServer) SetBeforeUpgradeChecker(checker func(r *http.Request) error) {
+	ws.handler.beforeUpgradeChecker = checker
 }
 
 func (ws *WServer) SetLogger(logger *logger.SimpleLogger) {

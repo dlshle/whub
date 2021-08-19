@@ -10,7 +10,7 @@ import (
 
 const DefaultMaxListeners = 256
 
-type MessageListener func(*messages.Message)
+type MessageListener func(messages.IMessage)
 type Disposable func()
 
 type WRNotificationEmitter struct {
@@ -22,7 +22,7 @@ type WRNotificationEmitter struct {
 type IWRNotificationEmitter interface {
 	HasEvent(eventId string) bool
 	MessageListenerCount(eventId string) int
-	Notify(eventId string, payload *messages.Message)
+	Notify(eventId string, payload messages.IMessage)
 	On(eventId string, listener MessageListener) (Disposable, error)
 	Once(eventId string, listener MessageListener) (Disposable, error)
 	Off(eventId string, listener MessageListener)
@@ -103,7 +103,7 @@ func (e *WRNotificationEmitter) HasEvent(eventId string) bool {
 	return e.listeners[eventId] != nil
 }
 
-func (e *WRNotificationEmitter) Notify(eventId string, payload *messages.Message) {
+func (e *WRNotificationEmitter) Notify(eventId string, payload messages.IMessage) {
 	if !e.HasEvent(eventId) {
 		return
 	}
@@ -147,8 +147,8 @@ func (e *WRNotificationEmitter) Once(eventId string, listener MessageListener) (
 	hasFired := atomic.Value{}
 	hasFired.Store(false)
 	// need this to refer from the actualMessageListener
-	var actualMessageListenerPtr func(*messages.Message)
-	actualMessageListener := func(param *messages.Message) {
+	var actualMessageListenerPtr func(messages.IMessage)
+	actualMessageListener := func(param messages.IMessage) {
 		if hasFired.Load().(bool) {
 			e.Off(eventId, actualMessageListenerPtr)
 			return

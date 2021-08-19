@@ -25,7 +25,7 @@ func (s *EchoService) Init(server roles.ICommonServer, serverConn connection.ICo
 	return err
 }
 
-func (s *EchoService) Echo(request *service.ServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *EchoService) Echo(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	s.ResolveByResponse(request, request.Payload())
 	return nil
 }

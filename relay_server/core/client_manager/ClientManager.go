@@ -12,6 +12,7 @@ import (
 type IClientManager interface {
 	HasClient(id string) (bool, error)
 	GetClient(id string) (*client.Client, error)
+	GetClientWithErrOnNotFound(id string) (c *client.Client, e error)
 	WithAllClients(cb func(clients []*client.Client)) error
 	AddClient(client *client.Client) error
 	UpdateClient(client *client.Client) error
@@ -52,6 +53,10 @@ func (m *ClientManager) HasClient(id string) (bool, error) {
 }
 
 func (m *ClientManager) GetClient(id string) (c *client.Client, e error) {
+	return m.store.Get(id)
+}
+
+func (m *ClientManager) GetClientWithErrOnNotFound(id string) (c *client.Client, e error) {
 	c, e = m.store.Get(id)
 	if c == nil {
 		e = NewClientNotFoundError(id)
