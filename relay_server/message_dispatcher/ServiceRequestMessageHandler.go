@@ -8,14 +8,16 @@ import (
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/core/metering"
+	"wsdk/relay_server/core/middleware_manager"
 	"wsdk/relay_server/core/service_manager"
 	"wsdk/relay_server/errors"
 	"wsdk/relay_server/service_base"
 )
 
 type ServiceRequestMessageHandler struct {
-	manager  service_manager.IServiceManager    `$inject:""`
-	metering metering.IServerMeteringController `$inject:""`
+	serviceManager    service_manager.IServiceManager       `$inject:""`
+	middlewareManager middleware_manager.IMiddlewareManager `$inject:""`
+	metering          metering.IServerMeteringController    `$inject:""`
 }
 
 func NewServiceRequestMessageHandler() message_actions.IMessageHandler {
@@ -38,7 +40,7 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 	if uri[len(uri)-1] == '/' {
 		message = message.SetUri(uri[:len(uri)-1])
 	}
-	svc := h.manager.FindServiceByUri(message.Uri())
+	svc := h.serviceManager.FindServiceByUri(message.Uri())
 	if svc == nil {
 		err = service_base.NewCanNotFindServiceError(message.Uri())
 		conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(),
@@ -46,8 +48,7 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 		h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
 		return err
 	}
-	// TODO use middleware
-	request := service.NewServiceRequest(message)
+	request := h.middlewareManager.RunMiddlewares(conn, service.NewServiceRequest(message))
 	response := svc.Handle(request)
 	if response == nil {
 		err = conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(),

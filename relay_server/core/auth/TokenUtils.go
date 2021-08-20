@@ -29,7 +29,7 @@ func signDefaultToken(clientId string, clientCKey string, ttl int64) (string, er
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":       clientId,
 		"ttl":      ttl,
-		"signTime": time.Now(),
+		"signTime": time.Now().UnixNano(),
 		"issuer":   context.Ctx.Server().Id(),
 	})
 	return token.SignedString(([]byte)(clientCKey))

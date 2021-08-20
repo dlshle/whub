@@ -6,5 +6,3 @@ import (
 )
 
 type RequestMiddleware func(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest
-
-// TODO add middlewares for server

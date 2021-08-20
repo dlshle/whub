@@ -8,26 +8,41 @@ import (
 
 const TokenStorePrefix = "token-"
 
+const (
+	RedisAddr = "192.168.0.132:6379"
+	RedisPass = "19950416"
+)
+
 type ITokenStore interface {
 	Put(token string, clientId string, ttl int) error
 	Get(token string) (string, error)
 }
 
-type TokenStore struct {
+type RedisTokenStore struct {
 	redis *redis.RedisClient
 }
 
-func (s *TokenStore) assembleKey(key string) string {
+func NewRedisTokenStore(serverAddr, passwd string) ITokenStore {
+	redis := redis.NewRedisClient(serverAddr, passwd, 5)
+	if err := redis.Ping(); err != nil {
+		panic("redis token store init failed")
+	}
+	return &RedisTokenStore{
+		redis: redis,
+	}
+}
+
+func (s *RedisTokenStore) assembleKey(key string) string {
 	return fmt.Sprintf("%s%s", TokenStorePrefix, key)
 }
 
-func (s *TokenStore) Put(token string, clientId string, ttl int) error {
+func (s *RedisTokenStore) Put(token string, clientId string, ttl int) error {
 	if ttl == 0 {
 		return s.redis.Set(s.assembleKey(token), clientId)
 	}
 	return s.redis.SetWithExp(s.assembleKey(token), clientId, time.Duration(ttl))
 }
 
-func (s *TokenStore) Get(token string) (string, error) {
+func (s *RedisTokenStore) Get(token string) (string, error) {
 	return s.redis.Get(s.assembleKey(token))
 }

@@ -20,6 +20,7 @@ type IClientManager interface {
 	GetClientsByType(cType int) ([]*client.Client, error)
 	GetClientsCreatedAfter(time time.Time) ([]*client.Client, error)
 	GetClientsCreatedBefore(time time.Time) ([]*client.Client, error)
+	GetAllClients() ([]*client.Client, error)
 }
 
 type ClientManager struct {
@@ -53,12 +54,15 @@ func (m *ClientManager) HasClient(id string) (bool, error) {
 }
 
 func (m *ClientManager) GetClient(id string) (c *client.Client, e error) {
+	if id == "" {
+		return nil, NewInvalidClientIdError("")
+	}
 	return m.store.Get(id)
 }
 
 func (m *ClientManager) GetClientWithErrOnNotFound(id string) (c *client.Client, e error) {
-	c, e = m.store.Get(id)
-	if c == nil {
+	c, e = m.GetClient(id)
+	if e == nil && c == nil {
 		e = NewClientNotFoundError(id)
 	}
 	return
@@ -95,6 +99,10 @@ func (m *ClientManager) GetClientsCreatedAfter(time time.Time) ([]*client.Client
 
 func (m *ClientManager) GetClientsCreatedBefore(time time.Time) ([]*client.Client, error) {
 	return m.store.Find(client_store.Query().CreatedBefore(time))
+}
+
+func (m *ClientManager) GetAllClients() ([]*client.Client, error) {
+	return m.store.GetAll()
 }
 
 func init() {

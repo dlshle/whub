@@ -1,47 +1,53 @@
 package middleware_manager
 
 import (
+	"fmt"
+	"wsdk/common/data_structures"
+	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
+	"wsdk/relay_server/context"
 	"wsdk/relay_server/middleware"
 )
 
-const MaxMiddlewareCount = 64
-
 type IMiddlewareManager interface {
+	RegisterMiddleware(middleware middleware.IServerMiddleware) error
 	RunMiddlewares(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest
-	AddMiddleware(middleware middleware.RequestMiddleware)
 	Clear()
 }
 
 type MiddlewareManager struct {
-	middlewares []middleware.RequestMiddleware
+	middlewares *data_structures.Tree
+	logger      *logger.SimpleLogger
 }
 
 func NewMiddlewareManager() IMiddlewareManager {
 	return &MiddlewareManager{
-		middlewares: make([]middleware.RequestMiddleware, 0, MaxMiddlewareCount),
+		middlewares: data_structures.NewRedBlackTree(),
+		logger:      context.Ctx.Logger().WithPrefix("[MiddlewareManager]"),
 	}
 }
 
 func (m *MiddlewareManager) RunMiddlewares(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest {
-	for _, middleware := range m.middlewares {
-		request = middleware(conn, request)
-	}
+	m.middlewares.ForEach(func(md interface{}) {
+		request = md.(middleware.IServerMiddleware).Run(conn, request)
+	})
 	return request
 }
 
-func (m *MiddlewareManager) AddMiddleware(requestMiddleware middleware.RequestMiddleware) {
-	if len(m.middlewares) >= MaxMiddlewareCount {
-		return
-	}
-	m.middlewares = append(m.middlewares, requestMiddleware)
+func (m *MiddlewareManager) Clear() {
+	m.middlewares.Clear()
 }
 
-func (m *MiddlewareManager) Clear() {
-	m.middlewares = nil
-	m.middlewares = make([]middleware.RequestMiddleware, 0, MaxMiddlewareCount)
+func (m *MiddlewareManager) RegisterMiddleware(middleware middleware.IServerMiddleware) (err error) {
+	if err = middleware.Init(); err != nil {
+		m.logger.Println(fmt.Sprintf("middleware %s init failed", middleware.Id()))
+		return err
+	}
+	m.middlewares.PutKeyAsValue(middleware)
+	m.logger.Println(fmt.Sprintf("middleware %s init success", middleware.Id()))
+	return nil
 }
 
 func init() {

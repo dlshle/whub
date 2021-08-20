@@ -17,6 +17,7 @@ const (
 
 // Client types
 const (
+	ClientTypeAnonymous     = 0
 	ClientTypeAuthenticated = 1
 	ClientTypeManager       = 2
 	ClientTypeRoot          = 3
