@@ -93,7 +93,7 @@ type IMessage interface {
 
 	IsErrorMessage() bool
 	Dispose()
-	ToHTTPRequest(baseUri, token string) *http.Request
+	ToHTTPRequest(protocol, baseUri, token string) *http.Request
 }
 
 func (t *Message) Id() string {
@@ -169,7 +169,7 @@ func (t *Message) Dispose() {
 	messagePool.Put(t)
 }
 
-func (t *Message) ToHTTPRequest(baseUri, token string) *http.Request {
+func (t *Message) ToHTTPRequest(protocol, baseUri, token string) *http.Request {
 	headerMaker := common_http.NewHeaderMaker().
 		Set("Id", t.id).
 		Set("To", t.To())
@@ -178,7 +178,7 @@ func (t *Message) ToHTTPRequest(baseUri, token string) *http.Request {
 	}
 	return common_http.NewRequestBuilder().
 		Header(headerMaker.Make()).
-		URL(fmt.Sprintf("%s%s", baseUri, t.uri)).
+		URL(fmt.Sprintf("%s://%s%s", protocol, baseUri, t.uri)).
 		Method(mapMessageTypeToRequestMethod(t)).
 		StringBody((string)(t.payload)).
 		Build()

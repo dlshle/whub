@@ -36,10 +36,11 @@ type Client struct {
 }
 
 func NewClient(connType uint8, serverUri string, serverPort int, wsPath string, clientId string, clientCKey string) *Client {
-	addr := url.URL{Scheme: "ws", Host: fmt.Sprintf("%s:%d", serverUri, serverPort), Path: connection.WSConnectionPath}
+	serverFullUri := fmt.Sprintf("%s:%d", serverUri, serverPort)
+	addr := url.URL{Scheme: "ws", Host: serverFullUri, Path: connection.WSConnectionPath}
 	c := &Client{
 		connectionType: connType,
-		serverUri:      serverUri,
+		serverUri:      serverFullUri,
 		httpClient:     http.NewPool(clientId, 5, 128, 60),
 		wclient:        WSClient.New(WSClient.NewWClientConfig(addr.String(), nil, nil, nil, nil, nil)),
 		client:         roles.NewClient(clientId, "", roles.ClientTypeAnonymous, clientCKey, 0),
@@ -145,7 +146,8 @@ func (c *Client) Request(message messages.IMessage) (messages.IMessage, error) {
 }
 
 func (c *Client) HTTPRequest(token string, message messages.IMessage) (messages.IMessage, error) {
-	resp := c.httpClient.Request(message.ToHTTPRequest(c.serverUri, token))
+	r := message.ToHTTPRequest("http", c.serverUri, token)
+	resp := c.httpClient.Request(r)
 	if resp.Code < 0 {
 		return nil, errors.New(resp.Body)
 	}
