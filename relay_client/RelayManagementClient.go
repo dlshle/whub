@@ -50,7 +50,7 @@ func (c *ServiceManagerClient) draftDescriptorMessageWith(uri string, descriptor
 
 func (c *ServiceManagerClient) requestMessage(message messages.IMessage) (err error) {
 	resp, err := c.serverConn.Request(message)
-	if resp != nil && resp.MessageType() == messages.MessageTypeError {
+	if resp != nil && resp.IsErrorMessage() {
 		return errors.New((string)(resp.Payload()))
 	}
 	return

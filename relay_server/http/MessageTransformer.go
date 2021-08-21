@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
 	whttp "wsdk/relay_common/http"
@@ -14,6 +15,10 @@ const (
 
 // TransformRequest http request standard: header[from] = fromId, url = service url, content = body
 func TransformRequest(r *http.Request) (messages.IMessage, error) {
+	msgType, err := mapHttpRequestMethodToMessageType(r.Method)
+	if err != nil {
+		return nil, err
+	}
 	if r.Header["Whr"] != nil && len(r.Header["Whr"]) > 0 {
 		encoded, err := whttp.EncodeToWHTTPRequestJson(r)
 		if err != nil {
@@ -34,5 +39,26 @@ func TransformRequest(r *http.Request) (messages.IMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	return messages.DraftMessage(from, to, url, messages.MessageTypeServiceRequest, body), nil
+	return messages.DraftMessage(from, to, url, msgType, body), nil
+}
+
+func mapHttpRequestMethodToMessageType(method string) (int, error) {
+	switch method {
+	case http.MethodGet:
+		return messages.MessageTypeServiceGetRequest, nil
+	case http.MethodPut:
+		return messages.MessageTypeServicePutRequest, nil
+	case http.MethodPost:
+		return messages.MessageTypeServicePostRequest, nil
+	case http.MethodPatch:
+		return messages.MessageTypeServicePatchRequest, nil
+	case http.MethodDelete:
+		return messages.MessageTypeServiceDeleteRequest, nil
+	case http.MethodHead:
+		return messages.MessageTypeServiceHeadRequest, nil
+	case http.MethodOptions:
+		return messages.MessageTypeServiceOptionsRequest, nil
+	default:
+		return -1, errors.New("unsupported http method")
+	}
 }

@@ -2,6 +2,7 @@ package WSClient
 
 import (
 	"errors"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"os"
 	base_conn "wsdk/common/connection"
@@ -74,8 +75,10 @@ func New(config *WClientConfig) base_conn.IClient {
 	return &WClient{config.serverUrl, config.WClientConnectionHandler, logger.New(os.Stdout, "[WebSocketClient]", true), nil}
 }
 
-func (c *WClient) Connect() error {
-	conn, _, err := websocket.DefaultDialer.Dial(c.serverUrl, nil)
+func (c *WClient) Connect(token string) error {
+	header := make(map[string][]string)
+	header["Authorization"] = []string{fmt.Sprintf("Bearer %s", token)}
+	conn, _, err := websocket.DefaultDialer.Dial(c.serverUrl, header)
 	if err != nil {
 		c.handler.OnConnectionFailed(err)
 		return err

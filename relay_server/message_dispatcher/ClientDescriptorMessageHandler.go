@@ -42,28 +42,32 @@ func (h *ClientDescriptorMessageHandler) Type() int {
 	return messages.MessageTypeClientDescriptor
 }
 
+func (h *ClientDescriptorMessageHandler) Types() []int {
+	return nil
+}
+
 func (h *ClientDescriptorMessageHandler) Handle(message messages.IMessage, conn connection.IConnection) (err error) {
 	if !base_conn.IsAsyncType(conn.ConnectionType()) {
 		err = errors.New("non async connection type can not be used to initiate async client registration")
-		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
+		conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(), 400, err.Error()))
 		return err
 	}
 	if message == nil {
 		err = errors.New("nil message")
-		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
+		conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(), 400, err.Error()))
 		return err
 	}
 	roleDescriptor, extraInfoDescriptor, err := client_manager.UnmarshallClientDescriptor(message)
 	if err != nil {
 		h.logger.Printf("failed to unmarshall descriptors from message by %s due to %s", conn.Address(), err.Error())
-		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
+		conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(), 500, err.Error()))
 		return err
 	}
 	if message.From() != roleDescriptor.Id {
 		errMsg := fmt.Sprintf("client identity mismatch from(%s), descriptor(%s)", message.From(), roleDescriptor.Id)
 		h.logger.Printf(errMsg)
 		err = errors.New(errMsg)
-		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), errMsg))
+		conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(), 403, errMsg))
 		return err
 	}
 
@@ -72,7 +76,7 @@ func (h *ClientDescriptorMessageHandler) Handle(message messages.IMessage, conn 
 		errMsg := fmt.Sprintf("err while finding client %s from connection %s: %s", message.From(), conn.Address(), err.Error())
 		h.logger.Println(errMsg)
 		err = errors.New(errMsg)
-		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
+		conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(), 500, err.Error()))
 		return err
 	}
 	if client == nil {
@@ -80,7 +84,7 @@ func (h *ClientDescriptorMessageHandler) Handle(message messages.IMessage, conn 
 		client, err = h.handleClientRegistration(roleDescriptor, extraInfoDescriptor)
 		if err != nil {
 			h.logger.Printf("err while conn %s registering client %s due to %s", conn.Address(), roleDescriptor.Id, err.Error())
-			conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
+			conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(), 500, err.Error()))
 			return err
 		}
 		h.logger.Printf("conn %s has successfully registered client %s", conn.Address(), client.Id())
@@ -89,7 +93,7 @@ func (h *ClientDescriptorMessageHandler) Handle(message messages.IMessage, conn 
 	h.logger.Printf("handle client async connection(%s) login to %s", conn.Address(), client.Id())
 	if err = h.handleClientLogin(client, extraInfoDescriptor.CKey, conn); err != nil {
 		h.logger.Printf("conn %s unable to login client %s due to %s", conn.Address(), client.Id(), err.Error())
-		conn.Send(messages.NewErrorResponseMessage(message, context.Ctx.Server().Id(), err.Error()))
+		conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(), 500, err.Error()))
 		return err
 	}
 	h.logger.Printf("client async connection(%s) login to %s succeeded", conn.Address(), client.Id())

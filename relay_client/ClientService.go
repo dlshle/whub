@@ -386,7 +386,7 @@ func (s *ClientService) ResolveByAck(request service.IServiceRequest) error {
 }
 
 func (s *ClientService) ResolveByResponse(request service.IServiceRequest, responseData []byte) error {
-	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, responseData))
+	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), messages.MessageTypeSvcResponseOK, responseData))
 }
 
 func (s *ClientService) Init(server roles.ICommonServer, serverConn connection.IConnection) error {

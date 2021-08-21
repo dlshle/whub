@@ -35,7 +35,13 @@ func (d *MessageDispatcher) withWrite(cb func()) {
 func (d *MessageDispatcher) RegisterHandler(handler IMessageHandler) {
 	d.Logger.Printf("handler for message type %d has been registered", handler.Type())
 	d.withWrite(func() {
-		d.handlers[handler.Type()] = handler
+		if handler.Types() == nil {
+			d.handlers[handler.Type()] = handler
+		} else {
+			for _, t := range handler.Types() {
+				d.handlers[t] = handler
+			}
+		}
 	})
 }
 
@@ -54,13 +60,14 @@ func (d *MessageDispatcher) UnregisterHandler(msgType int) (success bool) {
 func (d *MessageDispatcher) Dispatch(message messages.IMessage, conn connection.IConnection) {
 	handler := d.handlers[message.MessageType()]
 	if handler == nil {
-		d.Logger.Println("can not find handler for message: ", message.String())
+		d.Logger.Println("can not find handler for message: ", message.Id())
 		return
 	}
 	err := handler.Handle(message, conn)
 	if err != nil {
-		d.Logger.Printf("message %s handler error due to %s", message.String(), err.Error())
+		d.Logger.Printf("message %s handler error due to %s", message.Id(), err.Error())
 	}
+	message.Dispose()
 }
 
 func (d *MessageDispatcher) GetHandler(msgType int) IMessageHandler {

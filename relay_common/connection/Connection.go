@@ -155,6 +155,7 @@ func (c *Connection) Send(message messages.IMessage) (err error) {
 		if err != nil {
 			c.logger.Println("write error: ", err)
 		}
+		message.Dispose()
 	}()
 	if m, e := c.messageParser.Serialize(message); e == nil {
 		return c.conn.Write(m)

@@ -2,8 +2,10 @@ package service_base
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"wsdk/common/utils"
+	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/request"
@@ -18,6 +20,10 @@ type INativeService interface {
 	IService
 	RegisterRoute(shortUri string, handler service.RequestHandler) (err error)
 	UnregisterRoute(shortUri string) (err error)
+	ResolveByAck(request service.IServiceRequest) error
+	ResolveByResponse(request service.IServiceRequest, responseData []byte) error
+	ResolveByError(request service.IServiceRequest, errType int, msg string) error
+	ResolveByInvalidCredential(request service.IServiceRequest) error
 	Init() error
 }
 
@@ -61,6 +67,36 @@ func (s *NativeService) UnregisterRoute(shortUri string) (err error) {
 		err = s.handler.Unregister(shortUri)
 	})
 	return
+}
+
+func (s *Service) CheckCredential(request service.IServiceRequest) error {
+	if request.From() == "" {
+		return errors.New("invalid credential")
+	}
+	return nil
+}
+
+func (s *Service) ResolveByAck(request service.IServiceRequest) error {
+	return request.Resolve(messages.NewACKMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri()))
+}
+
+func (s *Service) ResolveByResponse(request service.IServiceRequest, responseData []byte) error {
+	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeSvcResponseOK, responseData))
+}
+
+func (s *Service) ResolveByError(request service.IServiceRequest, errType int, msg string) error {
+	if errType < 400 || errType > 500 {
+		return errors.New("invalid error code")
+	}
+	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), errType, s.assembleErrorMessageData(msg)))
+}
+
+func (s *Service) ResolveByInvalidCredential(request service.IServiceRequest) error {
+	return s.ResolveByError(request, messages.MessageTypeSvcUnauthorizedError, "invalid credential")
+}
+
+func (s *Service) assembleErrorMessageData(message string) []byte {
+	return ([]byte)(fmt.Sprintf("{\"message\": \"%s\"}", message))
 }
 
 func (s *NativeService) Init() error {

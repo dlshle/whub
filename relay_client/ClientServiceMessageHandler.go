@@ -33,11 +33,15 @@ func (h *ClientServiceMessageHandler) Type() int {
 	return messages.MessageTypeServiceRequest
 }
 
+func (h *ClientServiceMessageHandler) Types() []int {
+	return nil
+}
+
 func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connection.IConnection) error {
 	h.m.Track(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()), "in service handler")
 	if h.service == nil {
 		h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
-		return conn.Send(messages.NewErrorMessage(
+		return conn.Send(messages.NewInternalErrorMessage(
 			msg.Id(),
 			context.Ctx.Identity().Id(),
 			msg.From(),
@@ -47,7 +51,7 @@ func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connect
 	}
 	if !h.service.SupportsUri(msg.Uri()) {
 		h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
-		return conn.Send(messages.NewErrorMessage(msg.Id(),
+		return conn.Send(messages.NewInternalErrorMessage(msg.Id(),
 			context.Ctx.Identity().Id(),
 			msg.From(),
 			msg.Uri(),

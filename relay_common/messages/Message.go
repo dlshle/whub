@@ -2,8 +2,21 @@ package messages
 
 import (
 	"fmt"
+	"net/http"
+	"sync"
+	common_http "wsdk/common/http"
 	"wsdk/relay_common/utils"
 )
+
+var messagePool *sync.Pool
+
+func init() {
+	messagePool = &sync.Pool{
+		New: func() interface{} {
+			return &Message{}
+		},
+	}
+}
 
 // Message Protocol
 const (
@@ -21,10 +34,16 @@ const (
 	MessageTypeText           = 3
 	MessageTypeStream         = 4
 	MessageTypeJSON           = 5
-	MessageTypeError          = 6
+	MessageTypeError          = 500
 
-	MessageTypeServiceRequest  = 101
-	MessageTypeServiceResponse = 102
+	MessageTypeServiceRequest        = 110
+	MessageTypeServiceGetRequest     = 111
+	MessageTypeServiceHeadRequest    = 112
+	MessageTypeServicePostRequest    = 113
+	MessageTypeServicePutRequest     = 114
+	MessageTypeServiceDeleteRequest  = 115
+	MessageTypeServiceOptionsRequest = 116
+	MessageTypeServicePatchRequest   = 117
 
 	MessageTypeServerNotification        = 11
 	MessageTypeServerServiceNotification = 12
@@ -45,6 +64,7 @@ const (
 	MessageTypeSvcNotFoundError     = 404
 	MessageTypeSvcGoneError         = 410
 	MessageTypeSvcInternalError     = 500
+	MessageTypeSvcUnavailableError  = 503
 )
 
 type Message struct {
@@ -70,6 +90,10 @@ type IMessage interface {
 	SetPayload([]byte) IMessage
 	String() string
 	Copy() IMessage
+
+	IsErrorMessage() bool
+	Dispose()
+	ToHTTPRequest(baseUri, token string) *http.Request
 }
 
 func (t *Message) Id() string {
@@ -136,38 +160,86 @@ func (t *Message) Copy() IMessage {
 	return NewMessage(t.id, t.from, t.to, t.uri, t.messageType, t.payload)
 }
 
+func (t *Message) IsErrorMessage() bool {
+	return t.MessageType() == MessageTypeError || t.MessageType() >= MessageTypeSvcBadRequestError && t.MessageType() <= MessageTypeSvcInternalError
+}
+
+func (t *Message) Dispose() {
+	t.payload = nil
+	messagePool.Put(t)
+}
+
+func (t *Message) ToHTTPRequest(baseUri, token string) *http.Request {
+	headerMaker := common_http.NewHeaderMaker().
+		Set("Id", t.id).
+		Set("To", t.To())
+	if token != "" {
+		headerMaker.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	}
+	return common_http.NewRequestBuilder().
+		Header(headerMaker.Make()).
+		URL(fmt.Sprintf("%s%s", baseUri, t.uri)).
+		Method(mapMessageTypeToRequestMethod(t)).
+		StringBody((string)(t.payload)).
+		Build()
+}
+
 func NewMessage(id string, from string, to string, uri string, messageType int, payload []byte) IMessage {
-	return &Message{id, from, to, uri, messageType, payload}
+	msg := messagePool.Get().(*Message)
+	msg.id = id
+	msg.from = from
+	msg.to = to
+	msg.uri = uri
+	msg.messageType = messageType
+	msg.payload = payload
+	return msg
 }
 
 func DraftMessage(from string, to string, uri string, messageType int, payload []byte) IMessage {
 	return NewMessage(utils.GenStringId(), from, to, uri, messageType, payload)
 }
 
-func NewErrorMessage(id string, from string, to string, uri string, errorMessage string) IMessage {
-	return &Message{id, from, to, uri, MessageTypeError, ([]byte)(errorMessage)}
+func NewInternalErrorMessage(id string, from string, to string, uri string, errorMessage string) IMessage {
+	return NewMessage(id, from, to, uri, MessageTypeSvcInternalError, ([]byte)(errorMessage))
 }
 
-func NewPingMessage(id string, from string, to string) IMessage {
-	return &Message{id, from, to, "", MessageTypePing, nil}
+func NewErrorMessage(id string, from string, to string, uri string, errType int, errorMessage string) IMessage {
+	return NewMessage(id, from, to, uri, errType, ([]byte)(errorMessage))
 }
 
 func NewPongMessage(id string, from string, to string) IMessage {
-	return &Message{id, from, to, "", MessageTypePong, nil}
+	return NewMessage(id, from, to, "", MessageTypePong, nil)
 }
 
 func NewACKMessage(id string, from string, to string, uri string) IMessage {
-	return &Message{id: id, from: from, to: to, uri: uri, messageType: MessageTypeACK}
+	return NewMessage(id, from, to, uri, MessageTypeACK, []byte{})
 }
 
 func NewNotification(id string, message string) IMessage {
-	return &Message{id: id, messageType: MessageTypeInternalNotification, payload: ([]byte)(message)}
+	return NewMessage(id, "", "", "", MessageTypeInternalNotification, ([]byte)(message))
 }
 
-func NewErrorResponseMessage(request IMessage, from string, errMsg string) IMessage {
-	return &Message{id: request.Id(), from: from, to: request.From(), uri: request.Uri(), messageType: MessageTypeError, payload: ([]byte)(errMsg)}
+func NewErrorResponse(request IMessage, from string, errType int, errMsg string) IMessage {
+	return NewMessage(request.Id(), from, request.From(), request.Uri(), errType, ([]byte)(fmt.Sprintf("{\"message\":\"%s\"}", errMsg)))
 }
 
-func IsErrorMessage(message IMessage) bool {
-	return message.MessageType() >= MessageTypeSvcBadRequestError && message.MessageType() <= MessageTypeSvcInternalError
+func mapMessageTypeToRequestMethod(message *Message) string {
+	switch message.messageType {
+	case MessageTypeServiceGetRequest:
+		return http.MethodGet
+	case MessageTypeServicePostRequest:
+		return http.MethodPost
+	case MessageTypeServicePatchRequest:
+		return http.MethodPatch
+	case MessageTypeServicePutRequest:
+		return http.MethodPut
+	case MessageTypeServiceDeleteRequest:
+		return http.MethodDelete
+	case MessageTypeServiceOptionsRequest:
+		return http.MethodOptions
+	case MessageTypeServiceHeadRequest:
+		return http.MethodHead
+	default:
+		return http.MethodGet
+	}
 }

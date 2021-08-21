@@ -43,18 +43,15 @@ func (h *HTTPWritableConnection) Send(m messages.IMessage) error {
 		return errors.New("unable to send more than once for HTTP connection")
 	}
 	defer h.waitLock.Open()
+	defer m.Dispose()
 	var err error
 	h.w.Header().Set("message-id", m.Id())
 	h.w.Header().Set("from", m.From())
 	h.w.Header().Set("to", m.To())
 	// TODO need to add a payload-type as content-type equivalent
 	h.w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	if m.MessageType() == messages.MessageTypeError {
-		h.w.WriteHeader(http.StatusInternalServerError)
-		_, err = h.w.Write(m.Payload())
-	} else {
-		_, err = h.w.Write(m.Payload())
-	}
+	h.w.WriteHeader(m.MessageType())
+	_, err = h.w.Write(m.Payload())
 	if err != nil {
 		h.logger.Println("response write error: ", err.Error())
 		return err

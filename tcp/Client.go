@@ -33,7 +33,7 @@ func NewTCPClient(serverAddr string, serverPort int, myId string) connection.ICl
 	}
 }
 
-func (c *TCPClient) Connect() error {
+func (c *TCPClient) Connect(token string) error {
 	return c.connectWithRetry(c.retryCount, nil)
 }
 

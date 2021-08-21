@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"wsdk/common/connection"
+	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
@@ -56,7 +57,7 @@ func (s *ClientManagementService) Init() (err error) {
 
 func (s *ClientManagementService) SignUp(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	if request.From() != "" {
-		return errors.New("you have already logged in")
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "you have already logged in")
 	}
 	// body should be client descriptor
 	signupModel, err := UnmarshallClientSignupModel(request.Payload())
@@ -75,7 +76,7 @@ func (s *ClientManagementService) SignUp(request service.IServiceRequest, pathPa
 
 func (s *ClientManagementService) Login(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	if request.From() != "" {
-		return errors.New("you have already logged in")
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "you have already logged in")
 	}
 	loginModel, err := UnmarshallClientLoginModel(request.Payload())
 	if err != nil {
@@ -86,7 +87,7 @@ func (s *ClientManagementService) Login(request service.IServiceRequest, pathPar
 		return err
 	}
 	// TODO need a better model to hold token and meta-data
-	s.ResolveByResponse(request, ([]byte)(token))
+	s.ResolveByResponse(request, ([]byte)(fmt.Sprintf("{\"token\":\"%s\"}", token)))
 	return nil
 }
 
@@ -99,7 +100,7 @@ func (s *ClientManagementService) Update(request service.IServiceRequest, pathPa
 	if from != roleDesc.Id {
 		err = errors.New(fmt.Sprintf("mismatch identity from(%s):desc(%s)", from, roleDesc.Id))
 		s.Logger().Printf(err.Error())
-		return err
+		return s.ResolveByError(request, 403, err.Error())
 	}
 	client := client.NewClientFromDescriptor(roleDesc, extraDesc)
 	err = s.clientManager.UpdateClient(client)
@@ -154,10 +155,10 @@ func (s *ClientManagementService) getMarshalledClientInfo(client *client.Client,
 func (s *ClientManagementService) LogOff(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	clientId := request.From()
 	if request.From() == "" {
-		errors.New("you have not logged in")
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "you have not logged in")
 	}
 	if clientId == "" {
-		return errors.New("invalid identity")
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "invalid identity")
 	}
 	err = s.clientManager.DeleteClient(clientId)
 	if err != nil {
@@ -170,14 +171,14 @@ func (s *ClientManagementService) LogOff(request service.IServiceRequest, pathPa
 func (s *ClientManagementService) GetAll(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	myId := request.From()
 	if myId == "" {
-		return errors.New("invalid identity")
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "invalid identity")
 	}
 	me, err := s.getCurrentUser(myId)
 	if err != nil {
 		return err
 	}
 	if me.CType() < roles.ClientTypeManager {
-		return errors.New("insufficient privilege")
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "insufficient privilege")
 	}
 	allClients, err := s.clientManager.GetAllClients()
 	if err != nil {
@@ -199,7 +200,7 @@ func (s *ClientManagementService) GetConnections(request service.IServiceRequest
 	from := request.From()
 	clientId := pathParams["id"]
 	if from == "" {
-		return errors.New("invalid credential: you need to login to check connections")
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "invalid credential: you need to login to check connections")
 	}
 	me, err := s.getCurrentUser(from)
 	if err != nil {
@@ -207,7 +208,7 @@ func (s *ClientManagementService) GetConnections(request service.IServiceRequest
 	}
 	allowed := from == clientId || me.CType() > roles.ClientTypeAuthenticated
 	if !allowed {
-		return errors.New("insufficient privilege: you do not have access to such information")
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "insufficient privilege: you do not have access to such information")
 	}
 	conns, err := s.connManager.GetConnectionsByClientId(clientId)
 	if err != nil {

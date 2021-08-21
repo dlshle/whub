@@ -25,7 +25,7 @@ func NewWebsocketUpgradeChecker() IWebsocketUpgradeChecker {
 }
 
 func (c *WebsocketUpgradeChecker) ShouldUpgradeProtocol(r *http.Request) error {
-	token := r.URL.Query().Get("token")
+	token := r.Header.Get("Authorization")
 	if token == "" {
 		return errors.New("invalid login token")
 	}

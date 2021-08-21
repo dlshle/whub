@@ -1,7 +1,7 @@
 package connection
 
 type IClient interface {
-	Connect() error
+	Connect(token string) error
 	ReadLoop()
 	Disconnect() error
 	Write(data []byte) error

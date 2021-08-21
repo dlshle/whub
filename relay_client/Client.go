@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	base_conn "wsdk/common/connection"
+	"wsdk/common/http"
 	"wsdk/common/logger"
 	"wsdk/relay_client/context"
 	"wsdk/relay_common/connection"
@@ -20,8 +21,10 @@ import (
 // TODO
 type Client struct {
 	connectionType uint8
+	serverUri      string
 	wclient        base_conn.IClient
 	client         roles.ICommonClient
+	httpClient     *http.ClientPool
 	// serviceMap map[string]IClientService // id -- [listener functions]
 	service                     IClientService
 	server                      roles.ICommonServer
@@ -32,11 +35,14 @@ type Client struct {
 	clientServiceRequestHandler *ClientServiceMessageHandler
 }
 
-func NewClient(connType uint8, serverUri string, serverPort int, myId string) *Client {
+func NewClient(connType uint8, serverUri string, serverPort int, wsPath string, clientId string, clientCKey string) *Client {
 	addr := url.URL{Scheme: "ws", Host: fmt.Sprintf("%s:%d", serverUri, serverPort), Path: connection.WSConnectionPath}
 	c := &Client{
 		connectionType: connType,
+		serverUri:      serverUri,
+		httpClient:     http.NewPool(clientId, 5, 128, 60),
 		wclient:        WSClient.New(WSClient.NewWClientConfig(addr.String(), nil, nil, nil, nil, nil)),
+		client:         roles.NewClient(clientId, "", roles.ClientTypeAnonymous, clientCKey, 0),
 		logger:         context.Ctx.Logger(),
 		lock:           new(sync.RWMutex),
 	}
@@ -57,8 +63,33 @@ type IWRClient interface {
 	Role() roles.ICommonClient
 }
 
+type LoginResp struct {
+	Token string `json:"token"`
+}
+
+func (c *Client) login() (string, error) {
+	loginBody := ([]byte)(fmt.Sprintf("{\"id\":\"%s\",\"password\":\"%s\"}", c.client.Id(), c.client.CKey()))
+	resp, err := c.HTTPRequest("",
+		messages.NewMessage("", "", "", "/service/client/login",
+			messages.MessageTypeServicePostRequest, loginBody))
+	if err != nil {
+		return "", err
+	}
+	var loginResp LoginResp
+	err = json.Unmarshal(resp.Payload(), &loginResp)
+	if err != nil {
+		return "", err
+	}
+	return loginResp.Token, nil
+}
+
 func (c *Client) Connect() error {
-	err := c.wclient.Connect()
+	// TODO get token and the connect
+	token, err := c.login()
+	if err != nil {
+		return err
+	}
+	err = c.wclient.Connect(token)
 	return err
 }
 
@@ -111,6 +142,33 @@ func (c *Client) onConnected(rawConn base_conn.IConnection) {
 
 func (c *Client) Request(message messages.IMessage) (messages.IMessage, error) {
 	return c.conn.Request(message)
+}
+
+func (c *Client) HTTPRequest(token string, message messages.IMessage) (messages.IMessage, error) {
+	resp := c.httpClient.Request(message.ToHTTPRequest(c.serverUri, token))
+	if resp.Code < 0 {
+		return nil, errors.New(resp.Body)
+	}
+	header := resp.Header
+	if resp.Header.Get("Message-Id") != "" {
+		return messages.NewMessage(header.Get("Message-Id"), header.Get("From"), header.Get("To"),
+			message.Uri(), resp.Code, ([]byte)(resp.Body)), nil
+	}
+	return nil, errors.New("invalid server response")
+}
+
+func (c *Client) httpRequest(r *http.Request) (messages.IMessage, error) {
+	resp := c.httpClient.Request(r)
+	if resp.Code < 0 {
+		return nil, errors.New(resp.Body)
+	}
+	header := resp.Header
+	if resp.Header.Get("Message-Id") != "" {
+		return messages.NewMessage(header.Get("Message-Id"), header.Get("From"), header.Get("To"),
+			// HOW TO GET URI?
+			"", resp.Code, ([]byte)(resp.Body)), nil
+	}
+	return nil, errors.New("invalid server response")
 }
 
 func (c *Client) Role() roles.ICommonClient {

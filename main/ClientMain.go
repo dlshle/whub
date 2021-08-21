@@ -3,14 +3,15 @@ package main
 import (
 	"fmt"
 	"time"
-	connection2 "wsdk/common/connection"
+	"wsdk/common/connection"
 	"wsdk/relay_client"
 	"wsdk/relay_client/services"
+	base_conn "wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 )
 
 func ClientTest() {
-	c := relay_client.NewClient(connection2.TypeWS, "192.168.0.182", 1234, "aabb")
+	c := relay_client.NewClient(connection.TypeWS, "192.168.0.182", 1234, base_conn.WSConnectionPath, "aabb", "xx")
 	err := c.Connect()
 	if err != nil {
 		fmt.Println(err)

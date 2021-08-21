@@ -12,6 +12,7 @@ const (
 	ConnectionMiddlewareId       = "connection"
 	ConnectionMiddlewarePriority = 0
 	IsSyncConnContextKey         = "is_sync_conn"
+	AddrContextKey               = "addr"
 )
 
 type ConnectionMiddleware struct {
@@ -25,6 +26,7 @@ func (m *ConnectionMiddleware) Init() error {
 
 func (m *ConnectionMiddleware) Run(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest {
 	request.SetContext(IsSyncConnContextKey, !base_conn.IsAsyncType(conn.ConnectionType()))
+	request.SetContext(AddrContextKey, conn.Address())
 	return request
 }
 

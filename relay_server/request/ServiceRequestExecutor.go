@@ -26,7 +26,7 @@ func (e *InternalServiceRequestExecutor) Execute(request service.IServiceRequest
 	// internal service will resolve the request if no error is present
 	err := e.handler.Handle(request)
 	if err != nil {
-		request.Resolve(messages.NewErrorMessage(request.Id(), context.Ctx.Server().Id(), request.From(), request.Uri(), server_errors.NewJsonMessageError(err.Error())))
+		request.Resolve(messages.NewInternalErrorMessage(request.Id(), context.Ctx.Server().Id(), request.From(), request.Uri(), server_errors.NewJsonMessageError(err.Error())))
 	}
 }
 
@@ -94,9 +94,9 @@ func (e *RelayServiceRequestExecutor) Execute(request service.IServiceRequest) {
 	response, err := e.doRequest(request)
 	if request.Status() == service.ServiceRequestStatusDead {
 		// last check on if message_dispatcher is killed
-		request.Resolve(messages.NewErrorMessage(request.Id(), e.hostId, request.From(), request.Uri(), "request has been cancelled or target server is dead"))
+		request.Resolve(messages.NewInternalErrorMessage(request.Id(), e.hostId, request.From(), request.Uri(), "request has been cancelled or target server is dead"))
 	} else if err != nil {
-		request.Resolve(messages.NewErrorMessage(request.Id(), e.hostId, request.From(), request.Uri(), err.Error()))
+		request.Resolve(messages.NewInternalErrorMessage(request.Id(), e.hostId, request.From(), request.Uri(), err.Error()))
 	} else {
 		request.Resolve(response)
 	}

@@ -201,7 +201,7 @@ func (s *RelayManagementService) GetServiceByClientId(request service_common.ISe
 	if err != nil {
 		return err
 	}
-	request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeServiceResponse, marshalled))
+	s.ResolveByResponse(request, marshalled)
 	return nil
 }
 

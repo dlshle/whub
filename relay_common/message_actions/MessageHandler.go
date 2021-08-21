@@ -8,6 +8,7 @@ import (
 
 type IMessageHandler interface {
 	Type() int
+	Types() []int
 	Handle(messages.IMessage, connection.IConnection) error
 }
 
@@ -24,7 +25,7 @@ func NewPingMessageHandler(role roles.IDescribableRole) IMessageHandler {
 func (h *PingMessageHandler) Handle(message messages.IMessage, conn connection.IConnection) error {
 	var resp messages.IMessage
 	if message.To() != h.role.Id() {
-		resp = messages.NewErrorMessage(message.Id(), h.role.Id(), message.From(), message.Uri(), "incorrect receiver id")
+		resp = messages.NewInternalErrorMessage(message.Id(), h.role.Id(), message.From(), message.Uri(), "incorrect receiver id")
 	} else {
 		resp = messages.NewPongMessage(message.Id(), h.role.Id(), message.From())
 	}
@@ -33,6 +34,10 @@ func (h *PingMessageHandler) Handle(message messages.IMessage, conn connection.I
 
 func (h *PingMessageHandler) Type() int {
 	return messages.MessageTypePing
+}
+
+func (h *PingMessageHandler) Types() []int {
+	return nil
 }
 
 type InvalidMessageHandler struct {
@@ -44,9 +49,13 @@ func NewInvalidMessageHandler(role roles.IDescribableRole) IMessageHandler {
 }
 
 func (h *InvalidMessageHandler) Handle(message messages.IMessage, conn connection.IConnection) error {
-	return conn.Send(messages.NewErrorMessage(message.Id(), h.role.Id(), message.From(), message.Uri(), "invalid message(no handler found)"))
+	return conn.Send(messages.NewInternalErrorMessage(message.Id(), h.role.Id(), message.From(), message.Uri(), "invalid message(no handler found)"))
 }
 
 func (h *InvalidMessageHandler) Type() int {
 	return messages.MessageTypeUnknown
+}
+
+func (h *InvalidMessageHandler) Types() []int {
+	return nil
 }

@@ -19,6 +19,6 @@ func NewClientServiceExecutor(handler service.IServiceHandler) *ClientServiceExe
 func (e *ClientServiceExecutor) Execute(request service.IServiceRequest) {
 	err := e.handler.Handle(request)
 	if err != nil {
-		request.Resolve(messages.NewErrorMessage(request.Id(), context.Ctx.Identity().Id(), request.From(), request.Uri(), err.Error()))
+		request.Resolve(messages.NewInternalErrorMessage(request.Id(), context.Ctx.Identity().Id(), request.From(), request.Uri(), err.Error()))
 	}
 }
