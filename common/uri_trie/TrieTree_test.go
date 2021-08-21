@@ -111,5 +111,35 @@ func TestTrieTree(t *testing.T) {
 			}
 			return true
 		}),
+		test_utils.NewTestCase("/x/:y, and then /x/:y/z", "", func() bool {
+			tree.RemoveAll()
+			tree.Add("/x/:y", true, true)
+			err := tree.Add("/x/:y/z", true, true)
+			if err != nil {
+				return false
+			}
+			if !tree.SupportsUri("/x/1") {
+				return false
+			}
+			if !tree.SupportsUri("/x/5qwe/z") {
+				return false
+			}
+			return !tree.SupportsUri("/x")
+		}),
+		test_utils.NewTestCase("/x/:y/z, and then /x/:y", "", func() bool {
+			tree.RemoveAll()
+			tree.Add("/x/:y/z", true, true)
+			err := tree.Add("/x/:y", true, true)
+			if err != nil {
+				return false
+			}
+			if !tree.SupportsUri("/x/1") {
+				return false
+			}
+			if !tree.SupportsUri("/x/5qwe/z") {
+				return false
+			}
+			return !tree.SupportsUri("/x")
+		}),
 	}).Do(t)
 }

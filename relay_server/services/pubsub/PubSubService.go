@@ -18,7 +18,6 @@ const (
 	RouteTopics = "/topics"
 )
 
-// TODO use PubSubController instead doing business here
 type PubSubService struct {
 	*service_base.NativeService
 	pubSubController pubsub.IPubSubController `$inject:""`
@@ -76,6 +75,9 @@ func (s *PubSubService) Unsubscribe(request service_common.IServiceRequest, path
 }
 
 func (s *PubSubService) Publish(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+	if request.From() == "" {
+		return errors.New("invalid credential")
+	}
 	err := s.pubSubController.Publish(pathParams["topic"], request.Message())
 	if err != nil {
 		return err

@@ -50,6 +50,12 @@ func (m *MiddlewareManager) RegisterMiddleware(middleware middleware.IServerMidd
 	return nil
 }
 
+func RegisterMiddleware(middleware middleware.IServerMiddleware) {
+	container.Container.Call(func(manager IMiddlewareManager) {
+		manager.RegisterMiddleware(middleware)
+	})
+}
+
 func init() {
 	container.Container.Singleton(func() IMiddlewareManager {
 		return NewMiddlewareManager()

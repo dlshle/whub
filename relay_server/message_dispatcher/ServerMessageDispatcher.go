@@ -55,7 +55,7 @@ func (d *ServerMessageDispatcher) Dispatch(message messages.IMessage, conn conne
 	if message == nil {
 		return
 	}
-	d.logger().Printf("receive message %s from %s", message.String(), conn.Address())
+	d.logger().Printf("receive message %s from %s", message.Id(), conn.Address())
 	d.metering.TraceMessagePerformance(message.Id())
 	context.Ctx.AsyncTaskPool().Schedule(func() {
 		d.dispatcher.Dispatch(message, conn)

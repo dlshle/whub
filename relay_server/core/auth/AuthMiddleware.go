@@ -11,7 +11,7 @@ import (
 const (
 	AuthMiddlewareId       = "auth"
 	IsAuthorizedContextKey = "is_authorized"
-	AuthMiddlewarePriority = 0
+	AuthMiddlewarePriority = 1
 )
 
 type AuthMiddleware struct {
@@ -32,15 +32,15 @@ func (m *AuthMiddleware) Run(conn connection.IConnection, request service.IServi
 	clientId, err := m.authController.ValidateRequestSource(conn, request.Message())
 	if err != nil {
 		m.Logger().Printf("authentication failed due to %s", err.Error())
+		request.SetFrom("")
 		request.SetContext(IsAuthorizedContextKey, false)
+	} else {
+		request.SetFrom(clientId)
+		request.SetContext(IsAuthorizedContextKey, clientId != "")
 	}
-	request.SetFrom(clientId)
-	request.SetContext(IsAuthorizedContextKey, clientId != "")
 	return request
 }
 
 func init() {
-	container.Container.Call(func(m middleware_manager.IMiddlewareManager) {
-		m.RegisterMiddleware(new(AuthMiddleware))
-	})
+	middleware_manager.RegisterMiddleware(new(AuthMiddleware))
 }

@@ -50,16 +50,14 @@ func (s *ClientManagementService) Init() (err error) {
 	routeMap[RouteLogOff] = s.LogOff
 	routeMap[RouteGetAll] = s.GetAll
 	routeMap[RouteLogin] = s.Login
-	// TODO
+	routeMap[RouteGetConnections] = s.GetConnections
 	return s.InitRoutes(routeMap)
 }
 
-func (s *ClientManagementService) validateClientIdentity(request service.IServiceRequest) error {
-	// TODO
-	panic("implement me")
-}
-
 func (s *ClientManagementService) SignUp(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	if request.From() != "" {
+		return errors.New("you have already logged in")
+	}
 	// body should be client descriptor
 	signupModel, err := UnmarshallClientSignupModel(request.Payload())
 	if err != nil {
@@ -76,6 +74,9 @@ func (s *ClientManagementService) SignUp(request service.IServiceRequest, pathPa
 }
 
 func (s *ClientManagementService) Login(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	if request.From() != "" {
+		return errors.New("you have already logged in")
+	}
 	loginModel, err := UnmarshallClientLoginModel(request.Payload())
 	if err != nil {
 		return err
@@ -151,8 +152,10 @@ func (s *ClientManagementService) getMarshalledClientInfo(client *client.Client,
 }
 
 func (s *ClientManagementService) LogOff(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	// TODO need auth first
 	clientId := request.From()
+	if request.From() == "" {
+		errors.New("you have not logged in")
+	}
 	if clientId == "" {
 		return errors.New("invalid identity")
 	}
@@ -185,6 +188,36 @@ func (s *ClientManagementService) GetAll(request service.IServiceRequest, pathPa
 		described[i] = c.Describe()
 	}
 	marshalled, err := json.Marshal(described)
+	if err != nil {
+		return err
+	}
+	s.ResolveByResponse(request, marshalled)
+	return nil
+}
+
+func (s *ClientManagementService) GetConnections(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	from := request.From()
+	clientId := pathParams["id"]
+	if from == "" {
+		return errors.New("invalid credential: you need to login to check connections")
+	}
+	me, err := s.getCurrentUser(from)
+	if err != nil {
+		return err
+	}
+	allowed := from == clientId || me.CType() > roles.ClientTypeAuthenticated
+	if !allowed {
+		return errors.New("insufficient privilege: you do not have access to such information")
+	}
+	conns, err := s.connManager.GetConnectionsByClientId(clientId)
+	if err != nil {
+		return err
+	}
+	strConns := make([]string, len(conns), len(conns))
+	for i, c := range conns {
+		strConns[i] = c.String()
+	}
+	marshalled, err := json.Marshal(strConns)
 	if err != nil {
 		return err
 	}

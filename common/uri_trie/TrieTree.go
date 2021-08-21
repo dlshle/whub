@@ -85,7 +85,10 @@ func (n *trieNode) addParam(param string) (*trieNode, error) {
 	if n.wildcardChild != nil || (n.paramChild != nil && n.paramChild.param != param) || len(n.constChildren) > 0 {
 		return nil, errors.New("can not add a new param node over a wildcard/const node or a param node w/ different param")
 	}
-	n.paramChild = &trieNode{parent: n, param: param, t: tnTypeP}
+	// when overriding a child w/ value, do soft add and do not override its value
+	if n.paramChild == nil {
+		n.paramChild = &trieNode{parent: n, param: param, t: tnTypeP}
+	}
 	return n.paramChild, nil
 }
 

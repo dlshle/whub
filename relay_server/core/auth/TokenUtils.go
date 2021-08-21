@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"github.com/golang-jwt/jwt"
 	"time"
-	"wsdk/relay_server/context"
 )
 
-var tokenSignMethodMap map[uint8]func(clientId string, clientCKey string, ttl int64) (string, error)
+var tokenSignMethodMap map[uint8]func(clientId string, clientCKey string, ttl time.Duration) (string, error)
 
 func init() {
-	tokenSignMethodMap = make(map[uint8]func(clientId string, clientCKey string, ttl int64) (string, error))
+	tokenSignMethodMap = make(map[uint8]func(clientId string, clientCKey string, ttl time.Duration) (string, error))
 	tokenSignMethodMap[TokenTypeDefault] = signDefaultToken
 	tokenSignMethodMap[TokenTypePermanent] = signPermanentToken
 }
@@ -22,48 +21,29 @@ const (
 )
 
 func SignToken(clientId string, clientCKey string, ttlInNano time.Duration, tokenType uint8) (string, error) {
-	return tokenSignMethodMap[tokenType](clientId, clientCKey, ttlInNano.Nanoseconds())
+	return tokenSignMethodMap[tokenType](clientId, clientCKey, ttlInNano)
 }
 
-func signDefaultToken(clientId string, clientCKey string, ttl int64) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":       clientId,
-		"ttl":      ttl,
-		"signTime": time.Now().UnixNano(),
-		"issuer":   context.Ctx.Server().Id(),
-	})
+func signDefaultToken(clientId string, clientCKey string, ttl time.Duration) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, NewTokenClaim(clientId, ttl))
 	return token.SignedString(([]byte)(clientCKey))
 }
 
-func signPermanentToken(clientId string, clientCKey string, ttl int64) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":       clientId,
-		"signTime": time.Now().UnixNano(),
-		"ttl":      0,
-		"issuer":   context.Ctx.Server().Id(),
-	})
+func signPermanentToken(clientId string, clientCKey string, ttl time.Duration) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, NewTokenClaim(clientId, ttl))
 	return token.SignedString(([]byte)(clientCKey))
 }
 
-func ParseToken(token string) (*jwt.Token, error) {
-	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+func VerifyToken(stringToken string, verifyCallback func(claim *TokenClaim) (string, error)) (*jwt.Token, error) {
+	return jwt.ParseWithClaims(stringToken, &TokenClaim{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return context.Ctx.SignKey(), nil
-	})
-}
-
-func VerifyToken(stringToken string, verifyCallback func(map[string]interface{}) (string, error)) (*jwt.Token, error) {
-	return jwt.Parse(stringToken, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		claimMap, ok := token.Claims.(jwt.MapClaims)
+		tokenClaim, ok := token.Claims.(*TokenClaim)
 		if !ok {
 			return nil, errors.New("unable to convert claim to map")
 		}
-		cKey, err := verifyCallback(claimMap)
+		cKey, err := verifyCallback(tokenClaim)
 		if err != nil {
 			return nil, err
 		}

@@ -2,6 +2,7 @@ package status
 
 import (
 	"encoding/json"
+	"errors"
 	"wsdk/common/utils"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
@@ -52,7 +53,9 @@ func (s *StatusService) initPubSubTopic() error {
 }
 
 func (s *StatusService) GetStatus(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	// TODO should check auth scope
+	if request.From() == "" {
+		return errors.New("invalid credential")
+	}
 	sysStatusJsonByte, err := s.systemStatusController.GetServerStat().JsonByte()
 	if err != nil {
 		return err
@@ -62,7 +65,9 @@ func (s *StatusService) GetStatus(request service_common.IServiceRequest, pathPa
 }
 
 func (s *StatusService) GetAllInternalServices(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	// TODO should check auth scope
+	if request.From() == "" {
+		return errors.New("invalid credential")
+	}
 	servicesJsonByte, err := json.Marshal(s.serviceManager.DescribeAllServices())
 	if err != nil {
 		return err

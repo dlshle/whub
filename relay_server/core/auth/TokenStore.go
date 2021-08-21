@@ -14,7 +14,7 @@ const (
 )
 
 type ITokenStore interface {
-	Put(token string, clientId string, ttl int) error
+	Put(token string, clientId string, ttl time.Duration) error
 	Get(token string) (string, error)
 }
 
@@ -36,11 +36,11 @@ func (s *RedisTokenStore) assembleKey(key string) string {
 	return fmt.Sprintf("%s%s", TokenStorePrefix, key)
 }
 
-func (s *RedisTokenStore) Put(token string, clientId string, ttl int) error {
+func (s *RedisTokenStore) Put(token string, clientId string, ttl time.Duration) error {
 	if ttl == 0 {
 		return s.redis.Set(s.assembleKey(token), clientId)
 	}
-	return s.redis.SetWithExp(s.assembleKey(token), clientId, time.Duration(ttl))
+	return s.redis.SetWithExp(s.assembleKey(token), clientId, ttl)
 }
 
 func (s *RedisTokenStore) Get(token string) (string, error) {

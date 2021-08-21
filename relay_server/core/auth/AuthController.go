@@ -94,19 +94,11 @@ func (c *AuthController) checkTokenFromStore(token string) (string, error) {
 }
 
 func (c *AuthController) parseToken(token string) (clientId string, err error) {
-	_, err = VerifyToken(token, func(claimMap map[string]interface{}) (string, error) {
-		if claimMap["id"] == nil || claimMap["ttl"] == nil || claimMap["signTime"] == nil {
-			return "", errors.New("missing token claims")
-		}
-		// TODO remove later
-		c.logger.Println("claim map: ", claimMap)
-		/*
-			claim map:  map[id:test2 issuer:test signTime:1.629488664892019e+18 ttl:1.8e+12]
-		*/
-		if claimMap["ttl"].(int) != 0 && c.isTokenExpired(claimMap["signTime"].(int64), claimMap["ttl"].(int)) {
+	_, err = VerifyToken(token, func(claim *TokenClaim) (string, error) {
+		clientId = claim.ClientId
+		if c.isTokenExpired(claim.ExpiresAt) {
 			return "", errors.New("token expired")
 		}
-		clientId = claimMap["id"].(string)
 		client, err := c.clientManager.GetClient(clientId)
 		if err != nil {
 			return "", err
@@ -116,9 +108,8 @@ func (c *AuthController) parseToken(token string) (clientId string, err error) {
 	return
 }
 
-func (c *AuthController) isTokenExpired(signTimeNano int64, ttlInNano int) bool {
-	expireTime := time.Unix(0, signTimeNano).Add(time.Nanosecond * time.Duration(ttlInNano))
-	return time.Now().After(expireTime)
+func (c *AuthController) isTokenExpired(expireTime int64) bool {
+	return time.Now().After(time.Unix(expireTime, 0))
 }
 
 // Login only for un-authed clients
@@ -145,7 +136,7 @@ func (c *AuthController) asyncConnLogin(id, password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return SignToken(client.Id(), client.CKey(), AsyncConnTtl, TokenTypeDefault)
+	return c.loginAndCacheToken(client.Id(), client.CKey(), AsyncConnTtl, TokenTypeDefault)
 }
 
 func (c *AuthController) syncConnLogin(id, password string) (string, error) {
@@ -153,7 +144,18 @@ func (c *AuthController) syncConnLogin(id, password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return SignToken(client.Id(), client.CKey(), SyncConnTtl, TokenTypeDefault)
+	return c.loginAndCacheToken(client.Id(), client.CKey(), SyncConnTtl, TokenTypeDefault)
+}
+
+func (c *AuthController) loginAndCacheToken(clientId, clientCKey string, ttl time.Duration, tokenType uint8) (string, error) {
+	token, err := SignToken(clientId, clientCKey, ttl, tokenType)
+	if err != nil {
+		return "", err
+	}
+	if err = c.store.Put(token, clientId, ttl); err != nil {
+		c.logger.Printf("cache token %s from %s to redis failed due to %s", token, clientId, err.Error())
+	}
+	return token, nil
 }
 
 // RefreshToken only available for authed client

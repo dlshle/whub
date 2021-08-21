@@ -35,6 +35,16 @@ const (
 	MessageTypeClientDescriptor = 200
 
 	MessageTypeInternalNotification = 333
+
+	MessageTypeSvcResponseOK        = 200
+	MessageTypeSvcResponseCreated   = 201
+	MessageTypeSvcResponsePartial   = 206
+	MessageTypeSvcBadRequestError   = 400
+	MessageTypeSvcUnauthorizedError = 401
+	MessageTypeSvcForbiddenError    = 403
+	MessageTypeSvcNotFoundError     = 404
+	MessageTypeSvcGoneError         = 410
+	MessageTypeSvcInternalError     = 500
 )
 
 type Message struct {
@@ -156,4 +166,8 @@ func NewNotification(id string, message string) IMessage {
 
 func NewErrorResponseMessage(request IMessage, from string, errMsg string) IMessage {
 	return &Message{id: request.Id(), from: from, to: request.From(), uri: request.Uri(), messageType: MessageTypeError, payload: ([]byte)(errMsg)}
+}
+
+func IsErrorMessage(message IMessage) bool {
+	return message.MessageType() >= MessageTypeSvcBadRequestError && message.MessageType() <= MessageTypeSvcInternalError
 }

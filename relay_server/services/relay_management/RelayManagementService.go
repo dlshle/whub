@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"wsdk/common/connection"
 	"wsdk/common/utils"
 	"wsdk/relay_common/messages"
 	service_common "wsdk/relay_common/service"
@@ -85,28 +84,26 @@ func (s *RelayManagementService) initRoutes() error {
 	return s.InitRoutes(routeMap)
 }
 
-func (s *RelayManagementService) validateClientConnection(clientId string) error {
-	if _, err := s.clientManager.GetClientWithErrOnNotFound(clientId); err != nil {
-		return err
+func (s *RelayManagementService) validateClientConnection(request service_common.IServiceRequest) error {
+	if request.GetContext(connection_manager.IsSyncConnContextKey).(bool) {
+		return errors.New("connection type not supported")
 	}
-	conns, err := s.connectionManager.GetConnectionsByClientId(clientId)
-	if err != nil {
-		return err
+	if request.From() == "" {
+		return errors.New("invalid credential")
 	}
-	for _, conn := range conns {
-		if connection.IsAsyncType(conn.ConnectionType()) {
-			return nil
-		}
-	}
-	return errors.New("only async connection type supports relay service")
+	return nil
 }
 
 func (s *RelayManagementService) RegisterService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	defer s.Logger().Printf("service %v registration result: %s",
-		utils.ConditionalPick(request != nil, request.Message(), nil),
-		utils.ConditionalPick(err != nil, err, "success"))
+	defer func() {
+		if err != nil {
+			s.Logger().Printf("service registration from %s failed due to %s", request.From(), err.Error())
+		} else {
+			s.Logger().Println("service registration from %s succeeded", request.From())
+		}
+	}()
 	s.Logger().Println("register service: ", utils.ConditionalPick(request != nil, request.Message(), nil))
-	if err = s.validateClientConnection(request.From()); err != nil {
+	if err = s.validateClientConnection(request); err != nil {
 		return err
 	}
 	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
@@ -139,7 +136,7 @@ func (s *RelayManagementService) UnregisterService(request service_common.IServi
 		utils.ConditionalPick(request != nil, request.Message(), nil),
 		utils.ConditionalPick(err != nil, err, "success"))
 	s.Logger().Println("un-register service: ", utils.ConditionalPick(request != nil, request.Message(), nil))
-	if err = s.validateClientConnection(request.From()); err != nil {
+	if err = s.validateClientConnection(request); err != nil {
 		return err
 	}
 	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
@@ -167,7 +164,7 @@ func (s *RelayManagementService) UnregisterService(request service_common.IServi
 }
 
 func (s *RelayManagementService) UpdateService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
-	if err := s.validateClientConnection(request.From()); err != nil {
+	if err := s.validateClientConnection(request); err != nil {
 		return err
 	}
 	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
