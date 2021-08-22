@@ -24,9 +24,14 @@ type FileWriter struct {
 	logDataSize   int
 	lock          *sync.Mutex
 	size          int
+	dataChan      chan []byte
 }
 
 func (w *FileWriter) Write(data []byte) (int, error) {
+	return w.write(data)
+}
+
+func (w *FileWriter) write(data []byte) (int, error) {
 	defer (func() {
 		w.size += len(data)
 	})()

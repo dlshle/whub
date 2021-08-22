@@ -75,24 +75,18 @@ func New(config *WClientConfig) base_conn.IClient {
 	return &WClient{config.serverUrl, config.WClientConnectionHandler, logger.New(os.Stdout, "[WebSocketClient]", true), nil}
 }
 
-func (c *WClient) Connect(token string) error {
+func (c *WClient) Connect(token string) (base_conn.IConnection, error) {
 	header := make(map[string][]string)
 	header["Authorization"] = []string{fmt.Sprintf("Bearer %s", token)}
 	conn, _, err := websocket.DefaultDialer.Dial(c.serverUrl, header)
 	if err != nil {
 		c.handler.OnConnectionFailed(err)
-		return err
+		return nil, err
 	}
-	connection := connection.NewWsConnection(conn, func(msg []byte) {
-		c.handler.OnMessage(msg)
-	}, func(err error) {
-		c.handler.OnDisconnected(err)
-	}, func(err error) {
-		c.handler.OnError(err)
-	})
+	connection := connection.NewWsConnection(conn, c.handler.onMessage, c.handler.onDisconnected, c.handler.onError)
 	c.conn = connection
 	c.handler.OnConnectionEstablished(connection)
-	return nil
+	return connection, nil
 }
 
 func (c *WClient) checkConn() error {

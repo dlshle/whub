@@ -1,8 +1,19 @@
 package ctimer
 
 import (
+	"sync"
 	"time"
 )
+
+var timerPool *sync.Pool
+
+func init() {
+	timerPool = &sync.Pool{
+		New: func() interface{} {
+			return new(CTimer)
+		},
+	}
+}
 
 const (
 	StatusIdle = iota
@@ -30,6 +41,10 @@ type CTimer struct {
 }
 
 func New(interval time.Duration, job func()) ICTimer {
+	timer := timerPool.Get().(*CTimer)
+	timer.job = job
+	timer.interval = interval
+	timer.status = StatusIdle
 	return &CTimer{
 		job:      job,
 		interval: interval,

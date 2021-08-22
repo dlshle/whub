@@ -11,6 +11,7 @@ import (
 	base_conn "wsdk/common/connection"
 	"wsdk/common/http"
 	"wsdk/common/logger"
+	"wsdk/relay_client/connections"
 	"wsdk/relay_client/context"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
@@ -22,6 +23,8 @@ import (
 type Client struct {
 	connectionType uint8
 	serverUri      string
+	loginToken     string
+	connManager    connections.IConnectionManager
 	wclient        base_conn.IClient
 	client         roles.ICommonClient
 	httpClient     *http.ClientPool
@@ -45,9 +48,14 @@ func NewClient(connType uint8, serverUri string, serverPort int, wsPath string, 
 		wclient:        WSClient.New(WSClient.NewWClientConfig(addr.String(), nil, nil, nil, nil, nil)),
 		client:         roles.NewClient(clientId, "", roles.ClientTypeAnonymous, clientCKey, 0),
 		logger:         context.Ctx.Logger(),
-		lock:           new(sync.RWMutex),
+		// TODO how to do conn manager factory
+		// connManager:    connections.NewConnectionManager(),
+		lock: new(sync.RWMutex),
 	}
-	c.wclient.OnConnectionEstablished(c.onConnected)
+	// TODO no good, it will make connect stuck there forever or sth else?
+	c.wclient.OnConnectionEstablished(func(rawConn base_conn.IConnection) {
+		c.onConnected(rawConn)
+	})
 	c.wclient.OnMessage(func(msg []byte) {
 		fmt.Println(msg)
 	})
@@ -68,13 +76,16 @@ type LoginResp struct {
 	Token string `json:"token"`
 }
 
-func (c *Client) login() (string, error) {
+func (c *Client) login(retry int, err error) (string, error) {
+	if retry <= 0 {
+		return "", err
+	}
 	loginBody := ([]byte)(fmt.Sprintf("{\"id\":\"%s\",\"password\":\"%s\"}", c.client.Id(), c.client.CKey()))
 	resp, err := c.HTTPRequest("",
 		messages.NewMessage("", "", "", "/service/client/login",
 			messages.MessageTypeServicePostRequest, loginBody))
 	if err != nil {
-		return "", err
+		return c.login(retry-1, err)
 	}
 	var loginResp LoginResp
 	err = json.Unmarshal(resp.Payload(), &loginResp)
@@ -84,14 +95,43 @@ func (c *Client) login() (string, error) {
 	return loginResp.Token, nil
 }
 
-func (c *Client) Connect() error {
-	// TODO get token and the connect
-	token, err := c.login()
+func (c *Client) Start() error {
+	err := c.connManager.Start()
 	if err != nil {
 		return err
 	}
-	err = c.wclient.Connect(token)
+	// add other connections
+	<-context.Ctx.Context().Done()
+	return nil
+}
+
+func (c *Client) Connect() error {
+	token, err := c.login(5, nil)
+	if err != nil {
+		return err
+	}
+	_, err = c.wclient.Connect(token)
 	return err
+}
+
+func (c *Client) connect() (connection.IConnection, error) {
+	c.login(3, nil)
+	return c.doConnect(3, c.loginToken, nil)
+}
+
+func (c *Client) doConnect(retryCount int, token string, lastErr error) (connection.IConnection, error) {
+	if retryCount <= 0 {
+		return nil, lastErr
+	}
+	conn, err := c.wclient.Connect(token)
+	if err != nil {
+		token, err = c.login(1, nil)
+		if err != nil {
+			return nil, err
+		}
+		return c.doConnect(retryCount-1, token, err)
+	}
+	return c.onConnected(conn), err
 }
 
 func (c *Client) initDispatchers() {
@@ -100,14 +140,14 @@ func (c *Client) initDispatchers() {
 	c.dispatcher.RegisterHandler(c.clientServiceRequestHandler)
 }
 
-func (c *Client) onConnected(rawConn base_conn.IConnection) {
+func (c *Client) onConnected(rawConn base_conn.IConnection) connection.IConnection {
 	// ctx has already started!
 	conn := connection.NewConnection(context.Ctx.Logger().WithPrefix("[ServerConnection]"), rawConn, connection.DefaultTimeout, context.Ctx.MessageParser(), context.Ctx.NotificationEmitter())
 	c.conn = conn
 	c.logger.Println("connection to server has been established: ", conn.Address())
 	c.client = roles.NewClient("aa", "bb", roles.RoleTypeClient, "asd", 2)
 	c.logger.Println("new client has been instantiated")
-	go c.wclient.ReadLoop()
+	context.Ctx.AsyncTaskPool().Schedule(c.conn.ReadingLoop)
 	serverDesc, err := conn.Request(messages.DraftMessage(c.client.Id(), "", "", messages.MessageTypeClientDescriptor, ([]byte)(c.client.Describe().String())))
 	if err != nil {
 		c.logger.Println("unable to receive server description due to ", err.Error())
@@ -139,6 +179,7 @@ func (c *Client) onConnected(rawConn base_conn.IConnection) {
 		c.logger.Panicln("greeting error !", err.Error())
 		panic(err)
 	}
+	return conn
 }
 
 func (c *Client) Request(message messages.IMessage) (messages.IMessage, error) {

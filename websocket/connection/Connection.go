@@ -37,16 +37,7 @@ func NewWsConnection(conn *websocket.Conn, onMessage func([]byte), onClose func(
 }
 
 type IWsConnection interface {
-	Close() error
-	Read() ([]byte, error)
-	OnMessage(func([]byte))
-	Write([]byte) error
-	Address() string
-	OnError(func(error))
-	OnClose(func(error))
-	State() int
-	ReadLoop()
-	String() string
+	connection.IConnection
 }
 
 func (c *WsConnection) withLock(cb func()) {

@@ -1,6 +1,7 @@
 package context
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -30,6 +31,8 @@ const (
 
 type Context struct {
 	lock                *sync.Mutex
+	ctx                 context.Context
+	cancelFunc          func()
 	identity            roles.IDescribableRole
 	server              roles.ICommonServer
 	asyncTaskPool       async.IAsyncPool
@@ -43,7 +46,6 @@ type Context struct {
 
 type IContext interface {
 	Start(identity roles.IDescribableRole, server roles.ICommonServer)
-	Server() roles.ICommonServer
 	Identity() roles.IDescribableRole
 	TimedJobPool() *timed.JobPool
 	NotificationEmitter() notification.IWRNotificationEmitter
@@ -51,10 +53,15 @@ type IContext interface {
 	MessageParser() messages.IMessageParser
 	ServiceTaskPool() async.IAsyncPool
 	Logger() *logger.SimpleLogger
+	Stop()
+	Context() context.Context
 }
 
 func NewContext() IContext {
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	return &Context{
+		ctx:           ctx,
+		cancelFunc:    cancelFunc,
 		lock:          new(sync.Mutex),
 		messageParser: messages.NewFBMessageParser(),
 		logger:        logger.New(os.Stdout, "[WClient]", true),
@@ -125,4 +132,13 @@ func (c *Context) MessageParser() messages.IMessageParser {
 
 func (c *Context) Logger() *logger.SimpleLogger {
 	return c.logger
+}
+
+func (c *Context) Stop() {
+	c.logger.Println("client has stopped")
+	c.cancelFunc()
+}
+
+func (c *Context) Context() context.Context {
+	return c.ctx
 }

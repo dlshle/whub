@@ -44,6 +44,7 @@ type IConnection interface {
 	Close() error
 	ConnectionType() uint8
 	String() string
+	IsLive() bool
 }
 
 func NewConnection(
@@ -211,4 +212,8 @@ func (c *Connection) String() string {
 
 func (c *Connection) TypeString() string {
 	return connection.TypeString(c.ConnectionType())
+}
+
+func (c *Connection) IsLive() bool {
+	return c.conn.IsLive()
 }

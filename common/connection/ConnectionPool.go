@@ -3,7 +3,6 @@ package connection
 import (
 	"os"
 	"sync"
-	"time"
 	"wsdk/common/logger"
 )
 
@@ -33,15 +32,15 @@ func (e ConnectionPoolError) Code() uint8 {
 }
 
 type ConnectionPool struct {
-	consumerPool   chan IConnection
-	producerChan   chan bool     // works kinda like producer sem
-	getTimeoutInMS time.Duration // max timeout for waiting for an idle conn(create new conn after timeout).
-	idleTimeoutMs  time.Duration // how long should an idle connection be omitted from the pool
-	numInUse       int
-	numMaxSize     int
-	rwLock         *sync.RWMutex
-	connFactory    func() (IConnection, error)
-	logger         *logger.SimpleLogger
+	consumerPool chan IConnection
+	producerChan chan bool // works kinda like producer sem
+	// getTimeoutInMS time.Duration // max timeout for waiting for an idle conn(create new conn after timeout).
+	// idleTimeoutMs  time.Duration // how long should an idle connection be omitted from the pool
+	numInUse    int
+	numMaxSize  int
+	rwLock      *sync.RWMutex
+	connFactory func() (IConnection, error)
+	logger      *logger.SimpleLogger
 }
 
 type IConnectionPool interface {
@@ -51,16 +50,16 @@ type IConnectionPool interface {
 	Close()
 }
 
-func NewConnectionPool(loggerPrefix string, factory func() (IConnection, error), initSize int, maxSize int, timeoutInMs time.Duration) (IConnectionPool, error) {
+func NewConnectionPool(loggerPrefix string, factory func() (IConnection, error), initSize int, maxSize int) (IConnectionPool, error) {
 	pool := &ConnectionPool{
-		consumerPool:   make(chan IConnection, maxSize),
-		producerChan:   make(chan bool, maxSize),
-		getTimeoutInMS: timeoutInMs,
-		numInUse:       0,
-		numMaxSize:     maxSize,
-		rwLock:         new(sync.RWMutex),
-		connFactory:    factory,
-		logger:         logger.New(os.Stdout, loggerPrefix, true),
+		consumerPool: make(chan IConnection, maxSize),
+		producerChan: make(chan bool, maxSize),
+		// getTimeoutInMS: timeoutInMs,
+		numInUse:    0,
+		numMaxSize:  maxSize,
+		rwLock:      new(sync.RWMutex),
+		connFactory: factory,
+		logger:      logger.New(os.Stdout, loggerPrefix, true),
 	}
 	return pool, pool.init(initSize)
 }
@@ -152,6 +151,12 @@ func (p *ConnectionPool) safeGet() (conn IConnection, err error) {
 			break
 		} else {
 			p.Return(conn)
+			// if no conn in consumer pool, try to produce one
+			if len(p.consumerPool) == 0 {
+				if err = p.produceConnection(); err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 	p.withWrite(func() {
@@ -160,6 +165,7 @@ func (p *ConnectionPool) safeGet() (conn IConnection, err error) {
 	return
 }
 
+/*
 // TODO  we need to somehow return err on get timeout, Get should be something like doGet
 func (p *ConnectionPool) doGet() (IConnection, error) {
 	select {
@@ -174,6 +180,7 @@ func (p *ConnectionPool) doGet() (IConnection, error) {
 		return nil, NewConnectionPoolError(ConnectionPoolErrGetTimeout, "get connection timeout")
 	}
 }
+*/
 
 func (p *ConnectionPool) Get() (IConnection, error) {
 	if p.IsClosed() {

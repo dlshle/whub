@@ -76,7 +76,7 @@ func (s *ClientManagementService) SignUp(request service.IServiceRequest, pathPa
 
 func (s *ClientManagementService) Login(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	if request.From() != "" {
-		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "you have already logged in")
+		return s.ResolveByError(request, messages.MessageTypeSvcForbiddenError, "you have already logged in")
 	}
 	loginModel, err := UnmarshallClientLoginModel(request.Payload())
 	if err != nil {

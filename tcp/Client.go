@@ -33,13 +33,13 @@ func NewTCPClient(serverAddr string, serverPort int, myId string) connection.ICl
 	}
 }
 
-func (c *TCPClient) Connect(token string) error {
+func (c *TCPClient) Connect(token string) (connection.IConnection, error) {
 	return c.connectWithRetry(c.retryCount, nil)
 }
 
-func (c *TCPClient) connectWithRetry(retry int, lastErr error) error {
+func (c *TCPClient) connectWithRetry(retry int, lastErr error) (connection.IConnection, error) {
 	if retry == 0 {
-		return lastErr
+		return nil, lastErr
 	}
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", c.serverAddr, c.serverPort))
 	if err != nil {
@@ -48,13 +48,13 @@ func (c *TCPClient) connectWithRetry(retry int, lastErr error) error {
 	return c.handleConnection(conn)
 }
 
-func (c *TCPClient) handleConnection(rawConn net.Conn) error {
+func (c *TCPClient) handleConnection(rawConn net.Conn) (connection.IConnection, error) {
 	conn := NewTCPConnection(rawConn)
 	conn.OnError(c.onConnectionErr)
 	conn.OnClose(c.onDisconnected)
 	conn.OnMessage(c.onMessage)
 	c.onConnected(conn)
-	return nil
+	return conn, nil
 }
 
 func (c *TCPClient) ReadLoop() {
