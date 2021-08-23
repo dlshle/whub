@@ -105,6 +105,10 @@ func (h *HTTPWritableConnection) ConnectionType() uint8 {
 	return base_conn.TypeHTTP
 }
 
+func (h *HTTPWritableConnection) IsLive() bool {
+	return h.waitLock.IsOpen()
+}
+
 func NewHTTPWritableConnection() connection.IConnection {
 	return &HTTPWritableConnection{}
 }

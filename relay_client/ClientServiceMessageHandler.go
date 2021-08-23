@@ -8,7 +8,6 @@ import (
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server/core/metering"
 )
 
 type ClientServiceMessageHandler struct {
@@ -38,9 +37,9 @@ func (h *ClientServiceMessageHandler) Types() []int {
 }
 
 func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connection.IConnection) error {
-	h.m.Track(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()), "in service handler")
+	h.m.Track(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()), "in service handler")
 	if h.service == nil {
-		h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
+		h.m.Stop(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()))
 		return conn.Send(messages.NewInternalErrorMessage(
 			msg.Id(),
 			context.Ctx.Identity().Id(),
@@ -50,7 +49,7 @@ func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connect
 		))
 	}
 	if !h.service.SupportsUri(msg.Uri()) {
-		h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
+		h.m.Stop(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()))
 		return conn.Send(messages.NewInternalErrorMessage(msg.Id(),
 			context.Ctx.Identity().Id(),
 			msg.From(),
@@ -61,6 +60,6 @@ func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connect
 	request := service.NewServiceRequest(msg)
 	resp := h.service.Handle(request)
 	err := conn.Send(resp)
-	h.m.Stop(h.m.GetAssembledTraceId(metering.TMessagePerformance, msg.Id()))
+	h.m.Stop(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()))
 	return err
 }

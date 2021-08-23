@@ -45,8 +45,8 @@ func (d *ServerMessageDispatcher) init() {
 
 func (d *ServerMessageDispatcher) Dispatch(message messages.IMessage, conn connection.IConnection) {
 	/*
-	 * this function can either be called from a reading loop coroutine or from http handler goroutine, in order to
-	 * make the reading loop more effective(less blocking time), actual message dispatching will be done on another
+	 * This function can either be called from a reading loop coroutine or from http handler goroutine. In order to
+	 * make the reading loop more effective(less read blocking), actual message dispatching will be done on another
 	 * goroutine.
 	 * e.g. read -msg-> dispatcher(dispatch and run msg0) -> read -msg1-> dispatcher(...msg1) -> read
 	 *                                                           msg0 handle done, write back to conn
