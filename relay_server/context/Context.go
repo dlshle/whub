@@ -27,7 +27,6 @@ const (
 	defaultAsyncPoolWorkerFactor   = 32
 	defaultServicePoolWorkerFactor = 16
 	defaultMaxConcurrentConnection = 2048
-	defaultMaxMiddlewareCount      = 64
 	defaultSignKey                 = "d1s7218U7!d-r5b"
 )
 
