@@ -33,7 +33,9 @@ type WsConnection struct {
 
 func NewWsConnection(conn *websocket.Conn, onMessage func([]byte), onClose func(error), onError func(error)) connection.IConnection {
 	now := time.Now()
-	return &WsConnection{conn, onMessage, onClose, onError, now, now, now, 0, new(sync.Mutex), make(chan bool)}
+	closeChannel := make(chan bool, 1)
+	closeChannel <- true
+	return &WsConnection{conn, onMessage, onClose, onError, now, now, now, 0, new(sync.Mutex), closeChannel}
 }
 
 type IWsConnection interface {

@@ -57,8 +57,8 @@ func (s *Server) Stop() (closeError error) {
 	return
 }
 
-func (s *Server) handleInitialConnection(conn connection.IConnection) {
-	s.clientConnectionHandler.HandleConnectionEstablished(conn)
+func (s *Server) handleInitialConnection(conn connection.IConnection, header map[string][]string) {
+	s.clientConnectionHandler.HandleConnectionEstablished(conn, header)
 }
 
 func (s *Server) handleHTTPRequests(w http.ResponseWriter, r *http.Request) {

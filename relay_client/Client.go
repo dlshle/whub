@@ -48,10 +48,14 @@ func NewClient(connType uint8, serverUri string, serverPort int, wsPath string, 
 		wclient:        WSClient.New(WSClient.NewWClientConfig(addr.String(), nil, nil, nil, nil, nil)),
 		client:         roles.NewClient(clientId, "", roles.ClientTypeAnonymous, clientCKey, 0),
 		logger:         context.Ctx.Logger(),
-		// TODO how to do conn manager factory
-		// connManager:    connections.NewConnectionManager(),
-		lock: new(sync.RWMutex),
+		lock:           new(sync.RWMutex),
 	}
+	c.connManager = connections.NewConnectionManager(c.connect, 5)
+	c.connManager.SetOnConnected(func(conn connection.IConnection) {
+		if c.service != nil {
+			NewServiceCenterClient(c.service.Id(), c.server.Id(), conn).RegisterService(c.service.Describe())
+		}
+	})
 	// TODO no good, it will make connect stuck there forever or sth else?
 	c.wclient.OnConnectionEstablished(func(rawConn base_conn.IConnection) {
 		c.onConnected(rawConn)
@@ -101,7 +105,7 @@ func (c *Client) Start() error {
 		return err
 	}
 	// add other connections
-	<-context.Ctx.Context().Done()
+	// <-context.Ctx.Context().Done()
 	return nil
 }
 
@@ -115,8 +119,11 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) connect() (connection.IConnection, error) {
-	c.login(3, nil)
-	return c.doConnect(3, c.loginToken, nil)
+	token, err := c.login(3, nil)
+	if err != nil {
+		return nil, err
+	}
+	return c.doConnect(3, token, nil)
 }
 
 func (c *Client) doConnect(retryCount int, token string, lastErr error) (connection.IConnection, error) {
@@ -173,6 +180,8 @@ func (c *Client) onConnected(rawConn base_conn.IConnection) connection.IConnecti
 	err = conn.Send(messages.NewMessage("hello", c.client.Id(), "123", "", messages.MessageTypeACK, ([]byte)("aaa")))
 	c.logger.Println("greeting message has been sent")
 	conn.OnIncomingMessage(func(msg messages.IMessage) {
+		// TODO remove later
+		c.logger.Printf("client conn %p received message", conn)
 		c.dispatcher.Dispatch(msg, conn)
 	})
 	if err != nil {
@@ -183,7 +192,12 @@ func (c *Client) onConnected(rawConn base_conn.IConnection) connection.IConnecti
 }
 
 func (c *Client) Request(message messages.IMessage) (messages.IMessage, error) {
-	return c.conn.Request(message)
+	// return c.conn.Request(message)
+	conn, err := c.connManager.Connection()
+	if err != nil {
+		return nil, err
+	}
+	return conn.Request(message)
 }
 
 func (c *Client) HTTPRequest(token string, message messages.IMessage) (messages.IMessage, error) {
@@ -223,14 +237,29 @@ func (c *Client) SetService(service IClientService) {
 	c.clientServiceRequestHandler.SetService(service)
 }
 
-func (c *Client) RegisterService() error {
+func (c *Client) RegisterService() (err error) {
 	if c.service != nil {
-		err := c.service.Init(c.server, c.conn)
+		conn, cerr := c.connManager.Connection()
+		if cerr != nil {
+			return cerr
+		}
+		err = c.service.Init(c.server, conn)
 		if err != nil {
 			c.logger.Println("Init service failed due to ", err.Error())
 			return err
 		}
-		return c.service.Register()
+		err = c.service.Register()
+		if err != nil {
+			return err
+		}
+		// TODO how to iterate all connections? range channel reads till closed, bad
+		c.connManager.ForEachConnection(func(conn connection.IConnection) {
+			rerr := NewServiceCenterClient(c.service.Id(), c.server.Id(), conn).RegisterService(c.service.Describe())
+			if rerr != nil {
+				c.logger.Printf("backup conn %p register service failed due to %s", conn, rerr.Error())
+			}
+		})
+		return nil
 	}
 	return errors.New("no service is present")
 }

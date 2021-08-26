@@ -12,6 +12,7 @@ import (
 type IConnectionManager interface {
 	Start() error
 	Connection() (connection.IConnection, error)
+	ForEachConnection(cb func(connection.IConnection))
 	SetOnConnected(cb func(connection.IConnection))
 	SetOnError(cb func(err error))
 	Close()
@@ -29,14 +30,19 @@ type ConnectionManager struct {
 }
 
 func NewConnectionManager(factory func() (connection.IConnection, error), inUseConnections int) IConnectionManager {
-	return &ConnectionManager{
+	manager := &ConnectionManager{
 		ctx:           client_ctx.Ctx.Context(),
 		cancelFunc:    client_ctx.Ctx.Stop,
 		factory:       factory,
 		consumerQueue: make(chan connection.IConnection, inUseConnections),
 		producerQueue: make(chan bool, inUseConnections-1),
 		logger:        client_ctx.Ctx.Logger().WithPrefix("[ConnectionManager]"),
+		onConnected:   func(connection.IConnection) {},
 	}
+	for i := 0; i < inUseConnections-2; i++ {
+		manager.producerQueue <- true
+	}
+	return manager
 }
 
 func (m *ConnectionManager) Start() error {
@@ -130,4 +136,10 @@ func (m *ConnectionManager) SetOnConnected(cb func(iConnection connection.IConne
 
 func (m *ConnectionManager) SetOnError(cb func(err error)) {
 	m.onProducerError = cb
+}
+
+func (m *ConnectionManager) ForEachConnection(cb func(connection.IConnection)) {
+	for conn := range m.consumerQueue {
+		cb(conn)
+	}
 }

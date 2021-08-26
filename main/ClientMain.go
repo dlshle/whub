@@ -12,7 +12,7 @@ import (
 
 func ClientTest() {
 	c := relay_client.NewClient(connection.TypeWS, "192.168.0.182", 1234, base_conn.WSConnectionPath, "test1", "123456")
-	err := c.Connect()
+	err := c.Start()
 	if err != nil {
 		fmt.Println(err)
 		panic(err)

@@ -6,22 +6,22 @@ import (
 )
 
 type IWsConnectionHandler interface {
-	HandleClientConnected(connection.IConnection)
+	HandleClientConnected(connection.IConnection, map[string][]string)
 	HandleClientClosed(connection.IConnection, error)
 	HandleConnectionError(connection.IConnection, error)
 }
 
 type WsConnectionHandler struct {
-	onClientConnected     func(conn connection.IConnection)
+	onClientConnected     func(conn connection.IConnection, header map[string][]string)
 	onClientClosed        func(conn connection.IConnection, err error)
 	onConnectionError     func(connection.IConnection, error)
 	onNoUpgradableRequest func(w http.ResponseWriter, r *http.Request)
 	beforeUpgradeChecker  func(r *http.Request) error
 }
 
-func (h *WsConnectionHandler) HandleClientConnected(conn connection.IConnection) {
+func (h *WsConnectionHandler) HandleClientConnected(conn connection.IConnection, header map[string][]string) {
 	if h.onClientConnected != nil {
-		h.onClientConnected(conn)
+		h.onClientConnected(conn, header)
 	}
 }
 
@@ -54,7 +54,7 @@ func (h *WsConnectionHandler) CheckUpgradeRequest(r *http.Request) error {
 	return nil
 }
 
-func NewWsConnHandler(onClientConnected func(conn connection.IConnection), onClientClosed func(conn connection.IConnection, err error), onConnectionError func(connection.IConnection, error)) *WsConnectionHandler {
+func NewWsConnHandler(onClientConnected func(conn connection.IConnection, header map[string][]string), onClientClosed func(conn connection.IConnection, err error), onConnectionError func(connection.IConnection, error)) *WsConnectionHandler {
 	return &WsConnectionHandler{onClientConnected: onClientConnected, onClientClosed: onClientClosed, onConnectionError: onConnectionError}
 }
 

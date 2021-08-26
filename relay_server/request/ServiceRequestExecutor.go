@@ -110,7 +110,9 @@ func (e *RelayServiceRequestExecutor) doRequest(request service.IServiceRequest)
 	size := len(e.connections)
 	for i := 0; i < size; i++ {
 		e.lastSucceededConn++
-		if msg, err = e.connections[(e.lastSucceededConn % len(e.connections))].Request(request.Message()); err != nil {
+		if msg, err = e.connections[(e.lastSucceededConn % len(e.connections))].Request(request.Message()); err == nil {
+			// TODO remove later
+			e.logger.Printf("conn #%d go the request", e.lastSucceededConn%len(e.connections))
 			// once the first connection successfully handles the request, return
 			return
 		}

@@ -78,6 +78,9 @@ func (c *AuthController) validateSyncConnRequest(conn connection.IConnection, re
 }
 
 func (c *AuthController) ValidateToken(token string) (string, error) {
+	if token == "" {
+		return "", nil
+	}
 	clientId, err := c.checkTokenFromStore(token)
 	if err != nil {
 		return clientId, nil
