@@ -56,6 +56,7 @@ func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IC
 		h.messageDispatcher.Dispatch(message, wrappedConn)
 	})
 	h.connectionManager.AddConnection(wrappedConn)
+	// should authorize the connection(register the connection to active client connection) when authorized
 	clientId, err := h.authController.ValidateToken(auth.GetTrimmedHTTPToken(header))
 	if err != nil {
 		h.logger.Printf("unauthorized connection from %s", conn.Address())

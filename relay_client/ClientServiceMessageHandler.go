@@ -48,6 +48,7 @@ func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connect
 			fmt.Sprintf("client connection %s does not have service running yet", context.Ctx.Identity().Id()),
 		))
 	}
+	// TODO use service manager to test it just like how server does it
 	if !h.service.SupportsUri(msg.Uri()) {
 		h.m.Stop(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()))
 		return conn.Send(messages.NewInternalErrorMessage(msg.Id(),

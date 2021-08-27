@@ -12,6 +12,7 @@ const (
 )
 
 type MatchContext struct {
+	UriPattern  string
 	QueryParams map[string]string
 	PathParams  map[string]string
 	Value       interface{}
@@ -77,6 +78,7 @@ type trieNode struct {
 	constChildren map[string]*trieNode // const
 	param         string
 	value         interface{}
+	path          string
 	t             uint8
 }
 
@@ -164,6 +166,7 @@ func (n *trieNode) addPath(ctx UriContext, path string, value interface{}, overr
 		err = errors.New(fmt.Sprintf("path %s has already been taken, please use AddPath(path, Value, true) to override current Value", path))
 	} else {
 		node.value = value
+		node.path = path
 	}
 	return
 }
@@ -276,6 +279,7 @@ func (n *trieNode) match(path string, ctx *MatchContext) (node *trieNode, err er
 	if curr != nil {
 		node = curr
 		ctx.Value = node.value
+		ctx.UriPattern = node.path
 	} else if err == nil {
 		err = errors.New(fmt.Sprintf("no routing found for path %s", path))
 	}
@@ -297,7 +301,7 @@ func (n *trieNode) matchByPath(pathWithoutQueryParams string, ctx *MatchContext)
 	return
 }
 
-func (n *trieNode) path() (path string, isConst bool) {
+func (n *trieNode) r_path() (path string, isConst bool) {
 	curr := n
 	isConst = true
 	for curr != nil {

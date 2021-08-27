@@ -4,48 +4,61 @@ package connections
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"wsdk/common/logger"
 	client_ctx "wsdk/relay_client/context"
 	"wsdk/relay_common/connection"
 )
 
-type IConnectionManager interface {
+type IConnectionPool interface {
 	Start() error
-	Connection() (connection.IConnection, error)
-	ForEachConnection(cb func(connection.IConnection))
+	Get() (connection.IConnection, error)
+	Put(connection.IConnection)
 	SetOnConnected(cb func(connection.IConnection))
 	SetOnError(cb func(err error))
 	Close()
 }
 
-type ConnectionManager struct {
-	ctx             context.Context
-	factory         func() (connection.IConnection, error)
-	cancelFunc      func()
-	onConnected     func(connection.IConnection)
-	onProducerError func(error)
-	consumerQueue   chan connection.IConnection
-	producerQueue   chan bool // size = consumerQueue.length - 1
-	logger          *logger.SimpleLogger
+type ConnectionPool struct {
+	ctx                context.Context
+	factory            func() (connection.IConnection, error)
+	cancelFunc         func()
+	onConnected        func(connection.IConnection)
+	onProducerError    func(error)
+	consumerQueue      chan connection.IConnection
+	producerQueue      chan bool // size = consumerQueue.length - 1
+	maxServiceConnSize int
+	closed             atomic.Value
+	logger             *logger.SimpleLogger
 }
 
-func NewConnectionManager(factory func() (connection.IConnection, error), inUseConnections int) IConnectionManager {
-	manager := &ConnectionManager{
-		ctx:           client_ctx.Ctx.Context(),
-		cancelFunc:    client_ctx.Ctx.Stop,
-		factory:       factory,
-		consumerQueue: make(chan connection.IConnection, inUseConnections),
-		producerQueue: make(chan bool, inUseConnections-1),
-		logger:        client_ctx.Ctx.Logger().WithPrefix("[ConnectionManager]"),
-		onConnected:   func(connection.IConnection) {},
+func NewConnectionPool(factory func() (connection.IConnection, error), numActiveConns int) IConnectionPool {
+	if numActiveConns < 3 {
+		numActiveConns = 3
 	}
-	for i := 0; i < inUseConnections-2; i++ {
+	var closed atomic.Value
+	closed.Store(false)
+	manager := &ConnectionPool{
+		ctx:                client_ctx.Ctx.Context(),
+		cancelFunc:         client_ctx.Ctx.Stop,
+		factory:            factory,
+		consumerQueue:      make(chan connection.IConnection, numActiveConns),
+		producerQueue:      make(chan bool, numActiveConns-1),
+		maxServiceConnSize: numActiveConns - 1,
+		logger:             client_ctx.Ctx.Logger().WithPrefix("[ConnectionPool]"),
+		onConnected:        func(connection.IConnection) {},
+		closed:             closed,
+	}
+	for i := 0; i < numActiveConns-2; i++ {
 		manager.producerQueue <- true
 	}
 	return manager
 }
 
-func (m *ConnectionManager) Start() error {
+func (m *ConnectionPool) Start() error {
+	if m.closed.Load().(bool) {
+		return errors.New("manager already closed")
+	}
 	if err := m.produce(); err != nil {
 		return err
 	}
@@ -53,7 +66,7 @@ func (m *ConnectionManager) Start() error {
 	return nil
 }
 
-func (m *ConnectionManager) producer() {
+func (m *ConnectionPool) producer() {
 	select {
 	case <-m.ctx.Done():
 		return
@@ -64,17 +77,18 @@ func (m *ConnectionManager) producer() {
 	}
 }
 
-func (m *ConnectionManager) produce() error {
+func (m *ConnectionPool) produce() error {
 	conn, err := m.tryToCreateConnection(3, nil)
 	if err != nil {
 		m.onProducerError(err)
+		m.handleError(err)
 		return err
 	}
 	m.consumerQueue <- conn
 	return nil
 }
 
-func (m *ConnectionManager) tryToCreateConnection(retryCount int, lastErr error) (connection.IConnection, error) {
+func (m *ConnectionPool) tryToCreateConnection(retryCount int, lastErr error) (connection.IConnection, error) {
 	if retryCount == 0 {
 		return nil, lastErr
 	}
@@ -86,34 +100,29 @@ func (m *ConnectionManager) tryToCreateConnection(retryCount int, lastErr error)
 	return conn, nil
 }
 
-func (m *ConnectionManager) Connection() (connection.IConnection, error) {
-	return m.nextConnection()
-}
-
-func (m *ConnectionManager) nextConnection() (connection.IConnection, error) {
-	select {
-	case <-m.ctx.Done():
-		break
-	default:
-		for len(m.consumerQueue) > 0 {
-			conn := <-m.consumerQueue
-			if conn.IsLive() {
-				// put this conn to the back of the queue
-				m.consumerQueue <- conn
-				return conn, nil
-			}
-			m.producerQueue <- true
+func (m *ConnectionPool) Get() (connection.IConnection, error) {
+	for conn := range m.consumerQueue {
+		if conn.IsLive() {
+			return conn, nil
 		}
 	}
-	// no conn works or closed
-	return nil, errors.New("connection error")
+	return nil, errors.New("unable to produce new connection")
 }
 
-func (m *ConnectionManager) Close() {
+func (m *ConnectionPool) Put(conn connection.IConnection) {
+	if !conn.IsLive() {
+		conn.Close()
+		m.producerQueue <- true
+	} else {
+		m.consumerQueue <- conn
+	}
+}
+
+func (m *ConnectionPool) Close() {
 	m.handleClose()
 }
 
-func (m *ConnectionManager) handleError(err error) {
+func (m *ConnectionPool) handleError(err error) {
 	// log error
 	m.logger.Println("connection manager error: ", err.Error())
 	if m.onProducerError != nil {
@@ -122,24 +131,29 @@ func (m *ConnectionManager) handleError(err error) {
 	m.handleClose()
 }
 
-func (m *ConnectionManager) handleClose() {
+func (m *ConnectionPool) handleClose() {
+	if m.closed.Load().(bool) {
+		return
+	}
+	m.closed.Store(true)
 	m.cancelFunc()
-	for conn := range m.consumerQueue {
-		conn.Close()
+	for len(m.consumerQueue) > 0 {
+		(<-m.consumerQueue).Close()
+	}
+	for len(m.producerQueue) > 0 {
+		<-m.producerQueue
+	}
+	if m.closed.Load().(bool) {
+		return
 	}
 	close(m.consumerQueue)
+	close(m.producerQueue)
 }
 
-func (m *ConnectionManager) SetOnConnected(cb func(iConnection connection.IConnection)) {
+func (m *ConnectionPool) SetOnConnected(cb func(iConnection connection.IConnection)) {
 	m.onConnected = cb
 }
 
-func (m *ConnectionManager) SetOnError(cb func(err error)) {
+func (m *ConnectionPool) SetOnError(cb func(err error)) {
 	m.onProducerError = cb
-}
-
-func (m *ConnectionManager) ForEachConnection(cb func(connection.IConnection)) {
-	for conn := range m.consumerQueue {
-		cb(conn)
-	}
 }

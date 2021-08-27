@@ -13,6 +13,7 @@ import (
 const (
 	ID               = "status"
 	RouteGetStatus   = "/get"      // payload = service descriptor
+	RouteInfo        = "/info"     // payload = server  descriptor
 	RouteGetServices = "/services" // payload = all internal services
 )
 
@@ -72,5 +73,10 @@ func (s *StatusService) GetAllInternalServices(request service_common.IServiceRe
 		return err
 	}
 	s.ResolveByResponse(request, servicesJsonByte)
+	return nil
+}
+
+func (s *StatusService) GetInfo(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	s.ResolveByResponse(request, ([]byte)(s.HostInfo().Description))
 	return nil
 }

@@ -45,6 +45,7 @@ type IServiceManager interface {
 	WithServicesFromClientId(clientId string, cb func([]server_service.IService)) error
 
 	FindServiceByUri(uri string) server_service.IService
+	MatchServiceByUri(uri string) *uri_trie.MatchContext
 	SupportsUri(uri string) bool
 
 	DescribeAllRelayServices() []service.ServiceDescriptor
@@ -149,6 +150,7 @@ func (s *ServiceManager) registerService(clientId string, svc server_service.ISe
 	s.withWrite(func() {
 		s.serviceMap[svc.Id()] = svc
 		for _, uri := range svc.FullServiceUris() {
+			// TODO maybe just add service.handle here so that we only need one big trie tree?????
 			s.trieTree.Add(uri, svc, false)
 		}
 		/* No need to do this as when service is unregistered, all full uris will be removed
@@ -194,6 +196,16 @@ func (s *ServiceManager) FindServiceByUri(uri string) server_service.IService {
 		return nil
 	}
 	return matchContext.Value.(server_service.IService)
+}
+
+func (s *ServiceManager) MatchServiceByUri(uri string) *uri_trie.MatchContext {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	matchContext, err := s.trieTree.Match(uri)
+	if matchContext == nil || err != nil {
+		return nil
+	}
+	return matchContext
 }
 
 func (s *ServiceManager) SupportsUri(uri string) bool {

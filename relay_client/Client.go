@@ -24,7 +24,7 @@ type Client struct {
 	connectionType uint8
 	serverUri      string
 	loginToken     string
-	connManager    connections.IConnectionManager
+	connPool       connections.IConnectionPool
 	wclient        base_conn.IClient
 	client         roles.ICommonClient
 	httpClient     *http.ClientPool
@@ -50,15 +50,10 @@ func NewClient(connType uint8, serverUri string, serverPort int, wsPath string, 
 		logger:         context.Ctx.Logger(),
 		lock:           new(sync.RWMutex),
 	}
-	c.connManager = connections.NewConnectionManager(c.connect, 5)
-	c.connManager.SetOnConnected(func(conn connection.IConnection) {
-		if c.service != nil {
-			NewServiceCenterClient(c.service.Id(), c.server.Id(), conn).RegisterService(c.service.Describe())
-		}
-	})
+	c.connPool = connections.NewConnectionPool(c.connect, 5)
 	// TODO no good, it will make connect stuck there forever or sth else?
 	c.wclient.OnConnectionEstablished(func(rawConn base_conn.IConnection) {
-		c.onConnected(rawConn)
+		c.handleConnected(rawConn)
 	})
 	c.wclient.OnMessage(func(msg []byte) {
 		fmt.Println(msg)
@@ -100,13 +95,13 @@ func (c *Client) login(retry int, err error) (string, error) {
 }
 
 func (c *Client) Start() error {
-	err := c.connManager.Start()
-	if err != nil {
-		return err
-	}
+	// err := c.connPool.Start()
+	// if err != nil {
+	// return err
+	// }
 	// add other connections
 	// <-context.Ctx.Context().Done()
-	return nil
+	return c.Connect()
 }
 
 func (c *Client) Connect() error {
@@ -138,7 +133,7 @@ func (c *Client) doConnect(retryCount int, token string, lastErr error) (connect
 		}
 		return c.doConnect(retryCount-1, token, err)
 	}
-	return c.onConnected(conn), err
+	return c.handleConnected(conn), err
 }
 
 func (c *Client) initDispatchers() {
@@ -147,7 +142,7 @@ func (c *Client) initDispatchers() {
 	c.dispatcher.RegisterHandler(c.clientServiceRequestHandler)
 }
 
-func (c *Client) onConnected(rawConn base_conn.IConnection) connection.IConnection {
+func (c *Client) handleConnected(rawConn base_conn.IConnection) connection.IConnection {
 	// ctx has already started!
 	conn := connection.NewConnection(context.Ctx.Logger().WithPrefix("[ServerConnection]"), rawConn, connection.DefaultTimeout, context.Ctx.MessageParser(), context.Ctx.NotificationEmitter())
 	c.conn = conn
@@ -192,12 +187,12 @@ func (c *Client) onConnected(rawConn base_conn.IConnection) connection.IConnecti
 }
 
 func (c *Client) Request(message messages.IMessage) (messages.IMessage, error) {
-	// return c.conn.Request(message)
-	conn, err := c.connManager.Connection()
-	if err != nil {
-		return nil, err
-	}
-	return conn.Request(message)
+	return c.conn.Request(message)
+	//	conn, err := c.connPool.Get()
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	return conn.Request(message)
 }
 
 func (c *Client) HTTPRequest(token string, message messages.IMessage) (messages.IMessage, error) {
@@ -239,27 +234,12 @@ func (c *Client) SetService(service IClientService) {
 
 func (c *Client) RegisterService() (err error) {
 	if c.service != nil {
-		conn, cerr := c.connManager.Connection()
-		if cerr != nil {
-			return cerr
-		}
-		err = c.service.Init(c.server, conn)
+		err = c.service.Init(c.server, c.conn)
 		if err != nil {
 			c.logger.Println("Init service failed due to ", err.Error())
 			return err
 		}
-		err = c.service.Register()
-		if err != nil {
-			return err
-		}
-		// TODO how to iterate all connections? range channel reads till closed, bad
-		c.connManager.ForEachConnection(func(conn connection.IConnection) {
-			rerr := NewServiceCenterClient(c.service.Id(), c.server.Id(), conn).RegisterService(c.service.Describe())
-			if rerr != nil {
-				c.logger.Printf("backup conn %p register service failed due to %s", conn, rerr.Error())
-			}
-		})
-		return nil
+		return c.service.Register()
 	}
 	return errors.New("no service is present")
 }

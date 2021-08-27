@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 	"wsdk/common/logger"
+	"wsdk/relay_client/clients"
 	"wsdk/relay_client/container"
 	"wsdk/relay_client/context"
 	"wsdk/relay_client/controllers"
@@ -20,7 +21,7 @@ import (
 type ClientService struct {
 	ctx context.IContext
 
-	serviceManagerClient IServiceManagerClient
+	serviceManagerClient clients.IRelayServiceClient
 	serviceTaskQueue     service.IServiceTaskQueue
 
 	id            string
@@ -56,7 +57,7 @@ func NewClientService(id string, description string, accessType int, execType in
 		id:                   id,
 		description:          description,
 		ctx:                  context.Ctx,
-		serviceManagerClient: NewServiceCenterClient(context.Ctx.Identity().Id(), server.Id(), serverConn),
+		serviceManagerClient: clients.NewRelayServiceClient(context.Ctx.Identity().Id(), server.Id(), serverConn),
 		serviceTaskQueue:     service.NewServiceTaskQueue(context.Ctx.Identity().Id(), NewClientServiceExecutor(handler), context.Ctx.ServiceTaskPool()),
 		handler:              handler,
 		host:                 server,

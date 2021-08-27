@@ -42,7 +42,7 @@ func (h *HealthCheckHandler) StartHealthCheck() {
 	if h.healthCheckTimer == nil {
 		h.healthCheckTimer = ctimer.New(h.healthCheckInterval, h.doHealthCheck)
 	}
-	h.healthCheckTimer.Start()
+	h.healthCheckTimer.Repeat()
 }
 
 func (h *HealthCheckHandler) doHealthCheck() {

@@ -1,7 +1,6 @@
 package WSClient
 
 import (
-	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"os"
@@ -68,11 +67,11 @@ type WClient struct {
 	serverUrl string
 	handler   *WClientConnectionHandler
 	logger    *logger.SimpleLogger
-	conn      base_conn.IConnection
+	// conn      base_conn.IConnection
 }
 
 func New(config *WClientConfig) base_conn.IClient {
-	return &WClient{config.serverUrl, config.WClientConnectionHandler, logger.New(os.Stdout, "[WebSocketClient]", true), nil}
+	return &WClient{config.serverUrl, config.WClientConnectionHandler, logger.New(os.Stdout, "[WebSocketClient]", true)}
 }
 
 func (c *WClient) Connect(token string) (base_conn.IConnection, error) {
@@ -84,15 +83,15 @@ func (c *WClient) Connect(token string) (base_conn.IConnection, error) {
 		return nil, err
 	}
 	connection := connection.NewWsConnection(conn, c.handler.onMessage, c.handler.onDisconnected, c.handler.onError)
-	c.conn = connection
+	// c.conn = connection
 	c.handler.OnConnectionEstablished(connection)
 	return connection, nil
 }
 
 func (c *WClient) checkConn() error {
-	if c.conn == nil {
-		return errors.New("connection is not established yet")
-	}
+	//	if c.conn == nil {
+	//		return errors.New("connection is not established yet")
+	//	}
 	return nil
 }
 
@@ -101,9 +100,11 @@ func (c *WClient) Disconnect() error {
 	if err != nil {
 		return err
 	}
-	return c.conn.Close()
+	// return c.conn.Close()
+	return nil
 }
 
+/*
 func (c *WClient) Write(data []byte) error {
 	err := c.checkConn()
 	if err != nil {
@@ -120,6 +121,7 @@ func (c *WClient) Read() ([]byte, error) {
 func (c *WClient) ReadLoop() {
 	c.conn.ReadLoop()
 }
+*/
 
 func (c *WClient) OnDisconnect(cb func(error)) {
 	c.handler.onDisconnected = cb
