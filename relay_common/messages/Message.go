@@ -55,16 +55,17 @@ const (
 
 	MessageTypeInternalNotification = 333
 
-	MessageTypeSvcResponseOK        = 200
-	MessageTypeSvcResponseCreated   = 201
-	MessageTypeSvcResponsePartial   = 206
-	MessageTypeSvcBadRequestError   = 400
-	MessageTypeSvcUnauthorizedError = 401
-	MessageTypeSvcForbiddenError    = 403
-	MessageTypeSvcNotFoundError     = 404
-	MessageTypeSvcGoneError         = 410
-	MessageTypeSvcInternalError     = 500
-	MessageTypeSvcUnavailableError  = 503
+	MessageTypeSvcResponseOK            = 200
+	MessageTypeSvcResponseCreated       = 201
+	MessageTypeSvcResponsePartial       = 206
+	MessageTypeSvcBadRequestError       = 400
+	MessageTypeSvcUnauthorizedError     = 401
+	MessageTypeSvcForbiddenError        = 403
+	MessageTypeSvcNotFoundError         = 404
+	MessageTypeSvcMethodNotAllowedError = 405
+	MessageTypeSvcGoneError             = 410
+	MessageTypeSvcInternalError         = 500
+	MessageTypeSvcUnavailableError      = 503
 )
 
 type Message struct {
