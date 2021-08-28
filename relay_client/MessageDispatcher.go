@@ -41,6 +41,6 @@ func (d *ClientMessageDispatcher) Dispatch(message messages.IMessage, conn conne
 	client_ctx.Ctx.AsyncTaskPool().Schedule(func() {
 		d.MessageDispatcher.Dispatch(message, conn)
 		d.m.Stop(d.m.GetAssembledTraceId(controllers.TMessagePerformance, message.Id()))
+		message.Dispose()
 	})
-	message.Dispose()
 }

@@ -79,6 +79,9 @@ func (h *HTTPWritableConnection) writeWhrResponse(m messages.IMessage) (err erro
 		// fallback strategy
 		return h.writeMessageResponse(m)
 	}
+	if response.Code < 0 {
+		response.Code = http.StatusInternalServerError
+	}
 	h.w.WriteHeader(response.Code)
 	for k, v := range response.Header {
 		h.w.Header().Set(k, v[0])
