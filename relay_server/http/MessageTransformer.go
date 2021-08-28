@@ -9,13 +9,17 @@ import (
 	"wsdk/relay_server/core/auth"
 )
 
+func isWhrRequest(r *http.Request) bool {
+	return r.Header["Whr"] != nil && len(r.Header["Whr"]) > 0
+}
+
 // TransformRequest http request standard: header[from] = fromId, url = service url, content = body
 func TransformRequest(r *http.Request) (messages.IMessage, error) {
 	msgType, err := mapHttpRequestMethodToMessageType(r.Method)
 	if err != nil {
 		return nil, err
 	}
-	if r.Header["Whr"] != nil && len(r.Header["Whr"]) > 0 {
+	if isWhrRequest(r) {
 		encoded, err := whttp.EncodeToWHTTPRequestJson(r)
 		if err != nil {
 			return nil, err

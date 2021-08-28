@@ -13,7 +13,7 @@ import (
 
 type NativeService struct {
 	*Service
-	handler request.IInternalServiceHandler
+	handler service.ISimpleRequestHandler
 }
 
 type INativeService interface {
@@ -29,7 +29,7 @@ type INativeService interface {
 }
 
 func NewNativeService(id, description string, serviceType, accessType, exeType int) *NativeService {
-	handler := request.NewServiceHandler()
+	handler := service.NewSimpleServiceHandler()
 	return &NativeService{
 		NewService(id, description, context.Ctx.Server(), request.NewInternalServiceRequestExecutor(handler), make([]string, 0), serviceType, accessType, exeType),
 		handler,

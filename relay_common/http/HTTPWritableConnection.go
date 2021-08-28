@@ -1,12 +1,14 @@
 package http
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 	"wsdk/common/async"
 	base_conn "wsdk/common/connection"
+	c_http "wsdk/common/http"
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
@@ -18,6 +20,7 @@ type HTTPWritableConnection struct {
 	addr     string
 	logger   *logger.SimpleLogger
 	waitLock *async.WaitLock
+	isWhr    bool
 }
 
 func (h *HTTPWritableConnection) Address() string {
@@ -45,6 +48,19 @@ func (h *HTTPWritableConnection) Send(m messages.IMessage) error {
 	defer h.waitLock.Open()
 	defer m.Dispose()
 	var err error
+	if h.isWhr {
+		err = h.writeWhrResponse(m)
+	} else {
+		err = h.writeMessageResponse(m)
+	}
+	if err != nil {
+		h.logger.Println("response write error: ", err.Error())
+		return err
+	}
+	return nil
+}
+
+func (h *HTTPWritableConnection) writeMessageResponse(m messages.IMessage) (err error) {
 	h.w.Header().Set("message-id", m.Id())
 	h.w.Header().Set("from", m.From())
 	h.w.Header().Set("to", m.To())
@@ -52,11 +68,23 @@ func (h *HTTPWritableConnection) Send(m messages.IMessage) error {
 	h.w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	h.w.WriteHeader(m.MessageType())
 	_, err = h.w.Write(m.Payload())
+	return
+}
+
+func (h *HTTPWritableConnection) writeWhrResponse(m messages.IMessage) (err error) {
+	payload := m.Payload()
+	var response c_http.Response
+	err = json.Unmarshal(payload, &response)
 	if err != nil {
-		h.logger.Println("response write error: ", err.Error())
-		return err
+		// fallback strategy
+		return h.writeMessageResponse(m)
 	}
-	return nil
+	h.w.WriteHeader(response.Code)
+	for k, v := range response.Header {
+		h.w.Header().Set(k, v[0])
+	}
+	_, err = h.w.Write(([]byte)(response.Body))
+	return
 }
 
 func (h *HTTPWritableConnection) OnIncomingMessage(f func(message messages.IMessage)) {
@@ -90,11 +118,12 @@ func (h *HTTPWritableConnection) String() string {
 	return fmt.Sprintf("{\"type\":\"%s\",\"address\":\"%s\"}", base_conn.TypeString(base_conn.TypeHTTP), h.Address())
 }
 
-func (h *HTTPWritableConnection) Init(w http.ResponseWriter, addr string, logger *logger.SimpleLogger) {
+func (h *HTTPWritableConnection) Init(w http.ResponseWriter, addr string, logger *logger.SimpleLogger, isWhr bool) {
 	h.w = w
 	h.addr = addr
 	h.logger = logger
 	h.waitLock = async.NewWaitLock()
+	h.isWhr = isWhr
 }
 
 func (h *HTTPWritableConnection) WaitDone() {

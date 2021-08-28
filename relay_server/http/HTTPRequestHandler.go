@@ -38,7 +38,7 @@ func (h *HTTPRequestHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		logger.LogError(h.logger, "Handle", err)
 	}
 	conn := h.pool.Get().(*whttp.HTTPWritableConnection)
-	conn.Init(w, r.RemoteAddr, h.logger.WithPrefix(fmt.Sprintf("[HTTP-%s-%s]", r.RemoteAddr, msg.Id())))
+	conn.Init(w, r.RemoteAddr, h.logger.WithPrefix(fmt.Sprintf("[HTTP-%s-%s]", r.RemoteAddr, msg.Id())), isWhrRequest(r))
 	// Do not do this on another goroutine. It will cause issue with ResponseWriter.
 	h.serviceMessageDispatcher.Dispatch(msg, conn)
 	conn.WaitDone()

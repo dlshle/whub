@@ -42,4 +42,5 @@ func (d *ClientMessageDispatcher) Dispatch(message messages.IMessage, conn conne
 		d.MessageDispatcher.Dispatch(message, conn)
 		d.m.Stop(d.m.GetAssembledTraceId(controllers.TMessagePerformance, message.Id()))
 	})
+	message.Dispose()
 }

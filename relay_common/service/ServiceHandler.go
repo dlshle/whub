@@ -14,7 +14,6 @@ type ServiceHandler struct {
 }
 
 type IServiceHandler interface {
-	SupportsUri(uri string) bool
 	Register(uri string, handler RequestHandler) error
 	Unregister(uri string) error
 	Handle(request IServiceRequest) error

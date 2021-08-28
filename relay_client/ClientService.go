@@ -51,7 +51,7 @@ type ClientService struct {
 }
 
 func NewClientService(id string, description string, accessType int, execType int, server roles.ICommonServer) *ClientService {
-	handler := service.NewServiceHandler()
+	handler := service.NewSimpleServiceHandler()
 	s := &ClientService{
 		id:               id,
 		description:      description,
@@ -133,10 +133,16 @@ func (s *ClientService) FullServiceUris() []string {
 }
 
 func (s *ClientService) SupportsUri(uri string) bool {
-	if strings.HasPrefix(uri, s.uriPrefix) {
-		uri = strings.TrimPrefix(uri, s.uriPrefix)
+	if !strings.HasPrefix(uri, s.uriPrefix) {
+		return false
 	}
-	return s.handler.SupportsUri(uri)
+	actualUri := strings.TrimPrefix(uri, s.uriPrefix)
+	for _, uri := range s.ServiceUris() {
+		if strings.HasPrefix(actualUri, uri) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *ClientService) CTime() time.Time {

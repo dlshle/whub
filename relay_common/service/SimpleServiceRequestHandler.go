@@ -1,39 +1,38 @@
-package request
+package service
 
 import (
 	"errors"
 	"fmt"
 	"sync"
-	"wsdk/relay_common/service"
 )
 
-// InternalServiceHandler handles internal service requests
+// SimpleRequestHandler handles internal service requests
 // made this to reduce the usage of trie_tree for each internal services, too expensive
-type InternalServiceHandler struct {
-	uriMap map[string]service.RequestHandler
+type SimpleRequestHandler struct {
+	uriMap map[string]RequestHandler
 	lock   *sync.RWMutex
 }
 
-type IInternalServiceHandler interface {
-	Register(uri string, handler service.RequestHandler) error
+type ISimpleRequestHandler interface {
+	Register(uri string, handler RequestHandler) error
 	Unregister(uri string) error
-	Handle(request service.IServiceRequest) error
+	Handle(request IServiceRequest) error
 }
 
-func NewServiceHandler() IInternalServiceHandler {
-	return &InternalServiceHandler{
-		uriMap: make(map[string]service.RequestHandler),
+func NewSimpleServiceHandler() ISimpleRequestHandler {
+	return &SimpleRequestHandler{
+		uriMap: make(map[string]RequestHandler),
 		lock:   new(sync.RWMutex),
 	}
 }
 
-func (m *InternalServiceHandler) withWrite(cb func()) {
+func (m *SimpleRequestHandler) withWrite(cb func()) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	cb()
 }
 
-func (m *InternalServiceHandler) Register(uri string, handler service.RequestHandler) (err error) {
+func (m *SimpleRequestHandler) Register(uri string, handler RequestHandler) (err error) {
 	if m.uriMap[uri] != nil {
 		return errors.New(fmt.Sprintf("uri_trie %s has already been registered", uri))
 	}
@@ -43,7 +42,7 @@ func (m *InternalServiceHandler) Register(uri string, handler service.RequestHan
 	return nil
 }
 
-func (m *InternalServiceHandler) Unregister(uri string) (err error) {
+func (m *SimpleRequestHandler) Unregister(uri string) (err error) {
 	if m.uriMap[uri] == nil {
 		return errors.New(fmt.Sprintf("unable to remove uri_trie %s as it's not registered into service handler", uri))
 	}
@@ -53,7 +52,7 @@ func (m *InternalServiceHandler) Unregister(uri string) (err error) {
 	return nil
 }
 
-func (m *InternalServiceHandler) Handle(request service.IServiceRequest) error {
+func (m *SimpleRequestHandler) Handle(request IServiceRequest) error {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	// TODO this is bad, we need less uncertainty and need to add UriPattern, PathParams, QueryParams to IServiceRequest
