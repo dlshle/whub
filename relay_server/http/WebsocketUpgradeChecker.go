@@ -25,11 +25,11 @@ func NewWebsocketUpgradeChecker() IWebsocketUpgradeChecker {
 }
 
 func (c *WebsocketUpgradeChecker) ShouldUpgradeProtocol(r *http.Request) error {
-	token := r.Header.Get("Authorization")
-	if token == "" || len(token) < BearerTokenLen {
-		return errors.New("invalid login token")
+	token := auth.GetTrimmedHTTPToken(r.Header)
+	if token == "" {
+		return errors.New("invalid auth token")
 	}
 	// validate token
-	_, err := c.authController.ValidateToken(token[BearerTokenLen:])
+	_, err := c.authController.ValidateToken(token)
 	return err
 }

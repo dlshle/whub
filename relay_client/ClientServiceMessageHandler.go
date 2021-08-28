@@ -1,7 +1,6 @@
 package relay_client
 
 import (
-	"fmt"
 	"wsdk/relay_client/container"
 	"wsdk/relay_client/context"
 	"wsdk/relay_client/controllers"
@@ -12,7 +11,7 @@ import (
 
 type ClientServiceMessageHandler struct {
 	m       controllers.IClientMeteringController `$inject:""`
-	service IClientService
+	manager IServiceManager                       `$inject:""`
 }
 
 func NewClientServiceMessageHandler() *ClientServiceMessageHandler {
@@ -22,10 +21,6 @@ func NewClientServiceMessageHandler() *ClientServiceMessageHandler {
 		panic(err)
 	}
 	return h
-}
-
-func (h *ClientServiceMessageHandler) SetService(svc IClientService) {
-	h.service = svc
 }
 
 func (h *ClientServiceMessageHandler) Type() int {
@@ -38,28 +33,23 @@ func (h *ClientServiceMessageHandler) Types() []int {
 
 func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connection.IConnection) error {
 	h.m.Track(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()), "in service handler")
-	if h.service == nil {
+	matchContext, err := h.manager.MatchServiceByUri(msg.Uri())
+	if err != nil || matchContext.Value == nil {
 		h.m.Stop(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()))
 		return conn.Send(messages.NewInternalErrorMessage(
 			msg.Id(),
 			context.Ctx.Identity().Id(),
 			msg.From(),
 			msg.Uri(),
-			fmt.Sprintf("client connection %s does not have service running yet", context.Ctx.Identity().Id()),
+			err.Error(),
 		))
 	}
-	if !h.service.SupportsUri(msg.Uri()) {
-		h.m.Stop(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()))
-		return conn.Send(messages.NewInternalErrorMessage(msg.Id(),
-			context.Ctx.Identity().Id(),
-			msg.From(),
-			msg.Uri(),
-			fmt.Sprintf("uri %s is not supported by service %s", msg.Uri(), h.service.Id())))
-	}
-	// TODO use middlewares
+	svc := matchContext.Value.(IClientService)
 	request := service.NewServiceRequest(msg)
-	resp := h.service.Handle(request)
-	err := conn.Send(resp)
+	request.SetContext("uri_pattern", matchContext.UriPattern)
+	request.SetContext("path_params", matchContext.PathParams)
+	request.SetContext("query_params", matchContext.QueryParams)
+	resp := svc.Handle(request)
 	h.m.Stop(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()))
-	return err
+	return conn.Send(resp)
 }

@@ -12,6 +12,7 @@ type MeteringController struct {
 	stopWatchPool *sync.Pool
 	logger        *logger.SimpleLogger
 	stopWatchMap  map[string]IStopWatch
+	lock          *sync.RWMutex
 }
 
 type IMeteringController interface {
@@ -31,7 +32,14 @@ func NewMeteringController(logger *logger.SimpleLogger) IMeteringController {
 		// logger: context.Ctx.Logger().WithPrefix("[MeteringController]"),
 		logger:       logger,
 		stopWatchMap: make(map[string]IStopWatch),
+		lock:         new(sync.RWMutex),
 	}
+}
+
+func (c *MeteringController) withWrite(cb func()) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	cb()
 }
 
 func (c *MeteringController) Measure(id string) IStopWatch {
@@ -54,7 +62,9 @@ func (c *MeteringController) Measure(id string) IStopWatch {
 		c.logger.Println(fmt.Sprintf("[%s] total time consumed: %s", id, totalDiff))
 		c.stopWatchPool.Put(stopWatch)
 	}
-	c.stopWatchMap[id] = stopWatch
+	c.withWrite(func() {
+		c.stopWatchMap[id] = stopWatch
+	})
 	return stopWatch
 }
 
@@ -63,7 +73,9 @@ func (c *MeteringController) GetAssembledTraceId(prefix, id string) string {
 }
 
 func (c *MeteringController) Track(id string, description string) IStopWatch {
+	c.lock.RLock()
 	stopWatch := c.stopWatchMap[id]
+	c.lock.RUnlock()
 	if stopWatch == nil {
 		// if no stopwatch is found, create new
 		stopWatch = c.Measure(id)
@@ -73,10 +85,14 @@ func (c *MeteringController) Track(id string, description string) IStopWatch {
 }
 
 func (c *MeteringController) Stop(id string) {
+	c.lock.RLock()
 	stopWatch := c.stopWatchMap[id]
+	c.lock.RUnlock()
 	if stopWatch == nil {
 		return
 	}
 	stopWatch.Stop()
-	delete(c.stopWatchMap, id)
+	c.withWrite(func() {
+		delete(c.stopWatchMap, id)
+	})
 }

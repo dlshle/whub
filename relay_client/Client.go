@@ -24,18 +24,19 @@ type Client struct {
 	connectionType uint8
 	serverUri      string
 	loginToken     string
-	connManager    connections.IConnectionManager
+	connPool       connections.IConnectionPool
 	wclient        base_conn.IClient
 	client         roles.ICommonClient
 	httpClient     *http.ClientPool
 	// serviceMap map[string]IClientService // id -- [listener functions]
 	service                     IClientService
 	server                      roles.ICommonServer
-	conn                        connection.IConnection
+	primaryConn                 connection.IConnection
 	logger                      *logger.SimpleLogger
 	lock                        *sync.RWMutex
 	dispatcher                  *ClientMessageDispatcher
 	clientServiceRequestHandler *ClientServiceMessageHandler
+	serviceManager              IServiceManager
 }
 
 func NewClient(connType uint8, serverUri string, serverPort int, wsPath string, clientId string, clientCKey string) *Client {
@@ -48,17 +49,9 @@ func NewClient(connType uint8, serverUri string, serverPort int, wsPath string, 
 		wclient:        WSClient.New(WSClient.NewWClientConfig(addr.String(), nil, nil, nil, nil, nil)),
 		client:         roles.NewClient(clientId, "", roles.ClientTypeAnonymous, clientCKey, 0),
 		logger:         context.Ctx.Logger(),
-		// TODO how to do conn manager factory
-		// connManager:    connections.NewConnectionManager(),
-		lock: new(sync.RWMutex),
+		lock:           new(sync.RWMutex),
 	}
-	// TODO no good, it will make connect stuck there forever or sth else?
-	c.wclient.OnConnectionEstablished(func(rawConn base_conn.IConnection) {
-		c.onConnected(rawConn)
-	})
-	c.wclient.OnMessage(func(msg []byte) {
-		fmt.Println(msg)
-	})
+	c.connPool = connections.NewConnectionPool(c.connect, context.Ctx.MaxActiveServiceConnections()+2)
 	return c
 }
 
@@ -96,27 +89,70 @@ func (c *Client) login(retry int, err error) (string, error) {
 }
 
 func (c *Client) Start() error {
-	err := c.connManager.Start()
+	err := c.requestAndHandleServerInfo()
 	if err != nil {
 		return err
 	}
-	// add other connections
-	<-context.Ctx.Context().Done()
+	context.Ctx.Start(c.client, c.server)
+	c.initDispatchers()
+	err = c.Connect()
+	if err != nil {
+		return err
+	}
+	c.serviceManager = NewServiceManager(c.primaryConn)
+	c.initServiceDispatcher()
 	return nil
 }
 
 func (c *Client) Connect() error {
-	token, err := c.login(5, nil)
+	err := c.connPool.Start()
 	if err != nil {
 		return err
 	}
-	_, err = c.wclient.Connect(token)
+	c.primaryConn, err = c.connPool.Get()
 	return err
 }
 
+func (c *Client) getServerInfo() (desc roles.RoleDescriptor, err error) {
+	resp, err := c.HTTPRequest("", messages.NewMessage("", "", "", "/service/status/info", messages.MessageTypeServiceRequest, nil))
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(resp.Payload(), &desc)
+	return
+}
+
+func (c *Client) handleServerInfo(serverInfo roles.RoleDescriptor) error {
+	splittedAddr := strings.Split(serverInfo.Address, ":")
+	if len(splittedAddr) < 2 {
+		return errors.New("invalid server address")
+	}
+	port, err := strconv.Atoi(splittedAddr[1])
+	if err != nil {
+		return err
+	}
+	c.server = roles.NewServer(serverInfo.Id, serverInfo.Description, splittedAddr[0], port)
+	return nil
+}
+
+func (c *Client) requestAndHandleServerInfo() error {
+	serverInfo, err := c.getServerInfo()
+	if err != nil {
+		return err
+	}
+	err = c.handleServerInfo(serverInfo)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *Client) connect() (connection.IConnection, error) {
-	c.login(3, nil)
-	return c.doConnect(3, c.loginToken, nil)
+	token, err := c.login(3, nil)
+	if err != nil {
+		return nil, err
+	}
+	return c.doConnect(3, token, nil)
 }
 
 func (c *Client) doConnect(retryCount int, token string, lastErr error) (connection.IConnection, error) {
@@ -131,65 +167,45 @@ func (c *Client) doConnect(retryCount int, token string, lastErr error) (connect
 		}
 		return c.doConnect(retryCount-1, token, err)
 	}
-	return c.onConnected(conn), err
+	return c.handleConnected(conn)
 }
 
 func (c *Client) initDispatchers() {
 	c.dispatcher = NewClientMessageDispatcher()
+}
+
+func (c *Client) initServiceDispatcher() {
 	c.clientServiceRequestHandler = NewClientServiceMessageHandler()
 	c.dispatcher.RegisterHandler(c.clientServiceRequestHandler)
 }
 
-func (c *Client) onConnected(rawConn base_conn.IConnection) connection.IConnection {
-	// ctx has already started!
+func (c *Client) handleConnected(rawConn base_conn.IConnection) (connection.IConnection, error) {
 	conn := connection.NewConnection(context.Ctx.Logger().WithPrefix("[ServerConnection]"), rawConn, connection.DefaultTimeout, context.Ctx.MessageParser(), context.Ctx.NotificationEmitter())
-	c.conn = conn
 	c.logger.Println("connection to server has been established: ", conn.Address())
-	c.client = roles.NewClient("aa", "bb", roles.RoleTypeClient, "asd", 2)
 	c.logger.Println("new client has been instantiated")
-	context.Ctx.AsyncTaskPool().Schedule(c.conn.ReadingLoop)
-	serverDesc, err := conn.Request(messages.DraftMessage(c.client.Id(), "", "", messages.MessageTypeClientDescriptor, ([]byte)(c.client.Describe().String())))
+	context.Ctx.AsyncTaskPool().Schedule(conn.ReadingLoop)
+	// test ping
+	msg, err := conn.Request(messages.NewPingMessage(c.client.Id(), "123"))
 	if err != nil {
-		c.logger.Println("unable to receive server description due to ", err.Error())
-		panic(err)
+		c.logger.Panicln("initial ping error !", err.Error())
+		conn.Close()
+		return nil, err
 	}
-	c.logger.Println("receive server description response: ", serverDesc)
-	// TODO refactor with better coding fuck
-	var serverRoleDesc roles.RoleDescriptor
-	err = json.Unmarshal(serverDesc.Payload(), &serverRoleDesc)
-	if err != nil {
-		c.logger.Println("unable to unmarshall server role descriptor due to ", err.Error())
-		panic(err)
-	}
-	splittedAddr := strings.Split(serverRoleDesc.Address, ":")
-	port, err := strconv.Atoi(splittedAddr[1])
-	if err != nil {
-		c.logger.Println("unable to parse server port ", err.Error())
-		panic(err)
-	}
-	c.server = roles.NewServer(serverRoleDesc.Id, serverRoleDesc.Description, splittedAddr[0], port)
-	context.Ctx.Start(c.client, c.server)
-	c.initDispatchers()
-	err = conn.Send(messages.NewMessage("hello", c.client.Id(), "123", "", messages.MessageTypeACK, ([]byte)("aaa")))
-	c.logger.Println("greeting message has been sent")
+	c.logger.Println("test greeting message result: ", msg)
 	conn.OnIncomingMessage(func(msg messages.IMessage) {
 		c.dispatcher.Dispatch(msg, conn)
 	})
-	if err != nil {
-		c.logger.Panicln("greeting error !", err.Error())
-		panic(err)
-	}
-	return conn
+	return conn, nil
 }
 
-func (c *Client) Request(message messages.IMessage) (messages.IMessage, error) {
-	return c.conn.Request(message)
+func (c *Client) Request(messageType int, uri string, payload []byte) (messages.IMessage, error) {
+	return c.primaryConn.Request(messages.DraftMessage(c.client.Id(), c.server.Id(), uri, messageType, payload))
 }
 
 func (c *Client) HTTPRequest(token string, message messages.IMessage) (messages.IMessage, error) {
 	r := message.ToHTTPRequest("http", c.serverUri, token)
 	resp := c.httpClient.Request(r)
-	if resp.Code < 0 {
+	if resp.Code < 0 || resp.Code > 400 && resp.Code < 510 {
 		return nil, errors.New(resp.Body)
 	}
 	header := resp.Header
@@ -218,33 +234,27 @@ func (c *Client) Role() roles.ICommonClient {
 	return c.client
 }
 
-func (c *Client) SetService(service IClientService) {
-	c.service = service
-	c.clientServiceRequestHandler.SetService(service)
+func (c *Client) RegisterService(service IClientService) error {
+	return c.serviceManager.RegisterService(service)
 }
 
-func (c *Client) RegisterService() error {
-	if c.service != nil {
-		err := c.service.Init(c.server, c.conn)
-		if err != nil {
-			c.logger.Println("Init service failed due to ", err.Error())
-			return err
-		}
-		return c.service.Register()
+func (c *Client) StartService(id string) error {
+	svc := c.serviceManager.GetServiceById(id)
+	if svc == nil {
+		return errors.New(fmt.Sprintf("service %s has not been registered yet", id))
 	}
-	return errors.New("no service is present")
+	return svc.Start()
 }
 
-func (c *Client) StartService() error {
-	if c.service != nil {
-		return c.service.Start()
+func (c *Client) StopService(id string) error {
+	svc := c.serviceManager.GetServiceById(id)
+	if svc == nil {
+		return errors.New(fmt.Sprintf("service %s has not been registered yet", id))
 	}
-	return errors.New("no service is present")
+	return svc.Stop()
 }
 
-func (c *Client) StopService() error {
-	if c.service != nil {
-		return c.service.Stop()
-	}
-	return errors.New("no service is present")
+func (c *Client) Stop() {
+	c.connPool.Close()
+	c.serviceManager.UnregisterAllServices()
 }

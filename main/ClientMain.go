@@ -12,15 +12,15 @@ import (
 
 func ClientTest() {
 	c := relay_client.NewClient(connection.TypeWS, "192.168.0.182", 1234, base_conn.WSConnectionPath, "test1", "123456")
-	err := c.Connect()
+	err := c.Start()
 	if err != nil {
 		fmt.Println(err)
 		panic(err)
 	}
 	fmt.Println("connection done")
-	resp, err := c.Request(messages.NewMessage("239845792", "aabb", "", "/service/message/broadcast", messages.MessageTypeServiceRequest, ([]byte)("asdasdasd")))
+	resp, err := c.Request(messages.MessageTypeServiceRequest, "/service/message/broadcast", ([]byte)("asdasdasd"))
 	fmt.Println("request resp, err: ", resp, err)
-	resp, err = c.Request(messages.NewMessage("roleDescTest", c.Role().Id(), "", "", messages.MessageTypeClientDescriptor, ([]byte)(c.Role().Describe().String())))
+	resp, err = c.Request(messages.MessageTypeClientDescriptor, "", ([]byte)(c.Role().Describe().String()))
 	fmt.Println("request2 resp, err: ", resp, err)
 
 	httpSvc := new(services.HTTPClientService)
@@ -36,12 +36,11 @@ func RunMultipleClientTest(n int) {
 }
 
 func registerSvc(c *relay_client.Client, svc relay_client.IClientService) {
-	c.SetService(svc)
-	err := c.RegisterService()
+	err := c.RegisterService(svc)
 	if err != nil {
 		fmt.Println("register service error: ", err)
 	} else {
-		err = c.StartService()
+		err = c.StartService(svc.Id())
 		if err != nil {
 			fmt.Println("start service error: ", err)
 		}

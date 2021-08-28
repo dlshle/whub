@@ -60,8 +60,8 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 	if len(uri) > 2 && uri[len(uri)-1] == '/' && uri[len(uri)-2] != '/' {
 		message = message.SetUri(uri[:len(uri)-1])
 	}
-	svc := h.serviceManager.FindServiceByUri(message.Uri())
-	if svc == nil {
+	matchContext := h.serviceManager.MatchServiceByUri(message.Uri())
+	if matchContext == nil {
 		err = service_base.NewCanNotFindServiceError(message.Uri())
 		conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(),
 			messages.MessageTypeSvcNotFoundError,
@@ -69,7 +69,14 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 		h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
 		return err
 	}
-	request := h.middlewareManager.RunMiddlewares(conn, service.NewServiceRequest(message))
+	svc := matchContext.Value.(service_base.IService)
+	request := service.NewServiceRequest(message)
+	if svc.ServiceType() == service.ServiceTypeInternal {
+		request = h.middlewareManager.RunMiddlewares(conn, request)
+		request.SetContext("uri_pattern", matchContext.UriPattern)
+		request.SetContext("path_params", matchContext.PathParams)
+		request.SetContext("query_params", matchContext.QueryParams)
+	}
 	response := svc.Handle(request)
 	if response == nil && !base_conn.IsAsyncType(conn.ConnectionType()) {
 		err = conn.Send(messages.NewErrorResponse(request, context.Ctx.Server().Id(),

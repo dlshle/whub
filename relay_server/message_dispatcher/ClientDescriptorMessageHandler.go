@@ -89,6 +89,18 @@ func (h *ClientDescriptorMessageHandler) Handle(message messages.IMessage, conn 
 		}
 		h.logger.Printf("conn %s has successfully registered client %s", conn.Address(), client.Id())
 	}
+	conns, err := h.connectionManager.GetConnectionsByClientId(message.From())
+	if err != nil {
+		h.logger.Printf("err while getting connections bu client id %s due to %s", client.Id(), err.Error())
+		conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(), 500, err.Error()))
+		return err
+	}
+	for i := range conns {
+		if conns[i].Address() == conn.Address() {
+			// update
+			return conn.Send(h.assembleServiceDescriptorMessageFrom(message))
+		}
+	}
 	// login => associate connection with client info
 	h.logger.Printf("handle client async connection(%s) login to %s", conn.Address(), client.Id())
 	if err = h.handleClientLogin(client, extraInfoDescriptor.CKey, conn); err != nil {

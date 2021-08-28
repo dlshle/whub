@@ -24,6 +24,8 @@ type IConnectionManager interface {
 	GetConnectionsByClientId(string) ([]connection.IConnection, error)
 	RegisterClientToConnection(clientId string, addr string) error
 	WithAllConnections(func(connection.IConnection)) error
+
+	// AddToConnectionGroup(clientId string, conn connection.IConnection, groupId string) error
 }
 
 func NewConnectionManager() IConnectionManager {
@@ -167,6 +169,45 @@ func (m *ConnectionManager) WithAllConnections(cb func(iConnection connection.IC
 	}
 	return nil
 }
+
+/*
+func (m *ConnectionManager) assembleConnectionGroupId(id string) string {
+	return fmt.Sprintf("conn-group-%s", id)
+}
+
+func (m *ConnectionManager) isConnGroupId(id string) bool {
+	return strings.HasPrefix(id, "conn-group-")
+}
+
+func (m *ConnectionManager) AddToConnectionGroup(clientId string, conn connection.IConnection, groupId string) error {
+	if m.isConnGroupId(conn.Address()) {
+		return errors.New("connection group can not form another connection group")
+	}
+	groupId = m.assembleConnectionGroupId(groupId)
+	group, err := m.connStore.Get(groupId)
+	if err != nil {
+		return err
+	}
+	// remove from active client store as we will manage it from connection group
+	m.activeClientStore.Delete(clientId, conn.Address())
+	if group != nil {
+		// group already exist
+		group.(connection.IConnectionGroup).Add(conn)
+	} else {
+		// new group
+		group = connection.NewConnectionGroup(groupId, conn)
+		m.activeClientStore.Add(clientId, groupId)
+	}
+	conn.OnClose(func(err error) {
+		m.handleConnectionClosed(conn, err)
+		// delete the clientId-connection record from conn-group
+		group.(connection.IConnectionGroup).Remove(conn.Address())
+		events.EmitEvent(events.EventClientConnectionClosed, clientId)
+		m.handleClientConnectionClosed(clientId)
+	})
+	return nil
+}
+*/
 
 func init() {
 	container.Container.Singleton(func() IConnectionManager {

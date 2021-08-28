@@ -27,6 +27,7 @@ const (
 	defaultServicePoolSize         = 1024
 	defaultAsyncPoolWorkerFactor   = 16
 	defaultServicePoolWorkerFactor = 8
+	defaultMaxActiveServiceConns   = 3
 )
 
 type Context struct {
@@ -47,12 +48,14 @@ type Context struct {
 type IContext interface {
 	Start(identity roles.IDescribableRole, server roles.ICommonServer)
 	Identity() roles.IDescribableRole
+	Server() roles.ICommonServer
 	TimedJobPool() *timed.JobPool
 	NotificationEmitter() notification.IWRNotificationEmitter
 	AsyncTaskPool() async.IAsyncPool
 	MessageParser() messages.IMessageParser
 	ServiceTaskPool() async.IAsyncPool
 	Logger() *logger.SimpleLogger
+	MaxActiveServiceConnections() int
 	Stop()
 	Context() context.Context
 }
@@ -141,4 +144,8 @@ func (c *Context) Stop() {
 
 func (c *Context) Context() context.Context {
 	return c.ctx
+}
+
+func (c *Context) MaxActiveServiceConnections() int {
+	return defaultMaxActiveServiceConns
 }

@@ -6,11 +6,7 @@ import (
 	"net/http"
 	whttp "wsdk/relay_common/http"
 	"wsdk/relay_common/messages"
-)
-
-const (
-	BearerTokenLen = len("Bearer ")
-	AuthHeaderKey  = "Authorization"
+	"wsdk/relay_server/core/auth"
 )
 
 // TransformRequest http request standard: header[from] = fromId, url = service url, content = body
@@ -27,10 +23,8 @@ func TransformRequest(r *http.Request) (messages.IMessage, error) {
 		return messages.DraftMessage(r.RemoteAddr, "", r.URL.String(), messages.MessageTypeServiceRequest, encoded), nil
 	}
 	var from, to, url string
-	if r.Header[AuthHeaderKey] != nil && len(r.Header[AuthHeaderKey]) > 0 && len(r.Header[AuthHeaderKey][0]) > BearerTokenLen {
-		// from should only be the auth token represents a client
-		from = r.Header[AuthHeaderKey][0][BearerTokenLen:]
-	}
+	// from should only be the auth token represents a client
+	from = auth.GetTrimmedHTTPToken(r.Header)
 	if r.Header["To"] != nil && len(r.Header["To"]) > 0 {
 		to = r.Header["To"][0]
 	}

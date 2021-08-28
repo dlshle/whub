@@ -2,7 +2,6 @@ package status
 
 import (
 	"encoding/json"
-	"wsdk/common/utils"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/core/service_manager"
@@ -13,6 +12,7 @@ import (
 const (
 	ID               = "status"
 	RouteGetStatus   = "/get"      // payload = service descriptor
+	RouteInfo        = "/info"     // payload = server  descriptor
 	RouteGetServices = "/services" // payload = all internal services
 )
 
@@ -39,11 +39,11 @@ func (s *StatusService) Init() error {
 }
 
 func (s *StatusService) initRoutes() error {
-	return utils.ProcessWithErrors(func() error {
-		return s.RegisterRoute(RouteGetStatus, s.GetStatus)
-	}, func() error {
-		return s.RegisterRoute(RouteGetServices, s.GetAllInternalServices)
-	})
+	routeMap := make(map[string]service_common.RequestHandler)
+	routeMap[RouteGetStatus] = s.GetStatus
+	routeMap[RouteGetStatus] = s.GetAllInternalServices
+	routeMap[RouteInfo] = s.GetInfo
+	return s.InitRoutes(routeMap)
 }
 
 func (s *StatusService) initPubSubTopic() error {
@@ -72,5 +72,10 @@ func (s *StatusService) GetAllInternalServices(request service_common.IServiceRe
 		return err
 	}
 	s.ResolveByResponse(request, servicesJsonByte)
+	return nil
+}
+
+func (s *StatusService) GetInfo(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	s.ResolveByResponse(request, ([]byte)(s.HostInfo().String()))
 	return nil
 }
