@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 func main() {
 	role := "server"
 	if role == "server" {
@@ -7,6 +9,7 @@ func main() {
 	} else {
 		go RunMultipleClientTest(1)
 	}
+	time.Sleep(time.Minute * 15)
 	/*
 		go ServerTest()
 		time.Sleep(time.Second * 2)
