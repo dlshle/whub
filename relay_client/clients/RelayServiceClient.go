@@ -2,6 +2,8 @@ package clients
 
 import (
 	"errors"
+	"wsdk/relay_client/connections"
+	"wsdk/relay_client/container"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
@@ -28,16 +30,23 @@ type IRelayServiceClient interface {
 
 type RelayServiceClient struct {
 	clientId   string
-	serverId   string
 	serverConn connection.IConnection
+	connPool   connections.IConnectionPool `$inject:""`
 }
 
-func NewRelayServiceClient(id string, serverId string, conn connection.IConnection) IRelayServiceClient {
-	return &RelayServiceClient{
+func NewRelayServiceClient(id string, conn connection.IConnection) IRelayServiceClient {
+	client := &RelayServiceClient{
 		clientId:   id,
-		serverId:   serverId,
 		serverConn: conn,
 	}
+	err := container.Container.Fill(client)
+	if err != nil {
+		panic(err)
+	}
+	container.Container.Singleton(func() IRelayServiceClient {
+		return client
+	})
+	return client
 }
 
 func (c *RelayServiceClient) draftDescriptorMessageWith(uri string, descriptor service.ServiceDescriptor) messages.IMessage {
@@ -77,5 +86,5 @@ func (c *RelayServiceClient) Response(message messages.IMessage) error {
 }
 
 func (c *RelayServiceClient) draftMessage(uri string, msgType int, payload []byte) messages.IMessage {
-	return messages.DraftMessage(c.clientId, c.serverId, uri, msgType, payload)
+	return messages.DraftMessage(c.clientId, "", uri, msgType, payload)
 }

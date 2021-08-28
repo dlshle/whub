@@ -27,7 +27,6 @@ func (s *TCPServer) Start() error {
 	if err != nil {
 		return err
 	}
-
 	select {
 	case <-s.ctx.Done():
 		s.logger.Println("stopping server ...")

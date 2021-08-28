@@ -5,7 +5,6 @@ import (
 	"strings"
 	http_client "wsdk/common/http"
 	"wsdk/relay_client"
-	"wsdk/relay_common/connection"
 	"wsdk/relay_common/http"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
@@ -21,11 +20,11 @@ type HTTPClientService struct {
 	httpClient http_client.IClientPool
 }
 
-func (s *HTTPClientService) Init(server roles.ICommonServer, serverConn connection.IConnection) (err error) {
+func (s *HTTPClientService) Init(server roles.ICommonServer) (err error) {
 	defer func() {
 		s.Logger().Println("service has been initiated with err ", err)
 	}()
-	s.IClientService = relay_client.NewClientService(HTTPClientServiceId, "simply echo messages", service.ServiceAccessTypeBoth, service.ServiceExecutionSync, server, serverConn)
+	s.IClientService = relay_client.NewClientService(HTTPClientServiceId, "simply echo messages", service.ServiceAccessTypeBoth, service.ServiceExecutionSync, server)
 	s.httpClient = http_client.NewPool("[HTTPClient]", 2, 512, 30)
 	err = s.RegisterRoute(HTTPClientServiceRouteEcho, s.Request)
 	return err

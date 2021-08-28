@@ -19,6 +19,7 @@ type NativeService struct {
 type INativeService interface {
 	IService
 	RegisterRoute(shortUri string, handler service.RequestHandler) (err error)
+	InitRoutes(routes map[string]service.RequestHandler) (err error)
 	UnregisterRoute(shortUri string) (err error)
 	ResolveByAck(request service.IServiceRequest) error
 	ResolveByResponse(request service.IServiceRequest, responseData []byte) error

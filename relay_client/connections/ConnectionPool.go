@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sync/atomic"
 	"wsdk/common/logger"
+	"wsdk/relay_client/container"
 	client_ctx "wsdk/relay_client/context"
 	"wsdk/relay_common/connection"
 )
@@ -26,7 +27,7 @@ type ConnectionPool struct {
 	onConnected        func(connection.IConnection)
 	onProducerError    func(error)
 	consumerQueue      chan connection.IConnection
-	producerQueue      chan bool // size = consumerQueue.length - 1
+	producerQueue      chan bool // size = consumerQueue.length
 	maxServiceConnSize int
 	closed             atomic.Value
 	logger             *logger.SimpleLogger
@@ -38,21 +39,29 @@ func NewConnectionPool(factory func() (connection.IConnection, error), numActive
 	}
 	var closed atomic.Value
 	closed.Store(false)
-	manager := &ConnectionPool{
+	pool := &ConnectionPool{
 		ctx:                client_ctx.Ctx.Context(),
 		cancelFunc:         client_ctx.Ctx.Stop,
 		factory:            factory,
 		consumerQueue:      make(chan connection.IConnection, numActiveConns),
-		producerQueue:      make(chan bool, numActiveConns-1),
+		producerQueue:      make(chan bool, numActiveConns),
 		maxServiceConnSize: numActiveConns - 1,
 		logger:             client_ctx.Ctx.Logger().WithPrefix("[ConnectionPool]"),
 		onConnected:        func(connection.IConnection) {},
 		closed:             closed,
 	}
-	for i := 0; i < numActiveConns-2; i++ {
-		manager.producerQueue <- true
+	for i := 0; i < numActiveConns; i++ {
+		pool.producerQueue <- true
 	}
-	return manager
+	// make it available from the container
+	pool.initContainerRegistries()
+	return pool
+}
+
+func (m *ConnectionPool) initContainerRegistries() {
+	container.Container.Singleton(func() IConnectionPool {
+		return m
+	})
 }
 
 func (m *ConnectionPool) Start() error {
@@ -67,12 +76,14 @@ func (m *ConnectionPool) Start() error {
 }
 
 func (m *ConnectionPool) producer() {
-	select {
-	case <-m.ctx.Done():
-		return
-	case <-m.producerQueue:
-		if err := m.produce(); err != nil {
+	for {
+		select {
+		case <-m.ctx.Done():
 			return
+		case <-m.producerQueue:
+			if err := m.produce(); err != nil {
+				return
+			}
 		}
 	}
 }

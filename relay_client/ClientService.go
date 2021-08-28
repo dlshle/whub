@@ -11,7 +11,6 @@ import (
 	"wsdk/relay_client/container"
 	"wsdk/relay_client/context"
 	"wsdk/relay_client/controllers"
-	"wsdk/relay_common/connection"
 	"wsdk/relay_common/health_check"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
@@ -21,7 +20,7 @@ import (
 type ClientService struct {
 	ctx context.IContext
 
-	serviceManagerClient clients.IRelayServiceClient
+	serviceManagerClient clients.IRelayServiceClient `$inject:""`
 	serviceTaskQueue     service.IServiceTaskQueue
 
 	id            string
@@ -51,22 +50,21 @@ type ClientService struct {
 	logger *logger.SimpleLogger
 }
 
-func NewClientService(id string, description string, accessType int, execType int, server roles.ICommonServer, serverConn connection.IConnection) *ClientService {
+func NewClientService(id string, description string, accessType int, execType int, server roles.ICommonServer) *ClientService {
 	handler := service.NewServiceHandler()
 	s := &ClientService{
-		id:                   id,
-		description:          description,
-		ctx:                  context.Ctx,
-		serviceManagerClient: clients.NewRelayServiceClient(context.Ctx.Identity().Id(), server.Id(), serverConn),
-		serviceTaskQueue:     service.NewServiceTaskQueue(context.Ctx.Identity().Id(), NewClientServiceExecutor(handler), context.Ctx.ServiceTaskPool()),
-		handler:              handler,
-		host:                 server,
-		lock:                 new(sync.RWMutex),
-		uriPrefix:            fmt.Sprintf("%s/%s", service.ServicePrefix, id),
-		logger:               context.Ctx.Logger().WithPrefix(fmt.Sprintf("[%s]", id)),
-		serviceType:          service.ServiceTypeRelay,
-		accessType:           accessType,
-		executionType:        execType,
+		id:               id,
+		description:      description,
+		ctx:              context.Ctx,
+		serviceTaskQueue: service.NewServiceTaskQueue(context.Ctx.Identity().Id(), NewClientServiceExecutor(handler), context.Ctx.ServiceTaskPool()),
+		handler:          handler,
+		host:             server,
+		lock:             new(sync.RWMutex),
+		uriPrefix:        fmt.Sprintf("%s/%s", service.ServicePrefix, id),
+		logger:           context.Ctx.Logger().WithPrefix(fmt.Sprintf("[%s]", id)),
+		serviceType:      service.ServiceTypeRelay,
+		accessType:       accessType,
+		executionType:    execType,
 	}
 	s.init()
 	err := container.Container.Fill(s)
@@ -78,7 +76,7 @@ func NewClientService(id string, description string, accessType int, execType in
 
 type IClientService interface {
 	service.IBaseService
-	Init(server roles.ICommonServer, serverConn connection.IConnection) error
+	Init(server roles.ICommonServer) error
 	UpdateDescription(string) error
 	RegisterRoute(shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
 	UnregisterRoute(shortUri string) error                               // should update service descriptor to the host
@@ -390,7 +388,7 @@ func (s *ClientService) ResolveByResponse(request service.IServiceRequest, respo
 	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), messages.MessageTypeSvcResponseOK, responseData))
 }
 
-func (s *ClientService) Init(server roles.ICommonServer, serverConn connection.IConnection) error {
+func (s *ClientService) Init(server roles.ICommonServer) error {
 	return errors.New("current service did not implement Init() interface")
 }
 

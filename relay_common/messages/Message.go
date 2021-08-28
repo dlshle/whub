@@ -207,6 +207,10 @@ func NewErrorMessage(id string, from string, to string, uri string, errType int,
 	return NewMessage(id, from, to, uri, errType, ([]byte)(errorMessage))
 }
 
+func NewPingMessage(from string, to string) IMessage {
+	return DraftMessage(from, to, "", MessageTypePing, nil)
+}
+
 func NewPongMessage(id string, from string, to string) IMessage {
 	return NewMessage(id, from, to, "", MessageTypePong, nil)
 }
