@@ -75,11 +75,11 @@ func (h *HTTPWritableConnection) writeWhrResponse(m messages.IMessage) (err erro
 	payload := m.Payload()
 	var response c_http.Response
 	err = json.Unmarshal(payload, &response)
-	if err != nil {
+	if err != nil || response.Code == 0 {
 		// fallback strategy
 		return h.writeMessageResponse(m)
 	}
-	if response.Code <= 0 {
+	if response.Code < 0 {
 		response.Code = http.StatusInternalServerError
 	}
 	h.w.WriteHeader(response.Code)
