@@ -109,6 +109,7 @@ func (conn *Connection) Init(
 			logger.Println("unable to parse message ", stream)
 		}
 	})
+	conn.address = c.Address()
 	conn.ttlTimedJob.Start()
 }
 
