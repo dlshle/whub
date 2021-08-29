@@ -91,6 +91,8 @@ type IClientService interface {
 
 	ResolveByAck(request service.IServiceRequest) error
 	ResolveByResponse(request service.IServiceRequest, responseData []byte) error
+	ResolveByError(request service.IServiceRequest, errType int, msg string) error
+	ResolveByInvalidCredential(request service.IServiceRequest) error
 
 	Logger() *logger.SimpleLogger
 }
@@ -394,10 +396,25 @@ func (s *ClientService) ResolveByResponse(request service.IServiceRequest, respo
 	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), messages.MessageTypeSvcResponseOK, responseData))
 }
 
+func (s *ClientService) ResolveByError(request service.IServiceRequest, errType int, msg string) error {
+	if errType < 400 || errType > 500 {
+		return errors.New("invalid error code")
+	}
+	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), errType, s.assembleErrorMessageData(msg)))
+}
+
+func (s *ClientService) ResolveByInvalidCredential(request service.IServiceRequest) error {
+	return s.ResolveByError(request, messages.MessageTypeSvcUnauthorizedError, "invalid credential")
+}
+
 func (s *ClientService) Init(server roles.ICommonServer) error {
 	return errors.New("current service did not implement Init() interface")
 }
 
 func (s *ClientService) Logger() *logger.SimpleLogger {
 	return s.logger
+}
+
+func (s *ClientService) assembleErrorMessageData(message string) []byte {
+	return ([]byte)(fmt.Sprintf("{\"message\": \"%s\"}", message))
 }
