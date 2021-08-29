@@ -52,7 +52,7 @@ func NewFileController(rootDir string, sectionSize int64) (IFileController, erro
 		return nil, err
 	}
 	return &FileController{
-		rootDir:     rootDir,
+		rootDir:     fmt.Sprintf("%s/", rootDir),
 		sectionSize: sectionSize,
 	}, nil
 }
