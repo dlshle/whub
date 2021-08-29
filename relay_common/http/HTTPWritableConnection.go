@@ -79,7 +79,7 @@ func (h *HTTPWritableConnection) writeWhrResponse(m messages.IMessage) (err erro
 		// fallback strategy
 		return h.writeMessageResponse(m)
 	}
-	if response.Code < 0 {
+	if response.Code <= 0 {
 		response.Code = http.StatusInternalServerError
 	}
 	h.w.WriteHeader(response.Code)
