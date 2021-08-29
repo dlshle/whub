@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -44,7 +42,7 @@ func NewFileController(rootDir string, sectionSize int64) (IFileController, erro
 	}
 	// if root dir does not exist, try to mkdir
 	if _, err = os.Lstat(rootDir); os.IsNotExist(err) {
-		err = os.Mkdir(rootDir, os.ModeDir)
+		err = os.Mkdir(fmt.Sprintf("%s/", rootDir), os.ModePerm)
 		if err != nil {
 			return nil, err
 		}
@@ -154,11 +152,5 @@ func (c *FileController) GetFile(path string) ([]byte, error) {
 }
 
 func GetCurrentPath() (string, error) {
-	s, err := exec.LookPath(os.Args[0])
-	if err != nil {
-		return "", err
-	}
-	i := strings.LastIndex(s, "\\")
-	path := s[0 : i+1]
-	return path, nil
+	return os.Getwd()
 }
