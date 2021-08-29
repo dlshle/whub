@@ -93,7 +93,7 @@ func (m *ServiceManager) produceConnection() error {
 	})
 	m.withRead(func() {
 		for _, svc := range m.services {
-			m.relayServiceClient.RegisterService(svc.Describe())
+			m.relayServiceClient.UpdateServiceProvider(conn, svc.Describe())
 		}
 	})
 	m.withWrite(func() {
@@ -108,9 +108,17 @@ func (m *ServiceManager) produceConnection() error {
 	return nil
 }
 
+func (m *ServiceManager) updateServiceProviders(service IClientService) {
+	m.withRead(func() {
+		for _, conn := range m.serviceConnections {
+			m.relayServiceClient.UpdateServiceProvider(conn, service.Describe())
+		}
+	})
+}
+
 func (m *ServiceManager) initServiceConnections() (err error) {
 	maxActiveCount := context.Ctx.MaxActiveServiceConnections()
-	m.serviceConnections = make([]connection.IConnection, 0, maxActiveCount)
+	m.serviceConnections = make([]connection.IConnection, maxActiveCount, maxActiveCount)
 	for i := 0; i < maxActiveCount; i++ {
 		err = m.produceConnection()
 		if err != nil {
@@ -149,7 +157,12 @@ func (m *ServiceManager) RegisterService(service IClientService) (err error) {
 	if err != nil {
 		return
 	}
-	return service.Register()
+	err = service.Register()
+	if err != nil {
+		return
+	}
+	m.updateServiceProviders(service)
+	return nil
 }
 
 func (m *ServiceManager) UnregisterService(service IClientService) (err error) {

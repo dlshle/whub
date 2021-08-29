@@ -20,20 +20,20 @@ import (
 )
 
 const (
-	ID                         = "relay"
-	RouteRegisterService       = "/register"   // payload = service descriptor
-	RouteUnregisterService     = "/unregister" // payload = service descriptor
-	RouteUpdateService         = "/update"     // payload = service descriptor
-	RouteGetAllServices        = "/services"   // need privilege, respond with all relayed services
-	RouteGetServicesByClientId = "/services/:clientId"
+	ID                            = "relay"
+	RouteRegisterService          = "/register"   // payload = service descriptor
+	RouteUnregisterService        = "/unregister" // payload = service descriptor
+	RouteUpdateService            = "/update"     // payload = service descriptor
+	RouteGetAllServices           = "/services"   // need privilege, respond with all relayed services
+	RouteGetServicesByClientId    = "/services/:clientId"
+	RouteUpdateProviderConnection = "/providers" // need privilege, need to check if client has service
 )
 
 type RelayManagementService struct {
 	*service_base.NativeService
-	clientManager     client_manager.IClientManager         `$inject:""`
-	serviceManager    service_manager.IServiceManager       `$inject:""`
-	connectionManager connection_manager.IConnectionManager `$inject:""`
-	servicePool       *sync.Pool
+	clientManager  client_manager.IClientManager   `$inject:""`
+	serviceManager service_manager.IServiceManager `$inject:""`
+	servicePool    *sync.Pool
 }
 
 func (s *RelayManagementService) Init() error {
@@ -81,6 +81,7 @@ func (s *RelayManagementService) initRoutes() error {
 	routeMap[RouteUpdateService] = s.UpdateService
 	routeMap[RouteGetAllServices] = s.GetAllRelayServices
 	routeMap[RouteGetServicesByClientId] = s.GetServiceByClientId
+	routeMap[RouteUpdateProviderConnection] = s.UpdateServiceProviderConnection
 	return s.InitRoutes(routeMap)
 }
 
@@ -165,7 +166,7 @@ func (s *RelayManagementService) UnregisterService(request service_common.IServi
 
 func (s *RelayManagementService) UpdateService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	if err := s.validateClientConnection(request); err != nil {
-		return err
+		return s.ResolveByInvalidCredential(request)
 	}
 	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
 	if err != nil {
@@ -213,6 +214,29 @@ func (s *RelayManagementService) GetAllRelayServices(request service_common.ISer
 	}
 	s.ResolveByResponse(request, marshalled)
 	return nil
+}
+
+func (s *RelayManagementService) UpdateServiceProviderConnection(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	err = s.validateClientConnection(request)
+	if err != nil {
+		return s.ResolveByInvalidCredential(request)
+	}
+	addr := request.GetContext(connection_manager.AddrContextKey)
+	if addr == nil || addr == "" {
+		return errors.New("invalid provider address")
+	}
+	descriptor, err := server_utils.ParseServiceDescriptor(request.Payload())
+	if err != nil {
+		return err
+	}
+	service := s.serviceManager.GetService(descriptor.Id)
+	if service == nil {
+		return s.ResolveByError(request, messages.MessageTypeSvcNotFoundError, fmt.Sprintf("can not find service by id %s", descriptor.Id))
+	}
+	if service.Provider().Id() != request.From() {
+		return s.ResolveByError(request, messages.MessageTypeSvcForbiddenError, fmt.Sprintf("client %s is not the provider for service %s", request.From(), service.Provider().Id()))
+	}
+	return service.(service_base.IRelayService).UpdateProviderConnection(addr.(string))
 }
 
 func (s *RelayManagementService) tryToRestoreDeadServicesFromReconnectedClient(clientId string) (err error) {

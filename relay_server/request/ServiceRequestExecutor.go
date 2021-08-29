@@ -40,7 +40,7 @@ type RelayServiceRequestExecutor struct {
 	logger            *logger.SimpleLogger
 }
 
-func NewRelayServiceRequestExecutor(serviceId string, providerId string) service.IRequestExecutor {
+func NewRelayServiceRequestExecutor(serviceId string, providerId string) *RelayServiceRequestExecutor {
 	e := &RelayServiceRequestExecutor{
 		hostId:     context.Ctx.Server().Id(),
 		serviceId:  serviceId,
@@ -62,7 +62,7 @@ func NewRelayServiceRequestExecutor(serviceId string, providerId string) service
 func (e *RelayServiceRequestExecutor) initNotifications() {
 	// do not on ClientConnectionEstablished event because new client connection doesn't mean the client is ready for
 	// service requests
-	events.OnEvent(events.EventServiceNewProvider, e.handleNewServiceProviderEvent)
+	// events.OnEvent(events.EventServiceNewProvider, e.handleNewServiceProviderEvent)
 	events.OnEvent(events.EventClientConnectionClosed, e.handleClientConnectionChangeEvent)
 	events.OnEvent(events.EventClientConnectionGone, e.handleClientConnectionChangeEvent)
 }
@@ -80,13 +80,15 @@ func (e *RelayServiceRequestExecutor) handleClientConnectionChangeEvent(event me
 }
 
 func (e *RelayServiceRequestExecutor) updateConnections() error {
-	conns, err := e.connectionManager.GetConnectionsByClientId(e.providerId)
-	if err != nil {
-		e.logger.Printf("update connection failed due to %s", err.Error())
-		return err
+	for i := 0; i < len(e.connections); i++ {
+		conn := e.connections[i]
+		if conn == nil || !conn.IsLive() {
+			// remove this conn
+			e.connections = append(e.connections[:i], e.connections[i+1:]...)
+			i--
+		}
 	}
-	e.connections = conns
-	e.logger.Println("connections:", conns)
+	e.logger.Println("connections:", e.connections)
 	return nil
 }
 
@@ -111,11 +113,29 @@ func (e *RelayServiceRequestExecutor) doRequest(request service.IServiceRequest)
 	for i := 0; i < size; i++ {
 		e.lastSucceededConn++
 		if msg, err = e.connections[(e.lastSucceededConn % len(e.connections))].Request(request.Message()); err == nil {
-			// TODO remove later
-			e.logger.Printf("conn #%d go the request", e.lastSucceededConn%len(e.connections))
 			// once the first connection successfully handles the request, return
 			return
 		}
 	}
 	return
+}
+
+func (e *RelayServiceRequestExecutor) UpdateProviderConnection(connAddr string) (err error) {
+	e.logger.Printf("update provider connection: %s", connAddr)
+	for _, c := range e.connections {
+		if c.Address() == connAddr {
+			err = errors.New(fmt.Sprintf("connection address %s has already been added to the executor", connAddr))
+			e.logger.Printf(err.Error())
+			return err
+		}
+	}
+	conn, err := e.connectionManager.GetConnectionByAddress(connAddr)
+	if err != nil {
+		err = errors.New(fmt.Sprintf("connection address %s has already been added to the executor", connAddr))
+		e.logger.Printf(err.Error())
+		return err
+	}
+	e.connections = append(e.connections, conn)
+	e.logger.Printf("update provider connection %s succeeded", connAddr)
+	return nil
 }

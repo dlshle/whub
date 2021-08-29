@@ -1,6 +1,7 @@
 package service_base
 
 import (
+	"errors"
 	"fmt"
 	"wsdk/common/utils"
 	"wsdk/relay_common/service"
@@ -10,22 +11,25 @@ import (
 
 type RelayService struct {
 	*Service
+	executor *request.RelayServiceRequestExecutor
 }
 
 type IRelayService interface {
 	IService
 	Init(descriptor service.ServiceDescriptor,
 		provider IServiceProvider,
-		executor service.IRequestExecutor)
+		executor *request.RelayServiceRequestExecutor)
 	RestoreExternally(reconnectedOwner *client.Client) error
 	Update(descriptor service.ServiceDescriptor) error
+	UpdateProviderConnection(connAddr string) error
 }
 
 func (s *RelayService) Init(
 	descriptor service.ServiceDescriptor,
 	provider IServiceProvider,
-	executor service.IRequestExecutor) {
+	executor *request.RelayServiceRequestExecutor) {
 	s.Service = NewService(descriptor.Id, descriptor.Description, provider, executor, descriptor.ServiceUris, descriptor.ServiceType, descriptor.AccessType, descriptor.ExecutionType)
+	s.executor = executor
 }
 
 func (s *RelayService) RestoreExternally(reconnectedOwner *client.Client) (err error) {
@@ -54,6 +58,13 @@ func (s *RelayService) RestoreExternally(reconnectedOwner *client.Client) (err e
 		})
 	}
 	return err
+}
+
+func (s *RelayService) UpdateProviderConnection(connAddr string) error {
+	if s.Status() >= service.ServiceStatusStopping {
+		return errors.New(fmt.Sprintf("invalid service status for update provider connection(%d)", s.Status()))
+	}
+	return s.executor.UpdateProviderConnection(connAddr)
 }
 
 func (s *RelayService) Update(descriptor service.ServiceDescriptor) (err error) {
