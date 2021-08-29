@@ -61,6 +61,7 @@ func (m *ConnectionManager) acceptConnection(conn connection.IConnection) {
 }
 
 func (m *ConnectionManager) handleConnectionClosed(conn connection.IConnection, err error) {
+	m.connStore.Delete(conn.Address())
 	if err == nil {
 		m.logger.Printf("connection %s closed", conn.Address())
 	} else {

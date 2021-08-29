@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"wsdk/common/utils"
+	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/roles"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/core/client_manager"
@@ -20,13 +23,14 @@ import (
 )
 
 const (
-	ID                            = "relay"
-	RouteRegisterService          = "/register"   // payload = service descriptor
-	RouteUnregisterService        = "/unregister" // payload = service descriptor
-	RouteUpdateService            = "/update"     // payload = service descriptor
-	RouteGetAllServices           = "/services"   // need privilege, respond with all relayed services
-	RouteGetServicesByClientId    = "/services/:clientId"
-	RouteUpdateProviderConnection = "/providers" // need privilege, need to check if client has service
+	ID                                 = "relay"
+	RouteRegisterService               = "/register"   // payload = service descriptor
+	RouteUnregisterService             = "/unregister" // payload = service descriptor
+	RouteUpdateService                 = "/update"     // payload = service descriptor
+	RouteGetAllServices                = "/services"   // need privilege, respond with all relayed services
+	RouteGetServicesByClientId         = "/clients/:clientId"
+	RouteUpdateProviderConnection      = "/providers" // need privilege, need to check if client has service
+	RouteGetServiceProviderConnections = "/services/:id/providers"
 )
 
 type RelayManagementService struct {
@@ -82,6 +86,7 @@ func (s *RelayManagementService) initRoutes() error {
 	routeMap[RouteGetAllServices] = s.GetAllRelayServices
 	routeMap[RouteGetServicesByClientId] = s.GetServiceByClientId
 	routeMap[RouteUpdateProviderConnection] = s.UpdateServiceProviderConnection
+	routeMap[RouteGetServiceProviderConnections] = s.GetServiceProviderConnections
 	return s.InitRoutes(routeMap)
 }
 
@@ -257,4 +262,41 @@ func (s *RelayManagementService) tryToRestoreDeadServicesFromReconnectedClient(c
 		}
 	})
 	return
+}
+
+func (s *RelayManagementService) GetServiceProviderConnections(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+	if request.From() == "" {
+		return s.ResolveByInvalidCredential(request)
+	}
+	serviceId := pathParams["id"]
+	if serviceId == "" {
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "invalid service id")
+	}
+	svc := s.serviceManager.GetService(serviceId)
+	if svc == nil {
+		return s.ResolveByError(request, messages.MessageTypeSvcNotFoundError, fmt.Sprintf("can not find service by id %s", serviceId))
+	}
+	me, err := s.clientManager.GetClient(request.From())
+	if err != nil {
+		return err
+	}
+	if svc.Provider().Id() != request.From() && me.CType() < roles.ClientTypeManager {
+		return s.ResolveByInvalidCredential(request)
+	}
+	conns := svc.(service_base.IRelayService).GetProviderConnections()
+	return s.ResolveByResponse(request, ([]byte)(s.assembleConnJsonArr(conns)))
+}
+
+func (s *RelayManagementService) assembleConnJsonArr(conns []connection.IConnection) string {
+	var builder strings.Builder
+	builder.WriteByte('[')
+	for i, conn := range conns {
+		if i == len(conns)-1 {
+			builder.WriteString(fmt.Sprintf("%s", conn.String()))
+		} else {
+			builder.WriteString(fmt.Sprintf("%s,", conn.String()))
+		}
+	}
+	builder.WriteByte(']')
+	return builder.String()
 }

@@ -2,7 +2,9 @@ package relay_client
 
 import (
 	"errors"
+	"fmt"
 	"sync"
+	"wsdk/common/logger"
 	"wsdk/common/uri_trie"
 	"wsdk/relay_client/clients"
 	"wsdk/relay_client/connections"
@@ -27,6 +29,7 @@ type ServiceManager struct {
 	serviceConnections []connection.IConnection
 	unfitConnChan      chan connection.IConnection
 	relayServiceClient clients.IRelayServiceClient
+	logger             *logger.SimpleLogger
 }
 
 func NewServiceManager(primaryConn connection.IConnection) IServiceManager {
@@ -36,6 +39,7 @@ func NewServiceManager(primaryConn connection.IConnection) IServiceManager {
 		lock:               new(sync.RWMutex),
 		unfitConnChan:      make(chan connection.IConnection, context.Ctx.MaxActiveServiceConnections()),
 		relayServiceClient: clients.NewRelayServiceClient(context.Ctx.Identity().Id(), primaryConn),
+		logger:             context.Ctx.Logger().WithPrefix("[ServiceManager]"),
 	}
 	err := container.Container.Fill(manager)
 	if err != nil {
@@ -69,11 +73,13 @@ func (m *ServiceManager) maintainConnectionWorker() {
 		select {
 		case <-context.Ctx.Context().Done():
 			m.UnregisterAllServices()
+			m.logger.Println("context done received, stop maintain job")
 			return
 		case conn := <-m.unfitConnChan:
 			m.pool.Put(conn)
 			err := m.produceConnection()
 			if err != nil {
+				m.logger.Println("produce connection failed, stop maintain job")
 				return
 			}
 		}
@@ -82,6 +88,7 @@ func (m *ServiceManager) maintainConnectionWorker() {
 
 func (m *ServiceManager) produceConnection() error {
 	conn, err := m.pool.Get()
+	m.logger.Println("new service connection produced")
 	if err != nil {
 		return err
 	}
@@ -93,7 +100,12 @@ func (m *ServiceManager) produceConnection() error {
 	})
 	m.withRead(func() {
 		for _, svc := range m.services {
-			m.relayServiceClient.UpdateServiceProvider(conn, svc.Describe())
+			err = m.relayServiceClient.UpdateServiceProvider(conn, svc.Describe())
+			if err != nil {
+				m.logger.Printf(fmt.Sprintf("failed to update service provider from new connection for service %s due to %s", svc.Id(), err.Error()))
+			} else {
+				m.logger.Printf(fmt.Sprintf("update service provider from new connection for service %s succedded", svc.Id()))
+			}
 		}
 	})
 	m.withWrite(func() {

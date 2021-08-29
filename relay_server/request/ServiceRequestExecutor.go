@@ -139,3 +139,7 @@ func (e *RelayServiceRequestExecutor) UpdateProviderConnection(connAddr string) 
 	e.logger.Printf("update provider connection %s succeeded", connAddr)
 	return nil
 }
+
+func (e *RelayServiceRequestExecutor) GetProviderConnections() []connection.IConnection {
+	return e.connections
+}

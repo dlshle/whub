@@ -178,7 +178,9 @@ func (s *ServiceManager) unregisterService(serviceId string) error {
 	}
 	s.withWrite(func() {
 		uris := svc.FullServiceUris()
-		s.serviceMap[serviceId].Stop()
+		if s.serviceMap[serviceId] != nil {
+			s.serviceMap[serviceId].Stop()
+		}
 		delete(s.serviceMap, serviceId)
 		for _, uri := range uris {
 			s.removeUriRoute(uri)

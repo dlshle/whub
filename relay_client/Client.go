@@ -147,12 +147,14 @@ func (c *Client) requestAndHandleServerInfo() error {
 	return nil
 }
 
-func (c *Client) connect() (connection.IConnection, error) {
-	token, err := c.login(3, nil)
-	if err != nil {
-		return nil, err
+func (c *Client) connect() (conn connection.IConnection, err error) {
+	if c.loginToken == "" {
+		c.loginToken, err = c.login(3, nil)
+		if err != nil {
+			return
+		}
 	}
-	return c.doConnect(3, token, nil)
+	return c.doConnect(3, c.loginToken, nil)
 }
 
 func (c *Client) doConnect(retryCount int, token string, lastErr error) (connection.IConnection, error) {
@@ -161,7 +163,7 @@ func (c *Client) doConnect(retryCount int, token string, lastErr error) (connect
 	}
 	conn, err := c.wclient.Connect(token)
 	if err != nil {
-		token, err = c.login(1, nil)
+		token, err = c.login(2, nil)
 		if err != nil {
 			return nil, err
 		}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"wsdk/common/utils"
+	"wsdk/relay_common/connection"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/request"
@@ -22,6 +23,7 @@ type IRelayService interface {
 	RestoreExternally(reconnectedOwner *client.Client) error
 	Update(descriptor service.ServiceDescriptor) error
 	UpdateProviderConnection(connAddr string) error
+	GetProviderConnections() []connection.IConnection
 }
 
 func (s *RelayService) Init(
@@ -65,6 +67,10 @@ func (s *RelayService) UpdateProviderConnection(connAddr string) error {
 		return errors.New(fmt.Sprintf("invalid service status for update provider connection(%d)", s.Status()))
 	}
 	return s.executor.UpdateProviderConnection(connAddr)
+}
+
+func (s *RelayService) GetProviderConnections() []connection.IConnection {
+	return s.executor.GetProviderConnections()
 }
 
 func (s *RelayService) Update(descriptor service.ServiceDescriptor) (err error) {
