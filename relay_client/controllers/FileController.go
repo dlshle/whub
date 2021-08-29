@@ -42,16 +42,16 @@ func NewFileController(rootDir string, sectionSize int64) (IFileController, erro
 	if err != nil {
 		return nil, err
 	}
-	file, err := os.Open(rootDir)
-	if err != nil {
-		return nil, err
-	}
-	stat, err := file.Stat()
-	if !stat.IsDir() {
+	// if root dir does not exist, try to mkdir
+	if _, err = os.Lstat(rootDir); os.IsNotExist(err) {
 		err = os.Mkdir(rootDir, os.ModeDir)
 		if err != nil {
 			return nil, err
 		}
+	}
+	_, err = os.Open(rootDir)
+	if err != nil {
+		return nil, err
 	}
 	return &FileController{
 		rootDir:     rootDir,

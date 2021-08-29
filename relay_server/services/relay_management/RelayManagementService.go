@@ -241,7 +241,11 @@ func (s *RelayManagementService) UpdateServiceProviderConnection(request service
 	if service.Provider().Id() != request.From() {
 		return s.ResolveByError(request, messages.MessageTypeSvcForbiddenError, fmt.Sprintf("client %s is not the provider for service %s", request.From(), service.Provider().Id()))
 	}
-	return service.(service_base.IRelayService).UpdateProviderConnection(addr.(string))
+	err = service.(service_base.IRelayService).UpdateProviderConnection(addr.(string))
+	if err != nil {
+		return err
+	}
+	return s.ResolveByResponse(request, ([]byte)(descriptor.String()))
 }
 
 func (s *RelayManagementService) tryToRestoreDeadServicesFromReconnectedClient(clientId string) (err error) {

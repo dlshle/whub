@@ -31,15 +31,11 @@ func (s *FileService) Init(server roles.ICommonServer) (err error) {
 	defer func() {
 		s.Logger().Println("service has been initiated with err ", err)
 	}()
-	currPath, err := controllers.GetCurrentPath()
-	if err != nil {
-		return err
-	}
-	s.fileController, err = controllers.NewFileController(fmt.Sprintf("%s/%s", currPath, FileServicePath), FileServiceSectionSize)
-	if err != nil {
-		return err
-	}
 	s.IClientService = relay_client.NewClientService(FileServiceID, "file server", service.ServiceAccessTypeBoth, service.ServiceExecutionSync, server)
+	s.fileController, err = controllers.NewFileController(fmt.Sprintf("./%s", FileServicePath), FileServiceSectionSize)
+	if err != nil {
+		return err
+	}
 	err = s.RegisterRoute(FileServiceRouteGet, s.Get)
 	if err != nil {
 		return
