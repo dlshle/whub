@@ -28,7 +28,7 @@ func (h *ClientServiceMessageHandler) Type() int {
 }
 
 func (h *ClientServiceMessageHandler) Types() []int {
-	return nil
+	return service.ServiceRequestMessageHandlerTypes
 }
 
 func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connection.IConnection) error {

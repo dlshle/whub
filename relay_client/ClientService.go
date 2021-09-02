@@ -212,8 +212,10 @@ func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHa
 		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
 	}
 	s.withWrite(func() {
+		// service uri only needs short uri
 		s.serviceUris = append(s.serviceUris, shortUri)
-		err = s.handler.Register(shortUri, handler)
+		// handler needs full uri as service manager will provide will uri pattern in request context
+		err = s.handler.Register(fmt.Sprintf("%s%s", s.uriPrefix, shortUri), handler)
 	})
 	if err != nil {
 		return err

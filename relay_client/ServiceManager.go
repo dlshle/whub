@@ -155,12 +155,12 @@ func (m *ServiceManager) RegisterService(service IClientService) (err error) {
 	}
 	m.withWrite(func() {
 		m.services[service.Id()] = service
-		shortUris := service.ServiceUris()
-		for i, uri := range shortUris {
+		fullUris := service.FullServiceUris()
+		for i, uri := range fullUris {
 			err = m.trie.Add(uri, service, true)
 			if err != nil {
 				for j := i; j > -1; j-- {
-					m.trie.Remove(shortUris[j])
+					m.trie.Remove(fullUris[j])
 				}
 				return
 			}

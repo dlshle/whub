@@ -45,6 +45,7 @@ func (s *NativeService) RegisterRoute(uri string, handler service.RequestHandler
 	s.Logger().Println("registering new route: ", shortUri)
 	s.withWrite(func() {
 		s.serviceUris = append(s.serviceUris, shortUri)
+		// handler needs full uri because service manager will provide full uri in request context
 		err = s.handler.Register(fmt.Sprintf("%s%s", s.UriPrefix(), shortUri), handler)
 	})
 	return

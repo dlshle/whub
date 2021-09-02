@@ -171,7 +171,8 @@ func (s *Service) Status() int {
 }
 
 func (s *Service) Handle(request service.IServiceRequest) messages.IMessage {
-	if strings.HasPrefix(request.Uri(), s.uriPrefix) {
+	// only internal(business) services use short uri
+	if s.ServiceType() == service.ServiceTypeInternal && strings.HasPrefix(request.Uri(), s.uriPrefix) {
 		request.SetMessage(request.Message().SetUri(strings.TrimPrefix(request.Uri(), s.uriPrefix)))
 	}
 	s.logger.Println("handle new request ", request)

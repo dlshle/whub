@@ -6,8 +6,20 @@ import (
 	"wsdk/relay_common/messages"
 )
 
+var ServiceRequestMessageHandlerTypes []int
+
 func init() {
 	initServiceRequest()
+	ServiceRequestMessageHandlerTypes = []int{
+		messages.MessageTypeServiceRequest,
+		messages.MessageTypeServiceGetRequest,
+		messages.MessageTypeServicePostRequest,
+		messages.MessageTypeServicePutRequest,
+		messages.MessageTypeServicePatchRequest,
+		messages.MessageTypeServiceDeleteRequest,
+		messages.MessageTypeServiceOptionsRequest,
+		messages.MessageTypeServiceHeadRequest,
+	}
 }
 
 const (

@@ -11,7 +11,7 @@ import (
 )
 
 func ClientTest() {
-	c := relay_client.NewClient(connection.TypeWS, "192.168.0.182", 1234, base_conn.WSConnectionPath, "test1", "123456")
+	c := relay_client.NewClient(connection.TypeWS, "192.168.0.187", 1234, base_conn.WSConnectionPath, "test1", "123456")
 	err := c.Start()
 	if err != nil {
 		fmt.Println(err)
@@ -23,9 +23,9 @@ func ClientTest() {
 	resp, err = c.Request(messages.MessageTypeClientDescriptor, "", ([]byte)(c.Role().Describe().String()))
 	fmt.Println("request2 resp, err: ", resp, err)
 
-	// httpSvc := new(services.HTTPClientService)
+	httpSvc := new(services.HTTPClientService)
 	fileSvc := new(services.FileService)
-	// registerSvc(c, httpSvc)
+	registerSvc(c, httpSvc)
 	registerSvc(c, fileSvc)
 	time.Sleep(70 * time.Second)
 	fmt.Println("client timeout done")

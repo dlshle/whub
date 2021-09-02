@@ -15,21 +15,6 @@ import (
 	"wsdk/relay_server/service_base"
 )
 
-var serviceRequestMessageHandlerTypes []int
-
-func init() {
-	serviceRequestMessageHandlerTypes = []int{
-		messages.MessageTypeServiceRequest,
-		messages.MessageTypeServiceGetRequest,
-		messages.MessageTypeServicePostRequest,
-		messages.MessageTypeServicePutRequest,
-		messages.MessageTypeServicePatchRequest,
-		messages.MessageTypeServiceDeleteRequest,
-		messages.MessageTypeServiceOptionsRequest,
-		messages.MessageTypeServiceHeadRequest,
-	}
-}
-
 type ServiceRequestMessageHandler struct {
 	serviceManager    service_manager.IServiceManager       `$inject:""`
 	middlewareManager middleware_manager.IMiddlewareManager `$inject:""`
@@ -50,7 +35,7 @@ func (h *ServiceRequestMessageHandler) Type() int {
 }
 
 func (h *ServiceRequestMessageHandler) Types() []int {
-	return serviceRequestMessageHandlerTypes
+	return service.ServiceRequestMessageHandlerTypes
 }
 
 func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn connection.IConnection) (err error) {
