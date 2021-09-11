@@ -84,7 +84,6 @@ func NewServer(identity roles.ICommonServer) *Server {
 	}
 	server.OnClientConnected(server.handleInitialConnection)
 	server.OnNonUpgradableRequest(server.handleHTTPRequests)
-	server_http.NewWebsocketUpgradeChecker()
 	server.SetBeforeUpgradeChecker(server_http.NewWebsocketUpgradeChecker().ShouldUpgradeProtocol)
 	server.clientConnectionHandler = NewClientConnectionHandler(server.messageDispatcher)
 	/*

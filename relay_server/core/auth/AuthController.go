@@ -26,6 +26,8 @@ type IAuthController interface {
 	ValidateRequestSource(conn connection.IConnection, request messages.IMessage) (string, error)
 	ValidateToken(token string) (string, error)
 	Login(connType uint8, id, password string) (string, error)
+	RefreshToken(token, clientId string, refreshTokenMessage RefreshTokenMessageBody) (string, error)
+	RevokeToken(token string) error
 }
 
 type AuthController struct {
@@ -162,23 +164,27 @@ func (c *AuthController) loginAndCacheToken(clientId, clientCKey string, ttl tim
 }
 
 // RefreshToken only available for authed client
-func (c *AuthController) RefreshToken(request messages.IMessage) (string, error) {
-	refreshTokenMessage, err := UnmarshallRefreshTokenMessageBody(request.Payload())
+func (c *AuthController) RefreshToken(token, clientId string, refreshTokenMessage RefreshTokenMessageBody) (string, error) {
+	if refreshTokenMessage.Ttl < 0 || refreshTokenMessage.Ttl > MaxTokenTtl.Milliseconds() {
+		return "", fmt.Errorf("invalid ttl %d. 0 < ttl < %d", refreshTokenMessage.Ttl, MaxTokenTtl.Milliseconds())
+	}
+	return c.refreshToken(token, clientId, time.Millisecond*time.Duration(refreshTokenMessage.Ttl))
+}
+
+func (c *AuthController) refreshToken(oldToken string, clientId string, ttl time.Duration) (string, error) {
+	err := c.store.Revoke(oldToken)
 	if err != nil {
 		return "", err
 	}
-	if refreshTokenMessage.Ttl < 0 || refreshTokenMessage.Ttl > MaxTokenTtl.Nanoseconds() {
-		return "", fmt.Errorf("invalid ttl %d. 0 < ttl < %d", refreshTokenMessage.Ttl, MaxTokenTtl.Nanoseconds())
-	}
-	return c.refreshToken(request.From(), time.Nanosecond*time.Duration(refreshTokenMessage.Ttl))
-}
-
-func (c *AuthController) refreshToken(clientId string, ttl time.Duration) (string, error) {
 	client, err := c.clientManager.GetClient(clientId)
 	if err != nil {
 		return "", err
 	}
 	return SignToken(client.Id(), client.CKey(), ttl, TokenTypeDefault)
+}
+
+func (c *AuthController) RevokeToken(token string) error {
+	return c.store.Revoke(token)
 }
 
 func init() {

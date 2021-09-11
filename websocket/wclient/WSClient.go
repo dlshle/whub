@@ -76,8 +76,10 @@ func New(config *WClientConfig) base_conn.IClient {
 
 func (c *WClient) Connect(token string) (base_conn.IConnection, error) {
 	header := make(map[string][]string)
-	header["Authorization"] = []string{fmt.Sprintf("Bearer %s", token)}
-	conn, _, err := websocket.DefaultDialer.Dial(c.serverUrl, header)
+	// header["Authorization"] = []string{fmt.Sprintf("Bearer %s", token)}
+	requestUri := fmt.Sprintf("%s?token=%s", c.serverUrl, token)
+	// TODO no header needed if token is in request uri
+	conn, _, err := websocket.DefaultDialer.Dial(requestUri, header)
 	if err != nil {
 		c.handler.OnConnectionFailed(err)
 		return nil, err

@@ -11,6 +11,7 @@ import (
 const (
 	AuthMiddlewareId       = "auth"
 	IsAuthorizedContextKey = "is_authorized"
+	AuthToken              = "token"
 	AuthMiddlewarePriority = 1
 )
 
@@ -29,6 +30,8 @@ func (m *AuthMiddleware) Init() error {
 }
 
 func (m *AuthMiddleware) Run(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest {
+	token := request.From()
+	request.SetContext(AuthToken, token)
 	clientId, err := m.authController.ValidateRequestSource(conn, request.Message())
 	if err != nil {
 		m.Logger().Printf("authentication failed due to %s", err.Error())

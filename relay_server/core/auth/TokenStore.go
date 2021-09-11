@@ -16,6 +16,7 @@ const (
 type ITokenStore interface {
 	Put(token string, clientId string, ttl time.Duration) error
 	Get(token string) (string, error)
+	Revoke(token string) error
 }
 
 type RedisTokenStore struct {
@@ -45,4 +46,8 @@ func (s *RedisTokenStore) Put(token string, clientId string, ttl time.Duration) 
 
 func (s *RedisTokenStore) Get(token string) (string, error) {
 	return s.redis.Get(s.assembleKey(token))
+}
+
+func (s *RedisTokenStore) Revoke(token string) error {
+	return s.redis.Delete(token)
 }

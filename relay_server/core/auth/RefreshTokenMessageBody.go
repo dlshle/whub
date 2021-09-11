@@ -3,7 +3,7 @@ package auth
 import "encoding/json"
 
 type RefreshTokenMessageBody struct {
-	Ttl int64 `json:"ttl"`
+	Ttl int64 `json:"ttl"` // in milliseconds
 }
 
 func UnmarshallRefreshTokenMessageBody(data []byte) (RefreshTokenMessageBody, error) {

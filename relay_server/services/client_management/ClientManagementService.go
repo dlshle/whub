@@ -25,6 +25,7 @@ const (
 	RouteGetAll         = "/get"
 	RouteUpdate         = "/update"
 	RouteGetConnections = "/get/:id/conn"
+	RouteRefreshToken   = "/token/refresh"
 )
 
 type ClientManagementService struct {
@@ -52,6 +53,7 @@ func (s *ClientManagementService) Init() (err error) {
 	routeMap[RouteGetAll] = s.GetAll
 	routeMap[RouteLogin] = s.Login
 	routeMap[RouteGetConnections] = s.GetConnections
+	routeMap[RouteRefreshToken] = s.RefreshToken
 	return s.InitRoutes(routeMap)
 }
 
@@ -224,4 +226,25 @@ func (s *ClientManagementService) GetConnections(request service.IServiceRequest
 	}
 	s.ResolveByResponse(request, marshalled)
 	return nil
+}
+
+func (s *ClientManagementService) RefreshToken(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	from := request.From()
+	tokenValue := request.GetContext(auth.AuthToken)
+	if from == "" || tokenValue == nil {
+		return s.ResolveByInvalidCredential(request)
+	}
+	token, ok := tokenValue.(string)
+	if !ok {
+		return s.ResolveByError(request, messages.MessageTypeSvcInternalError, "unable to cast token to string")
+	}
+	refreshTokenMessageBody, err := auth.UnmarshallRefreshTokenMessageBody(request.Message().Payload())
+	if err != nil {
+		return
+	}
+	newToken, err := s.authController.RefreshToken(token, from, refreshTokenMessageBody)
+	if err != nil {
+		return
+	}
+	return s.ResolveByResponse(request, ([]byte)(fmt.Sprintf("{\"token\":\"%s\"}", newToken)))
 }
