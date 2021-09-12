@@ -42,7 +42,13 @@ func (p *FBMessageParser) Serialize(message IMessage) ([]byte, error) {
 	return builder.Bytes[builder.Head():], nil
 }
 
-func (p *FBMessageParser) Deserialize(buffer []byte) (IMessage, error) {
+func (p *FBMessageParser) Deserialize(buffer []byte) (msg IMessage, err error) {
+	defer func() {
+		panicMsg := recover()
+		if panicMsg != nil {
+			err = errors.New("unable to parse the message")
+		}
+	}()
 	if len(buffer) < 1 {
 		return nil, errors.New("invalid buffer format")
 	}

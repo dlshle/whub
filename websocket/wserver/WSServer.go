@@ -42,10 +42,6 @@ func NewWServer(config WsServerConfig) *WServer {
 				wsServer.logger.Printf("invalid request from %s(METHOD = %s URL = %s)\n", req.RemoteAddr, req.Method, req.URL)
 				return false
 			}
-			if req.URL.Path != wsServer.upgradeUrlPath {
-				wsServer.logger.Printf("invalid path from %s(METHOD = %s URL = %s)\n", req.RemoteAddr, req.Method, req.URL)
-				return false
-			}
 			return true
 		},
 	}
@@ -63,6 +59,9 @@ func (ws *WServer) upgradeHTTP(w http.ResponseWriter, r *http.Request) (err erro
 			go ws.handleNewConnection(conn)
 		}
 	*/
+	if err != nil {
+		return err
+	}
 	ws.handleNewConnection(conn, r.Header)
 	return
 }
@@ -102,7 +101,12 @@ func (ws *WServer) handleUpgradeFailure(w http.ResponseWriter, message string) {
 
 func (ws *WServer) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 	// each HTTP request is a new goroutine, so no need to add extra concurrency here
-	if r.URL.Path != ws.upgradeUrlPath {
+	// TODO only accept ws or wss protocols
+	path := r.URL.Path
+	if path[len(path)-1] == '/' {
+		path = path[:len(path)-1]
+	}
+	if path != ws.upgradeUrlPath {
 		ws.handler.HandleNoUpgradableRequest(w, r)
 		return
 	}
@@ -119,7 +123,7 @@ func (ws *WServer) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WServer) handleNewConnection(conn *websocket.Conn, header map[string][]string) {
-	ws.logger.Printf("new connection from %s detected", conn.RemoteAddr())
+	// ws.logger.Printf("new connection from %s detected", conn.RemoteAddr())
 	c := connection.NewWsConnection(conn, nil, nil, nil)
 	defer c.Close()
 	c.OnClose(func(err error) { ws.handler.HandleClientClosed(c, err) })
