@@ -62,7 +62,7 @@ func (ws *WServer) upgradeHTTP(w http.ResponseWriter, r *http.Request) (err erro
 	if err != nil {
 		return err
 	}
-	ws.handleNewConnection(conn, r.Header)
+	ws.handleNewConnection(conn, r)
 	return
 }
 
@@ -122,20 +122,20 @@ func (ws *WServer) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WServer) handleNewConnection(conn *websocket.Conn, header map[string][]string) {
+func (ws *WServer) handleNewConnection(conn *websocket.Conn, r *http.Request) {
 	// ws.logger.Printf("new connection from %s detected", conn.RemoteAddr())
 	c := connection.NewWsConnection(conn, nil, nil, nil)
 	defer c.Close()
 	c.OnClose(func(err error) { ws.handler.HandleClientClosed(c, err) })
 	c.OnError(func(err error) { ws.handler.HandleConnectionError(c, err) })
-	ws.handler.HandleClientConnected(c, header)
+	ws.handler.HandleClientConnected(c, r)
 }
 
 func (ws *WServer) OnConnectionError(cb func(base_conn.IConnection, error)) {
 	ws.handler.onConnectionError = cb
 }
 
-func (ws *WServer) OnClientConnected(cb func(base_conn.IConnection, map[string][]string)) {
+func (ws *WServer) OnClientConnected(cb func(base_conn.IConnection, *http.Request)) {
 	ws.handler.onClientConnected = cb
 }
 

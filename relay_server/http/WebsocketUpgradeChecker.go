@@ -27,11 +27,15 @@ func NewWebsocketUpgradeChecker() IWebsocketUpgradeChecker {
 func (c *WebsocketUpgradeChecker) ShouldUpgradeProtocol(r *http.Request) error {
 	// deprecate the header token as not all ws client supports token in header
 	// token := auth.GetTrimmedHTTPToken(r.Header)
-	token := r.URL.Query().Get("token")
+	token := GetTokenFromQueryParameters(r)
 	if token == "" {
 		return errors.New("invalid auth token")
 	}
 	// validate token
 	_, err := c.authController.ValidateToken(token)
 	return err
+}
+
+func GetTokenFromQueryParameters(r *http.Request) string {
+	return r.URL.Query().Get("token")
 }

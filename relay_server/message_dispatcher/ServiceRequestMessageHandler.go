@@ -2,6 +2,7 @@ package message_dispatcher
 
 import (
 	base_conn "wsdk/common/connection"
+	"wsdk/common/uri_trie"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/message_actions"
 	"wsdk/relay_common/messages"
@@ -56,12 +57,11 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 	}
 	svc := matchContext.Value.(service_base.IService)
 	request := service.NewServiceRequest(message)
-	if svc.ServiceType() == service.ServiceTypeInternal {
-		request = h.middlewareManager.RunMiddlewares(conn, request)
-		request.SetContext("uri_pattern", matchContext.UriPattern)
-		request.SetContext("path_params", matchContext.PathParams)
-		request.SetContext("query_params", matchContext.QueryParams)
-	}
+	request = h.registerRequestMetaContext(request, matchContext)
+	request = h.middlewareManager.RunMiddlewares(conn, request)
+	// free match context
+	matchContext = nil
+
 	response := svc.Handle(request)
 	if response == nil && !base_conn.IsAsyncType(conn.ConnectionType()) {
 		err = conn.Send(messages.NewErrorResponse(request, context.Ctx.Server().Id(),
@@ -72,4 +72,11 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 	}
 	h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
 	return
+}
+
+func (h *ServiceRequestMessageHandler) registerRequestMetaContext(request service.IServiceRequest, matchContext *uri_trie.MatchContext) service.IServiceRequest {
+	request.SetContext("uri_pattern", matchContext.UriPattern)
+	request.SetContext("path_params", matchContext.PathParams)
+	request.SetContext("query_params", matchContext.QueryParams)
+	return request
 }

@@ -1,7 +1,8 @@
-package relay_server
+package socket
 
 import (
 	"fmt"
+	"net/http"
 	"sync"
 	"wsdk/common/connection"
 	"wsdk/common/logger"
@@ -12,6 +13,7 @@ import (
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/core/auth"
 	"wsdk/relay_server/core/connection_manager"
+	upgrader_util "wsdk/relay_server/http"
 )
 
 type ClientConnectionHandler struct {
@@ -23,7 +25,7 @@ type ClientConnectionHandler struct {
 }
 
 type IClientConnectionHandler interface {
-	HandleConnectionEstablished(conn connection.IConnection, header map[string][]string)
+	HandleConnectionEstablished(conn connection.IConnection, r *http.Request)
 }
 
 func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispatcher) IClientConnectionHandler {
@@ -41,7 +43,7 @@ func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispat
 	return h
 }
 
-func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IConnection, header map[string][]string) {
+func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IConnection, r *http.Request) {
 	loggerPrefix := fmt.Sprintf("[conn-%s]", conn.Address())
 	wrappedConn := h.connPool.Get().(*common_connection.Connection)
 	wrappedConn.Init(
@@ -57,7 +59,7 @@ func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IC
 	})
 	h.connectionManager.AddConnection(wrappedConn)
 	// should authorize the connection(register the connection to active client connection) when authorized
-	clientId, err := h.authController.ValidateToken(auth.GetTrimmedHTTPToken(header))
+	clientId, err := h.authController.ValidateToken(upgrader_util.GetTokenFromQueryParameters(r))
 	if err != nil {
 		h.logger.Printf("unauthorized connection from %s", conn.Address())
 		conn.Close()

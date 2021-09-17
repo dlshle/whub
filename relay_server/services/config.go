@@ -7,7 +7,6 @@ import (
 	"wsdk/relay_server/services/client_management"
 	"wsdk/relay_server/services/config"
 	"wsdk/relay_server/services/messaging"
-	"wsdk/relay_server/services/pubsub"
 	"wsdk/relay_server/services/relay_management"
 	"wsdk/relay_server/services/status"
 )
@@ -23,7 +22,6 @@ func init() {
 func instantiateInstances() {
 	serviceInstances = make(map[string]service_base.INativeService)
 	serviceInstances[messaging.ID] = new(messaging.MessagingService)
-	serviceInstances[pubsub.ID] = new(pubsub.PubSubService)
 	serviceInstances[relay_management.ID] = new(relay_management.RelayManagementService)
 	serviceInstances[status.ID] = new(status.StatusService)
 	serviceInstances[config.ID] = new(config.ConfigService)

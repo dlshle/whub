@@ -1,7 +1,9 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"wsdk/common/async"
 	"wsdk/relay_common/messages"
 )
@@ -166,4 +168,12 @@ func (t *ServiceRequest) Message() messages.IMessage {
 
 func (t *ServiceRequest) SetMessage(message messages.IMessage) {
 	t.IMessage = message
+}
+
+func (t *ServiceRequest) String() string {
+	ctxBytes, err := json.Marshal(t.requestContext)
+	if err != nil {
+		ctxBytes = ([]byte)("{}")
+	}
+	return fmt.Sprintf("{\"id\": \"%s\", \"messsage\": %s, \"context\": %s}", t.Id(), t.Message().String(), (string)(ctxBytes))
 }

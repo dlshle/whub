@@ -16,6 +16,7 @@ import (
 	server_http "wsdk/relay_server/http"
 	"wsdk/relay_server/message_dispatcher"
 	"wsdk/relay_server/services"
+	"wsdk/relay_server/socket"
 	"wsdk/websocket/wserver"
 )
 
@@ -24,7 +25,7 @@ type Server struct {
 	roles.ICommonServer
 	messageParser           messages.IMessageParser
 	messageDispatcher       message_actions.IMessageDispatcher
-	clientConnectionHandler IClientConnectionHandler
+	clientConnectionHandler socket.IClientConnectionHandler
 	httpRequestHandler      server_http.IHTTPRequestHandler
 	logger                  *logger.SimpleLogger
 	lock                    *sync.RWMutex
@@ -57,8 +58,8 @@ func (s *Server) Stop() (closeError error) {
 	return
 }
 
-func (s *Server) handleInitialConnection(conn connection.IConnection, header map[string][]string) {
-	s.clientConnectionHandler.HandleConnectionEstablished(conn, header)
+func (s *Server) handleSocketConnection(conn connection.IConnection, r *http.Request) {
+	s.clientConnectionHandler.HandleConnectionEstablished(conn, r)
 }
 
 func (s *Server) handleHTTPRequests(w http.ResponseWriter, r *http.Request) {
@@ -82,10 +83,10 @@ func NewServer(identity roles.ICommonServer) *Server {
 		lock:               new(sync.RWMutex),
 		logger:             logger,
 	}
-	server.OnClientConnected(server.handleInitialConnection)
+	server.OnClientConnected(server.handleSocketConnection)
 	server.OnNonUpgradableRequest(server.handleHTTPRequests)
 	server.SetBeforeUpgradeChecker(server_http.NewWebsocketUpgradeChecker().ShouldUpgradeProtocol)
-	server.clientConnectionHandler = NewClientConnectionHandler(server.messageDispatcher)
+	server.clientConnectionHandler = socket.NewClientConnectionHandler(server.messageDispatcher)
 	/*
 		onHttpRequest func(u func(w http.ResponseWriter, r *http.Handle) error, w http.ResponseWriter, r *http.Handle),
 	*/

@@ -1,6 +1,8 @@
 package model
 
-import "wsdk/relay_server/core/pubsub_v2"
+import (
+	"wsdk/relay_common/pubsub_v2"
+)
 
 // Publisher a client that publishes messages
 

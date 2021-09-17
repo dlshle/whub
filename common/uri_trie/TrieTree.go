@@ -109,8 +109,7 @@ func (n *trieNode) addConst(subPath string) (*trieNode, error) {
 	if n.constChildren == nil {
 		n.constChildren = make(map[string]*trieNode)
 	}
-	var node *trieNode
-	node = n.constChildren[subPath]
+	node := n.constChildren[subPath]
 	if node == nil {
 		node = &trieNode{parent: n, t: tnTypeC}
 		n.constChildren[subPath] = node
@@ -288,7 +287,7 @@ func (n *trieNode) match(path string, ctx *MatchContext) (node *trieNode, err er
 
 func (n *trieNode) matchByPath(pathWithoutQueryParams string, ctx *MatchContext) (c *MatchContext, err error) {
 	if len(pathWithoutQueryParams) == 0 {
-		return nil, errors.New("no pathWithoutQueryParams find")
+		return nil, errors.New("no path find")
 	}
 	node, err := n.match(pathWithoutQueryParams, ctx)
 	if err != nil || node == nil {

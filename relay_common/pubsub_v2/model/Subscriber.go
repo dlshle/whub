@@ -1,6 +1,8 @@
 package model
 
-import "wsdk/relay_server/core/pubsub_v2"
+import (
+	"wsdk/relay_common/pubsub_v2"
+)
 
 // SubscriberGroup a group of msg receivers that receives messages on one topic, each message is sent to one connection in
 // the group. All connection groups in the topic will receive one instance of the message from queue.

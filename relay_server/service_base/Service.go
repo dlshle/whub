@@ -171,11 +171,7 @@ func (s *Service) Status() int {
 }
 
 func (s *Service) Handle(request service.IServiceRequest) messages.IMessage {
-	// only internal(business) services use short uri
-	if s.ServiceType() == service.ServiceTypeInternal && strings.HasPrefix(request.Uri(), s.uriPrefix) {
-		request.SetMessage(request.Message().SetUri(strings.TrimPrefix(request.Uri(), s.uriPrefix)))
-	}
-	s.logger.Println("handle new request ", request)
+	s.logger.Println("handle request ", request.String())
 	s.serviceQueue.Schedule(request)
 	s.traceMessagePerformance(request.Id(), "request in queue")
 	if s.ExecutionType() == service.ServiceExecutionAsync {

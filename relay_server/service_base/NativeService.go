@@ -75,30 +75,38 @@ func (s *NativeService) UnregisterRoute(shortUri string) (err error) {
 	return
 }
 
-func (s *Service) CheckCredential(request service.IServiceRequest) error {
+func (s *NativeService) CheckCredential(request service.IServiceRequest) error {
 	if request.From() == "" {
 		return errors.New("invalid credential")
 	}
 	return nil
 }
 
-func (s *Service) ResolveByAck(request service.IServiceRequest) error {
+func (s *NativeService) ResolveByAck(request service.IServiceRequest) error {
 	return request.Resolve(messages.NewACKMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri()))
 }
 
-func (s *Service) ResolveByResponse(request service.IServiceRequest, responseData []byte) error {
+func (s *NativeService) ResolveByResponse(request service.IServiceRequest, responseData []byte) error {
 	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeSvcResponseOK, responseData))
 }
 
-func (s *Service) ResolveByError(request service.IServiceRequest, errType int, msg string) error {
+func (s *NativeService) ResolveByError(request service.IServiceRequest, errType int, msg string) error {
 	if errType < 400 || errType > 500 {
 		return errors.New("invalid error code")
 	}
 	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), errType, s.assembleErrorMessageData(msg)))
 }
 
-func (s *Service) ResolveByInvalidCredential(request service.IServiceRequest) error {
+func (s *NativeService) ResolveByInvalidCredential(request service.IServiceRequest) error {
 	return s.ResolveByError(request, messages.MessageTypeSvcUnauthorizedError, "invalid credential")
+}
+
+func (s *NativeService) Handle(request service.IServiceRequest) messages.IMessage {
+	// internal(business) services use short uri
+	if s.ServiceType() == service.ServiceTypeInternal && strings.HasPrefix(request.Uri(), s.uriPrefix) {
+		request.SetMessage(request.Message().SetUri(strings.TrimPrefix(request.Uri(), s.uriPrefix)))
+	}
+	return s.Service.Handle(request)
 }
 
 func (s *Service) assembleErrorMessageData(message string) []byte {

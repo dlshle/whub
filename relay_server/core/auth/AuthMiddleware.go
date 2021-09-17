@@ -1,6 +1,7 @@
 package auth
 
 import (
+	base_conn "wsdk/common/connection"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
@@ -30,8 +31,9 @@ func (m *AuthMiddleware) Init() error {
 }
 
 func (m *AuthMiddleware) Run(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest {
-	token := request.From()
-	request.SetContext(AuthToken, token)
+	if !base_conn.IsAsyncType(conn.ConnectionType()) {
+		request.SetContext(AuthToken, request.From())
+	}
 	clientId, err := m.authController.ValidateRequestSource(conn, request.Message())
 	if err != nil {
 		m.Logger().Printf("authentication failed due to %s", err.Error())

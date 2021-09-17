@@ -39,7 +39,6 @@ func (d *ServerMessageDispatcher) init() {
 	// register common message handlers
 	d.registerHandler(message_actions.NewPingMessageHandler(context.Ctx.Server()))
 	d.registerHandler(message_actions.NewInvalidMessageHandler(context.Ctx.Server()))
-	d.registerHandler(NewClientDescriptorMessageHandler())
 	d.registerHandler(NewServiceRequestMessageHandler())
 }
 
