@@ -19,8 +19,9 @@ const (
 const (
 	ClientTypeAnonymous     = 0
 	ClientTypeAuthenticated = 1
-	ClientTypeManager       = 2
-	ClientTypeRoot          = 3
+	ClientTypeService       = 2
+	ClientTypeManager       = 3
+	ClientTypeRoot          = 4
 )
 
 // Authenticated privileges

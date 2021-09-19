@@ -52,12 +52,11 @@ type ServiceRequest struct {
 	barrier *async.StatefulBarrier
 	status  int
 	messages.IMessage
-	onStatusChangeCallback func(int)
-	requestContext         map[string]interface{}
+	requestContext map[string]interface{}
 }
 
 func NewServiceRequest(m messages.IMessage) IServiceRequest {
-	return &ServiceRequest{async.NewStatefulBarrier(), ServiceRequestStatusQueued, m, nil, make(map[string]interface{})}
+	return &ServiceRequest{async.NewStatefulBarrier(), ServiceRequestStatusQueued, m, make(map[string]interface{})}
 }
 
 // TODO not good, need refactor
@@ -71,7 +70,6 @@ type IServiceRequest interface {
 	IsDead() bool
 	IsCancelled() bool
 	IsFinished() bool
-	OnStatusChange(func(int))
 	Resolve(messages.IMessage) error
 	Wait() error // wait for the state to transit to final (dead/finished/cancelled)
 	Response() messages.IMessage
@@ -86,9 +84,6 @@ func (t *ServiceRequest) setStatus(status int) {
 		return
 	}
 	t.status = status
-	if t.onStatusChangeCallback != nil {
-		t.onStatusChangeCallback(status)
-	}
 }
 
 func (t *ServiceRequest) Status() int {
@@ -132,10 +127,6 @@ func (t *ServiceRequest) IsCancelled() bool {
 
 func (t *ServiceRequest) IsFinished() bool {
 	return t.Status() == ServiceRequestStatusFinished
-}
-
-func (t *ServiceRequest) OnStatusChange(cb func(int)) {
-	t.onStatusChangeCallback = cb
 }
 
 func (t *ServiceRequest) Wait() error {

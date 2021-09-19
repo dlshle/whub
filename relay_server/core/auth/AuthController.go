@@ -9,6 +9,7 @@ import (
 	"wsdk/common/redis"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/roles"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
@@ -141,7 +142,7 @@ func (c *AuthController) asyncConnLogin(id, password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return c.loginAndCacheToken(client.Id(), client.CKey(), AsyncConnTtl, TokenTypeDefault)
+	return c.loginAndCacheToken(client, AsyncConnTtl, TokenTypeDefault)
 }
 
 func (c *AuthController) syncConnLogin(id, password string) (string, error) {
@@ -149,10 +150,15 @@ func (c *AuthController) syncConnLogin(id, password string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return c.loginAndCacheToken(client.Id(), client.CKey(), SyncConnTtl, TokenTypeDefault)
+	return c.loginAndCacheToken(client, SyncConnTtl, TokenTypeDefault)
 }
 
-func (c *AuthController) loginAndCacheToken(clientId, clientCKey string, ttl time.Duration, tokenType uint8) (string, error) {
+func (c *AuthController) loginAndCacheToken(client *client.Client, ttl time.Duration, tokenType uint8) (string, error) {
+	clientId, clientCKey := client.Id(), client.CKey()
+	// service role token can be valid for as much as 180 days
+	if client.CType() == roles.ClientTypeService {
+		ttl = time.Hour * 24 * 180
+	}
 	token, err := SignToken(clientId, clientCKey, ttl, tokenType)
 	if err != nil {
 		return "", err

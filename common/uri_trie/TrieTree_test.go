@@ -141,5 +141,14 @@ func TestTrieTree(t *testing.T) {
 			}
 			return !tree.SupportsUri("/x")
 		}),
+		test_utils.NewTestCase("/x/:y, and then /x/z", "", func() bool {
+			tree.RemoveAll()
+			tree.Add("/x/:y", true, true)
+			err := tree.Add("/x/z", true, true)
+			if err != nil {
+				return true
+			}
+			return false
+		}),
 	}).Do(t)
 }

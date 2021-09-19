@@ -11,6 +11,7 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
 	service_common "wsdk/relay_common/service"
+	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/core/client_manager"
 	"wsdk/relay_server/core/connection_manager"
@@ -126,8 +127,7 @@ func (s *RelayManagementService) RegisterService(request service_common.IService
 		s.ResolveByAck(request)
 		return nil
 	}
-	service := s.servicePool.Get().(service_base.IRelayService)
-	service.Init(descriptor, client, request_executor.NewRelayServiceRequestExecutor(descriptor.Id, client.Id()))
+	service := s.createRelayService(client, descriptor)
 	err = s.serviceManager.RegisterService(descriptor.Id, service)
 	if err != nil {
 		s.servicePool.Put(service)
@@ -135,6 +135,12 @@ func (s *RelayManagementService) RegisterService(request service_common.IService
 	}
 	s.ResolveByAck(request)
 	return nil
+}
+
+func (s *RelayManagementService) createRelayService(provider *client.Client, descriptor service_common.ServiceDescriptor) service_base.IService {
+	service := s.servicePool.Get().(service_base.IRelayService)
+	service.Init(descriptor, provider, request_executor.NewRelayServiceRequestExecutor(descriptor.Id, provider.Id()))
+	return service
 }
 
 func (s *RelayManagementService) UnregisterService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {

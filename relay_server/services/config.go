@@ -4,6 +4,7 @@ import (
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/core/service_manager"
 	"wsdk/relay_server/service_base"
+	"wsdk/relay_server/services/auth_service"
 	"wsdk/relay_server/services/client_management"
 	"wsdk/relay_server/services/config"
 	"wsdk/relay_server/services/messaging"
@@ -13,6 +14,8 @@ import (
 
 var serviceInstances map[string]service_base.INativeService
 
+// TODO make this a public function to be called after server is started
+// TODO also load services according to the config file
 func init() {
 	instantiateInstances()
 }
@@ -26,6 +29,7 @@ func instantiateInstances() {
 	serviceInstances[status.ID] = new(status.StatusService)
 	serviceInstances[config.ID] = new(config.ConfigService)
 	serviceInstances[client_management.ID] = new(client_management.ClientManagementService)
+	serviceInstances[auth_service.ID] = new(auth_service.AuthService)
 }
 
 func clearInstances() {

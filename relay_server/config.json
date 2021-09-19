@@ -1,18 +1,34 @@
 {
-  "maxAsyncPoolSize": 2048,
-  "maxServiceAsyncPoolSize": 1024,
-  "asyncPoolWorkerFactor": 32,
-  "serviceAsyncPoolWorkerFactor": 16,
-  "maxListenerCount": 1024,
-  "maxConnectionCount": 2048,
-  "maxServicePerClient": 8,
-  "clientManager": {
-    "store": {
-      "driver": "mysql",
-      "server": "192.168.0.164:3307",
-      "username": "root",
-      "password": "Lxr000518!",
-      "db": "wr_test"
+  "commonConfig": {
+    "maxAsyncPoolSize": 2048,
+    "maxServiceAsyncPoolSize": 1024,
+    "asyncPoolWorkerFactor": 32,
+    "serviceAsyncPoolWorkerFactor": 16,
+    "maxListenerCount": 1024,
+    "maxConnectionCount": 2048,
+    "maxServicePerClient": 8
+  },
+  "serviceConfig": {
+    "enabledServices": [
+      "clientManager",
+      "serviceManager"
+    ],
+    "clientManager": {
+      "persistent": {
+        "driver": "mysql",
+        "server": "192.168.0.164:3307",
+        "username": "root",
+        "password": "Lxr000518!",
+        "db": "wr_test"
+      },
+      "cache": {
+        "type": "redis",
+        "server": "192.168.0.132:6379",
+        "password": "19950416"
+      }
+    },
+    "serviceManager": {
+
     }
   }
 }
