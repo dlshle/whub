@@ -35,7 +35,10 @@ func (s *AuthService) Init() (err error) {
 	if err != nil {
 		return err
 	}
-	return s.InitHandlers(service.NewRequestHandlerMapBuilder().Post(RouteLogin, s.Login).Post(RouteValidateToken, s.ValidateToken).Post(RouteLogout, s.Logout).Build())
+	return s.InitHandlers(service.NewRequestHandlerMapBuilder().
+		Post(RouteLogin, s.Login).
+		Post(RouteValidateToken, s.ValidateToken).
+		Post(RouteLogout, s.Logout).Build())
 }
 
 func (s *AuthService) ValidateToken(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {

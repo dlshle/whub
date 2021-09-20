@@ -149,9 +149,18 @@ func (s *ServiceManager) registerService(clientId string, svc server_service.ISe
 	}
 	s.withWrite(func() {
 		s.serviceMap[svc.Id()] = svc
+		addedPathSet := make(map[string]bool)
 		for _, uri := range svc.FullServiceUris() {
-			// TODO maybe just add service.handle here so that we only need one big trie tree?????
-			s.trieTree.Add(uri, svc, false)
+			// service manager only keeps track of path, not methods, so we only add new paths
+			if addedPathSet[uri] {
+				continue
+			}
+			err = s.trieTree.Add(uri, svc, true)
+			if err != nil {
+				s.logger.Printf("register service(%s) route %s failed due to %s", svc.Id(), uri, err.Error())
+			} else {
+				addedPathSet[uri] = true
+			}
 		}
 		/* No need to do this as when service is unregistered, all full uris will be removed
 		svc.OnStopped(func(tService service.IBaseService) {

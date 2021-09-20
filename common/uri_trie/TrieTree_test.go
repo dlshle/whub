@@ -21,9 +21,9 @@ func TestTrieTree(t *testing.T) {
 		test_utils.NewTestCase("Add const over wildcard", "", func() bool {
 			err := tree.Add("/x/z", true, true)
 			if err != nil {
-				return true
+				return false
 			}
-			return false
+			return true
 		}),
 		test_utils.NewTestCase("Add param over wildcard", "", func() bool {
 			err := tree.Add("/x/:z", true, true)
@@ -38,6 +38,17 @@ func TestTrieTree(t *testing.T) {
 				return true
 			}
 			return false
+		}),
+		test_utils.NewTestCase("match const and then match wildcard", "", func() bool {
+			ctx, err := tree.Match("/x/z")
+			if err != nil {
+				return false
+			}
+			if !ctx.Value.(bool) {
+				return false
+			}
+			ctx, err = tree.Match("/x/asd")
+			return ctx.PathParams["z"] == "asd"
 		}),
 		test_utils.NewTestCase("clear", "", func() bool {
 			tree.RemoveAll()
@@ -97,7 +108,25 @@ func TestTrieTree(t *testing.T) {
 			return ctx.PathParams["p"] == "param0" && ctx.PathParams["pp"] == "param1"
 		}),
 		test_utils.NewTestCase("Add wildcard over const", "", func() bool {
-			return tree.Add("/x/*stuff", true, true) != nil
+			return tree.Add("/x/*stuff", true, true) == nil
+		}),
+		test_utils.NewTestCase("test match again", "", func() bool {
+			res := tree.SupportsUri("/x/qwe")
+			if !res {
+				t.Log("do not support /x/qwe!")
+				return false
+			}
+			res = tree.SupportsUri("/x/y/z")
+			if !res {
+				t.Log("do not support /x/y/z")
+				return false
+			}
+			ctx, err := tree.Match("/x/y/z/param0/end/param1")
+			if err != nil {
+				t.Log("do not match previous pattern!")
+				return false
+			}
+			return ctx.PathParams["p"] == "param0" && ctx.PathParams["pp"] == "param1"
 		}),
 		test_utils.NewTestCase("/x/:y, and then /x should not return err", "", func() bool {
 			tree.RemoveAll()
@@ -146,9 +175,9 @@ func TestTrieTree(t *testing.T) {
 			tree.Add("/x/:y", true, true)
 			err := tree.Add("/x/z", true, true)
 			if err != nil {
-				return true
+				return false
 			}
-			return false
+			return true
 		}),
 	}).Do(t)
 }

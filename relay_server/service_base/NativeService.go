@@ -46,8 +46,12 @@ func (s *NativeService) RegisterRoute(uri string, handler service.RequestHandler
 func (s *NativeService) RegisterRouteV1(requestType int, uri string, handler service.RequestHandler) (err error) {
 	defer s.Logger().Println(uri, "registration result: ", utils.ConditionalPick(err != nil, err, "success"))
 	shortUri := uri
-	if strings.HasPrefix(uri, s.uriPrefix) {
-		shortUri = strings.TrimPrefix(uri, s.uriPrefix)
+	if strings.HasPrefix(shortUri, s.uriPrefix) {
+		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
+	}
+	// remove the extra / in the end to better format request uri(our convention is to not have / at the end)
+	if shortUri[len(shortUri)-1] == '/' {
+		shortUri = shortUri[:len(shortUri)-1]
 	}
 	s.Logger().Printf("registering new handler %d %s", requestType, shortUri)
 	s.withWrite(func() {

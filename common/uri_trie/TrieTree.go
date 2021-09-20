@@ -66,9 +66,11 @@ func splitQueryParams(path string) (queries string, remaining string) {
 }
 
 const (
-	tnTypeP = 0
-	tnTypeW = 1
-	tnTypeC = 2
+	tnTypeP  = 0
+	tnTypeW  = 1
+	tnTypeC  = 2
+	tnTypePC = 3
+	tnTypeWC = 4
 )
 
 type trieNode struct {
@@ -82,10 +84,18 @@ type trieNode struct {
 	t             uint8
 }
 
+func stringifyConstChildren(node *trieNode) string {
+	var builder strings.Builder
+	for k := range node.constChildren {
+		builder.WriteString(fmt.Sprintf("\"%s\",", k))
+	}
+	return builder.String()[:builder.Len()-1]
+}
+
 func (n *trieNode) addParam(param string) (*trieNode, error) {
 	// we allow adding another param child w/ the same param
-	if n.wildcardChild != nil || (n.paramChild != nil && n.paramChild.param != param) || len(n.constChildren) > 0 {
-		return nil, errors.New("can not add a new param node over a wildcard/const node or a param node w/ different param")
+	if n.wildcardChild != nil || (n.paramChild != nil && n.paramChild.param != param) {
+		return nil, errors.New(fmt.Sprintf("can not add a new param node \"%s\" over a wildcard/const node or a param node w/ different param \"%s\"", param, n.param))
 	}
 	// when overriding a child w/ value, do soft add and do not override its value
 	if n.paramChild == nil {
@@ -95,17 +105,14 @@ func (n *trieNode) addParam(param string) (*trieNode, error) {
 }
 
 func (n *trieNode) addWildcard(param string) (*trieNode, error) {
-	if (n.wildcardChild != nil && n.wildcardChild.param != param) || n.paramChild != nil || len(n.constChildren) > 0 {
-		return nil, errors.New("can not add a new wildcard node over a param/const node or a wildcard node w/ different param")
+	if (n.wildcardChild != nil && n.wildcardChild.param != param) || n.paramChild != nil {
+		return nil, errors.New(fmt.Sprintf("can not add a new wildcard node \"%s\" over a param/const node or a wildcard node w/ different param \"%s\"", param, n.param))
 	}
 	n.wildcardChild = &trieNode{parent: n, param: param, t: tnTypeW}
 	return n.wildcardChild, nil
 }
 
 func (n *trieNode) addConst(subPath string) (*trieNode, error) {
-	if n.wildcardChild != nil || n.paramChild != nil {
-		return nil, errors.New("can not add a new const node over a wildcard/param node")
-	}
 	if n.constChildren == nil {
 		n.constChildren = make(map[string]*trieNode)
 	}
@@ -178,20 +185,17 @@ func (n *trieNode) remove() {
 		return
 	} else {
 		// safe to remove, remove current node from its parent
-		switch n.t {
-		case tnTypeP:
-			n.parent.paramChild = nil
-		case tnTypeW:
-			n.parent.wildcardChild = nil
-		case tnTypeC:
+		n.parent.paramChild = nil
+		n.parent.wildcardChild = nil
+		if n.parent.constChildren != nil {
 			for k, v := range n.parent.constChildren {
 				if v == n {
 					n.parent.constChildren[k] = nil
 				}
 			}
 		}
-		n.parent = nil
 	}
+	n.parent = nil
 }
 
 // clean from up to bottom
@@ -227,13 +231,16 @@ func (n *trieNode) findByPath(path string) *trieNode {
 		default:
 			var subPath string
 			subPath, remaining = splitRemaining(remaining)
+			// Match const first. When paths like /a/:x and /a/b both exist, we need to match const path first and then param/wildcard.
+			if tCurr := curr.constChildren[fmt.Sprintf("%c%s", token, subPath)]; tCurr != nil {
+				curr = tCurr
+				continue
+			}
 			if curr.wildcardChild != nil {
 				curr = curr.wildcardChild
 				break
 			} else if curr.paramChild != nil {
 				curr = curr.paramChild
-			} else {
-				curr = curr.constChildren[fmt.Sprintf("%c%s", token, subPath)]
 			}
 		}
 	}
@@ -261,6 +268,11 @@ func (n *trieNode) match(path string, ctx *MatchContext) (node *trieNode, err er
 			var subPath string
 			subPath, remaining = splitRemaining(remaining)
 			subPath = fmt.Sprintf("%c%s", token, subPath)
+			// Match const first. When paths like /a/:x and /a/b both exist, we need to match const path first and then param/wildcard.
+			if tCurr := curr.constChildren[subPath]; tCurr != nil {
+				curr = tCurr
+				continue
+			}
 			if curr.wildcardChild != nil {
 				// add param
 				ctx.PathParams[curr.wildcardChild.param] = fmt.Sprintf("%s%s", subPath, remaining)
@@ -270,8 +282,6 @@ func (n *trieNode) match(path string, ctx *MatchContext) (node *trieNode, err er
 				// add param
 				ctx.PathParams[curr.paramChild.param] = subPath
 				curr = curr.paramChild
-			} else {
-				curr = curr.constChildren[subPath]
 			}
 		}
 	}

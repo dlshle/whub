@@ -18,11 +18,11 @@ import (
 const (
 	ID                  = "client"
 	RouteSignUp         = "/signup"
-	RouteDelete         = "/delete"
-	RouteGet            = "/get/:id"
-	RouteGetAll         = "/get"
-	RouteUpdate         = "/update"
-	RouteGetConnections = "/get/:id/conn"
+	RouteDelete         = "/"
+	RouteGet            = "/:id"
+	RouteGetAll         = "/"
+	RouteUpdate         = "/"
+	RouteGetConnections = "/:id/conn"
 )
 
 type ClientManagementService struct {
@@ -41,14 +41,13 @@ func (s *ClientManagementService) Init() (err error) {
 	if err != nil {
 		return err
 	}
-	routeMap := make(map[string]service.RequestHandler)
-	routeMap[RouteSignUp] = s.SignUp
-	routeMap[RouteUpdate] = s.Update
-	routeMap[RouteGet] = s.GetById
-	routeMap[RouteDelete] = s.Delete
-	routeMap[RouteGetAll] = s.GetAll
-	routeMap[RouteGetConnections] = s.GetConnections
-	return s.InitRoutes(routeMap)
+	return s.InitHandlers(service.NewRequestHandlerMapBuilder().
+		Post(RouteSignUp, s.SignUp).
+		Put(RouteUpdate, s.Update).
+		Get(RouteGet, s.GetById).
+		Get(RouteGetAll, s.GetAll).
+		Get(RouteGetConnections, s.GetConnections).
+		Delete(RouteDelete, s.Delete).Build())
 }
 
 func (s *ClientManagementService) SignUp(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
