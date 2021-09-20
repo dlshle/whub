@@ -217,6 +217,10 @@ func (s *ClientService) RegisterRouteV1(requestType int, shortUri string, handle
 	if strings.HasPrefix(shortUri, s.uriPrefix) {
 		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
 	}
+	// remove the extra / in the end to better format request uri(our convention is to not have / at the end)
+	if shortUri[len(shortUri)-1] == '/' {
+		shortUri = shortUri[:len(shortUri)-1]
+	}
 	s.withWrite(func() {
 		// service uri only needs short uri
 		s.serviceUris = append(s.serviceUris, shortUri)
