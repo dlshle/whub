@@ -26,14 +26,14 @@ type RedisTokenStore struct {
 	redis *redis.RedisClient
 }
 
-func NewRedisTokenStore(serverAddr, passwd string) ITokenStore {
+func NewRedisTokenStore(serverAddr, passwd string) (ITokenStore, error) {
 	redis := redis.NewRedisClient(serverAddr, passwd, 5)
 	if err := redis.Ping(); err != nil {
-		panic("redis token store init failed")
+		return nil, err
 	}
 	return &RedisTokenStore{
 		redis: redis,
-	}
+	}, nil
 }
 
 func (s *RedisTokenStore) assembleKey(key string) string {

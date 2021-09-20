@@ -20,6 +20,7 @@ type IMeteringController interface {
 	GetAssembledTraceId(prefix, id string) string
 	Track(id string, description string) IStopWatch
 	Stop(id string)
+	StopAll()
 }
 
 func NewMeteringController(logger *logger.SimpleLogger) IMeteringController {
@@ -95,4 +96,13 @@ func (c *MeteringController) Stop(id string) {
 	c.withWrite(func() {
 		delete(c.stopWatchMap, id)
 	})
+}
+
+func (c *MeteringController) StopAll() {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	c.logger.Println("stop all stop watches")
+	for _, v := range c.stopWatchMap {
+		v.Stop()
+	}
 }

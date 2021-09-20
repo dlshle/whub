@@ -6,6 +6,7 @@ import (
 	"wsdk/relay_client/controllers"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
+	"wsdk/relay_common/middleware"
 	"wsdk/relay_common/service"
 )
 
@@ -49,6 +50,8 @@ func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connect
 	request.SetContext("uri_pattern", matchContext.UriPattern)
 	request.SetContext("path_params", matchContext.PathParams)
 	request.SetContext("query_params", matchContext.QueryParams)
+	// at least run the common middleware
+	request = middleware.ConnectionTypeMiddleware(conn, request)
 	resp := svc.Handle(request)
 	h.m.Stop(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()))
 	return conn.Send(resp)

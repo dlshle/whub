@@ -1,15 +1,15 @@
-package client_management
+package auth_service
 
 import "encoding/json"
 
-type ClientSignupModel struct {
+type SignupPayload struct {
 	Id          string `json:"id"`
 	Description string `json:"description"`
 	Password    string `json:"password"`
 }
 
-func UnmarshallClientSignupModel(data []byte) (ClientSignupModel, error) {
-	var model ClientSignupModel
+func UnmarshallClientSignupModel(data []byte) (SignupPayload, error) {
+	var model SignupPayload
 	err := json.Unmarshal(data, &model)
 	return model, err
 }

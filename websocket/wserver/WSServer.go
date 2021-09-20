@@ -75,7 +75,6 @@ func (ws *WServer) Start() (err error) {
 	// no bitch, you can't unless you can write your own http handler for a listener! Clearly, you can't so fuck it.
 	// detailed reason: http.Server takes over the listener, and it will keep accepting from it, so when other goroutine
 	// can not use the listener or there will be race condition as TCPListener does not use lock internally?
-	ws.logger.Println("starting ws server...")
 	ws.listener, err = net.Listen("tcp", ws.address)
 	if err != nil {
 		ws.logger.Println("net listen error:", err)
@@ -86,6 +85,7 @@ func (ws *WServer) Start() (err error) {
 		ws.logger.Println("http serve error:", err)
 		return
 	}
+	ws.logger.Println("server has started")
 	return nil
 }
 
@@ -101,7 +101,6 @@ func (ws *WServer) handleUpgradeFailure(w http.ResponseWriter, message string) {
 
 func (ws *WServer) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 	// each HTTP request is a new goroutine, so no need to add extra concurrency here
-	// TODO only accept ws or wss protocols
 	path := r.URL.Path
 	if path[len(path)-1] == '/' {
 		path = path[:len(path)-1]

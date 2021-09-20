@@ -2,6 +2,7 @@ package services
 
 import (
 	"wsdk/relay_client"
+	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
 )
@@ -20,7 +21,7 @@ func (s *EchoService) Init(server roles.ICommonServer) (err error) {
 		s.Logger().Println("service has been initiated with err ", err)
 	}()
 	s.IClientService = relay_client.NewClientService(EchoServiceID, "simply echo messages", service.ServiceAccessTypeBoth, service.ServiceExecutionSync, server)
-	err = s.RegisterRoute(EchoServiceRouteEcho, s.Echo)
+	err = s.RegisterRouteV1(messages.MessageTypeServiceGetRequest, EchoServiceRouteEcho, s.Echo)
 	return err
 }
 

@@ -7,10 +7,10 @@ import (
 )
 
 type ClientServiceExecutor struct {
-	handler service.IServiceHandler
+	handler service.IDefaultServiceHandler
 }
 
-func NewClientServiceExecutor(handler service.IServiceHandler) *ClientServiceExecutor {
+func NewClientServiceExecutor(handler service.IDefaultServiceHandler) *ClientServiceExecutor {
 	return &ClientServiceExecutor{
 		handler: handler,
 	}

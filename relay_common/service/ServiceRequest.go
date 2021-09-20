@@ -30,6 +30,10 @@ const (
 	ServiceRequestStatusDead       = 2 // when health check failed
 	ServiceRequestStatusFinished   = 3
 	ServiceRequestStatusCancelled  = 4
+
+	ServiceRequestContextUriPattern  = "uri_pattern"
+	ServiceRequestContextPathParams  = "path_params"
+	ServiceRequestContextQueryParams = "query_params"
 )
 
 var UnProcessableServiceRequestMap map[int]bool

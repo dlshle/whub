@@ -13,14 +13,16 @@ import (
 
 type NativeService struct {
 	*Service
-	handler service.ISimpleRequestHandler
+	handler service.IDefaultServiceHandler
 }
 
 type INativeService interface {
 	IService
 	RegisterRoute(shortUri string, handler service.RequestHandler) (err error)
+	RegisterRouteV1(requestType int, uri string, handler service.RequestHandler) (err error)
 	InitRoutes(routes map[string]service.RequestHandler) (err error)
-	UnregisterRoute(shortUri string) (err error)
+	InitHandlers(handlerMap map[int]map[string]service.RequestHandler) (err error)
+	UnregisterRoute(requestType int, shortUri string) (err error)
 	ResolveByAck(request service.IServiceRequest) error
 	ResolveByResponse(request service.IServiceRequest, responseData []byte) error
 	ResolveByError(request service.IServiceRequest, errType int, msg string) error
@@ -29,29 +31,34 @@ type INativeService interface {
 }
 
 func NewNativeService(id, description string, serviceType, accessType, exeType int) *NativeService {
-	handler := service.NewSimpleServiceHandler()
+	handler := service.NewDefaultServiceHandler()
 	return &NativeService{
 		NewService(id, description, context.Ctx.Server(), request.NewInternalServiceRequestExecutor(handler), make([]string, 0), serviceType, accessType, exeType),
 		handler,
 	}
 }
 
+// TODO deperacate this later
 func (s *NativeService) RegisterRoute(uri string, handler service.RequestHandler) (err error) {
+	return s.RegisterRouteV1(messages.MessageTypeServiceRequest, uri, handler)
+}
+
+func (s *NativeService) RegisterRouteV1(requestType int, uri string, handler service.RequestHandler) (err error) {
 	defer s.Logger().Println(uri, "registration result: ", utils.ConditionalPick(err != nil, err, "success"))
 	shortUri := uri
 	if strings.HasPrefix(uri, s.uriPrefix) {
 		shortUri = strings.TrimPrefix(uri, s.uriPrefix)
 	}
-	s.Logger().Println("registering new route: ", shortUri)
+	s.Logger().Printf("registering new handler %d %s", requestType, shortUri)
 	s.withWrite(func() {
 		s.serviceUris = append(s.serviceUris, shortUri)
 		// handler needs full uri because service manager will provide full uri in request context
-		err = s.handler.Register(fmt.Sprintf("%s%s", s.UriPrefix(), shortUri), handler)
+		err = s.handler.Register(requestType, fmt.Sprintf("%s%s", s.UriPrefix(), shortUri), handler)
 	})
 	return
 }
 
-func (s *NativeService) UnregisterRoute(shortUri string) (err error) {
+func (s *NativeService) UnregisterRoute(requestType int, shortUri string) (err error) {
 	defer s.Logger().Println("route un-registration result: ", utils.ConditionalPick(err != nil, err, "success"))
 	if strings.HasPrefix(shortUri, s.uriPrefix) {
 		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
@@ -70,7 +77,7 @@ func (s *NativeService) UnregisterRoute(shortUri string) (err error) {
 		l := len(s.serviceUris)
 		s.serviceUris[l-1], s.serviceUris[uriIndex] = s.serviceUris[uriIndex], s.serviceUris[l-1]
 		s.serviceUris = s.serviceUris[:l-1]
-		err = s.handler.Unregister(fmt.Sprintf("%s%s", s.UriPrefix(), shortUri))
+		err = s.handler.Unregister(requestType, fmt.Sprintf("%s%s", s.UriPrefix(), shortUri))
 	})
 	return
 }
@@ -123,5 +130,18 @@ func (s *NativeService) InitRoutes(routes map[string]service.RequestHandler) (er
 			return err
 		}
 	}
-	return nil
+	return
+}
+
+func (s *NativeService) InitHandlers(handlerMap map[int]map[string]service.RequestHandler) (err error) {
+	for requestType, uriHandlerMap := range handlerMap {
+		for uri, handler := range uriHandlerMap {
+			if err = s.RegisterRouteV1(requestType, uri, handler); err != nil {
+				return err
+			}
+			delete(uriHandlerMap, uri)
+		}
+		delete(handlerMap, requestType)
+	}
+	return
 }

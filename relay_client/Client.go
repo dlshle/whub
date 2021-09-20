@@ -75,7 +75,7 @@ func (c *Client) login(retry int, err error) (string, error) {
 	}
 	loginBody := ([]byte)(fmt.Sprintf("{\"id\":\"%s\",\"password\":\"%s\"}", c.client.Id(), c.client.CKey()))
 	resp, err := c.HTTPRequest("",
-		messages.NewMessage("", "", "", "/service/client/login",
+		messages.NewMessage("", "", "", "/service/auth/login",
 			messages.MessageTypeServicePostRequest, loginBody))
 	if err != nil {
 		return c.login(retry-1, err)

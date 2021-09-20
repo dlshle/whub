@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"wsdk/common/connection"
 	"wsdk/relay_common/messages"
 )
 
@@ -16,6 +17,13 @@ type IDefaultServiceHandler interface {
 type DefaultServiceHandler struct {
 	uriMap map[string]map[int]RequestHandler
 	lock   *sync.RWMutex
+}
+
+func NewDefaultServiceHandler() IDefaultServiceHandler {
+	return &DefaultServiceHandler{
+		uriMap: make(map[string]map[int]RequestHandler),
+		lock:   new(sync.RWMutex),
+	}
 }
 
 func (h *DefaultServiceHandler) withWrite(cb func()) {
@@ -66,10 +74,12 @@ func (h *DefaultServiceHandler) Unregister(requestType int, uri string) (err err
 
 func (h *DefaultServiceHandler) Handle(request IServiceRequest) (err error) {
 	var handler RequestHandler
-	// TODO this is bad, we need less uncertainty and need to add UriPattern, PathParams, QueryParams to IServiceRequest
-	pattern := request.GetContext("uri_pattern")
-	pathParams := request.GetContext("path_params")
-	queryParams := request.GetContext("query_params")
+	pattern := request.GetContext(ServiceRequestContextUriPattern)
+	pathParams := request.GetContext(ServiceRequestContextPathParams)
+	queryParams := request.GetContext(ServiceRequestContextQueryParams)
+	// TODO, no magic string, but how do we resolve the circular dependency?
+	connType := request.GetContext("connection_type")
+	isAsyncConnType := connType != nil && connection.IsAsyncType(connType.(uint8))
 	if pattern == nil {
 		return errors.New("unable to get uri pattern from request")
 	}
@@ -85,6 +95,13 @@ func (h *DefaultServiceHandler) Handle(request IServiceRequest) (err error) {
 		}
 		handler = requestTypeMap[request.MessageType()]
 		if handler == nil {
+			if isAsyncConnType && len(requestTypeMap) == 1 {
+				// if only 1 requestType and it's async, that's okay to do extra work to assign the right handler for it
+				for _, v := range requestTypeMap {
+					handler = v
+				}
+				return
+			}
 			request.Resolve(messages.NewErrorResponse(request, "",
 				messages.MessageTypeSvcMethodNotAllowedError,
 				fmt.Sprintf("unsupported method for uri %s", pattern.(string))))

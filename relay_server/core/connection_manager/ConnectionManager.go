@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
+	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/events"
@@ -29,16 +30,21 @@ type IConnectionManager interface {
 }
 
 func NewConnectionManager() IConnectionManager {
-	return &ConnectionManager{
+	manager := &ConnectionManager{
 		logger:            context.Ctx.Logger().WithPrefix("[ConnectionManager]"),
 		connStore:         NewInMemoryConnectionStore(),
 		activeClientStore: NewInMemoryActiveClientConnectionStore(),
 	}
+	manager.initNotifications()
+	return manager
 }
 
 func (m *ConnectionManager) initNotifications() {
 	// TODO on client downgrade event
 	// events.OnEvent()
+	events.OnEvent(events.EventServerClosed, func(message messages.IMessage) {
+		m.DisconnectAllConnections()
+	})
 }
 
 func (m *ConnectionManager) AddConnection(conn connection.IConnection) (err error) {

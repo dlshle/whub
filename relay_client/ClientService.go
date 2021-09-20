@@ -27,7 +27,7 @@ type ClientService struct {
 	uriPrefix     string
 	description   string
 	serviceUris   []string // shortUris
-	handler       service.IServiceHandler
+	handler       service.IDefaultServiceHandler
 	host          roles.ICommonServer
 	serviceType   int
 	accessType    int
@@ -51,7 +51,7 @@ type ClientService struct {
 }
 
 func NewClientService(id string, description string, accessType int, execType int, server roles.ICommonServer) *ClientService {
-	handler := service.NewSimpleServiceHandler()
+	handler := service.NewDefaultServiceHandler()
 	s := &ClientService{
 		id:               id,
 		description:      description,
@@ -78,8 +78,10 @@ type IClientService interface {
 	service.IBaseService
 	Init(server roles.ICommonServer) error
 	UpdateDescription(string) error
-	RegisterRoute(shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
-	UnregisterRoute(shortUri string) error                               // should update service descriptor to the host
+	RegisterRoute(shortUri string, handler service.RequestHandler) error                    // should update service descriptor to the host
+	RegisterRouteV1(requestType int, shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
+	InitHandlers(handlerMap map[int]map[string]service.RequestHandler) (err error)
+	UnregisterRoute(requestType int, shortUri string) (err error)
 	NotifyHostForUpdate() error
 	NewMessage(to string, uri string, msgType int, payload []byte) messages.IMessage
 
@@ -208,6 +210,10 @@ func (s *ClientService) Handle(request service.IServiceRequest) messages.IMessag
 }
 
 func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHandler) (err error) {
+	return s.RegisterRouteV1(messages.MessageTypeServiceRequest, shortUri, handler)
+}
+
+func (s *ClientService) RegisterRouteV1(requestType int, shortUri string, handler service.RequestHandler) (err error) {
 	if strings.HasPrefix(shortUri, s.uriPrefix) {
 		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
 	}
@@ -215,7 +221,7 @@ func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHa
 		// service uri only needs short uri
 		s.serviceUris = append(s.serviceUris, shortUri)
 		// handler needs full uri as service manager will provide will uri pattern in request context
-		err = s.handler.Register(fmt.Sprintf("%s%s", s.uriPrefix, shortUri), handler)
+		err = s.handler.Register(requestType, fmt.Sprintf("%s%s", s.uriPrefix, shortUri), handler)
 	})
 	if err != nil {
 		return err
@@ -223,7 +229,7 @@ func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHa
 	return s.NotifyHostForUpdate()
 }
 
-func (s *ClientService) UnregisterRoute(shortUri string) (err error) {
+func (s *ClientService) UnregisterRoute(requestType int, shortUri string) (err error) {
 	uriIndex := -1
 	for i, uri := range s.ServiceUris() {
 		if uri == shortUri {
@@ -237,7 +243,7 @@ func (s *ClientService) UnregisterRoute(shortUri string) (err error) {
 		l := len(s.serviceUris)
 		s.serviceUris[l-1], s.serviceUris[uriIndex] = s.serviceUris[uriIndex], s.serviceUris[l-1]
 		s.serviceUris = s.serviceUris[:l-1]
-		err = s.handler.Unregister(shortUri)
+		err = s.handler.Unregister(requestType, shortUri)
 	})
 	if err != nil {
 		return err
@@ -415,6 +421,19 @@ func (s *ClientService) Init(server roles.ICommonServer) error {
 
 func (s *ClientService) Logger() *logger.SimpleLogger {
 	return s.logger
+}
+
+func (s *ClientService) InitHandlers(handlerMap map[int]map[string]service.RequestHandler) (err error) {
+	for requestType, uriHandlerMap := range handlerMap {
+		for uri, handler := range uriHandlerMap {
+			if err = s.RegisterRouteV1(requestType, uri, handler); err != nil {
+				return err
+			}
+			delete(uriHandlerMap, uri)
+		}
+		delete(handlerMap, requestType)
+	}
+	return
 }
 
 func (s *ClientService) assembleErrorMessageData(message string) []byte {

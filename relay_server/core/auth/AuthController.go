@@ -11,6 +11,7 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_server/client"
+	"wsdk/relay_server/config"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/core/client_manager"
@@ -39,15 +40,31 @@ type AuthController struct {
 }
 
 func NewAuthController() IAuthController {
-	store := NewRedisTokenStore(RedisAddr, RedisPass)
+	logger := context.Ctx.Logger().WithPrefix("[AuthController]")
+	store := createTokenStore(logger)
 	controller := &AuthController{
-		logger: context.Ctx.Logger().WithPrefix("[AuthController]"),
+		logger: logger,
 		store:  store,
 	}
 	if err := container.Container.Fill(controller); err != nil {
 		panic(err)
 	}
 	return controller
+}
+
+func createTokenStore(logger *logger.SimpleLogger) ITokenStore {
+	redisConfig := config.Config.DomainConfigs["authController"].Redis
+	if redisConfig.Server == "" {
+		logger.Println("init in memory store")
+		return NewMemoryTokenStore()
+	}
+	store, err := NewRedisTokenStore(redisConfig.Server, redisConfig.Password)
+	logger.Printf("init redis store with redis server %s", redisConfig.Server)
+	if err != nil {
+		logger.Printf("unable to create redis token store due to %s, will use in memory store", err.Error())
+		store = NewMemoryTokenStore()
+	}
+	return store
 }
 
 // ValidateRequestSource if returns true, nil => logged in; false, nil => not logged in; o/w credential check failure

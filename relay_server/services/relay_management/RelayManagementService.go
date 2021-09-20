@@ -80,15 +80,14 @@ func (s *RelayManagementService) initNotificationHandlers() {
 }
 
 func (s *RelayManagementService) initRoutes() error {
-	routeMap := make(map[string]service_common.RequestHandler)
-	routeMap[RouteRegisterService] = s.RegisterService
-	routeMap[RouteUnregisterService] = s.UnregisterService
-	routeMap[RouteUpdateService] = s.UpdateService
-	routeMap[RouteGetAllServices] = s.GetAllRelayServices
-	routeMap[RouteGetServicesByClientId] = s.GetServiceByClientId
-	routeMap[RouteUpdateProviderConnection] = s.UpdateServiceProviderConnection
-	routeMap[RouteGetServiceProviderConnections] = s.GetServiceProviderConnections
-	return s.InitRoutes(routeMap)
+	return s.InitHandlers(service_common.NewRequestHandlerMapBuilder().
+		Post(RouteRegisterService, s.RegisterService).
+		Delete(RouteUnregisterService, s.UnregisterService).
+		Put(RouteUpdateService, s.UpdateService).
+		Get(RouteGetAllServices, s.GetAllRelayServices).
+		Get(RouteGetServicesByClientId, s.GetServiceByClientId).
+		Patch(RouteUpdateProviderConnection, s.UpdateServiceProviderConnection).
+		Get(RouteGetServiceProviderConnections, s.GetServiceProviderConnections).Build())
 }
 
 func (s *RelayManagementService) validateClientConnection(request service_common.IServiceRequest) error {

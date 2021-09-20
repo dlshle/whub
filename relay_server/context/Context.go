@@ -2,7 +2,6 @@ package context
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"runtime"
 	"sync"
@@ -13,22 +12,13 @@ import (
 	"wsdk/relay_common/notification"
 	"wsdk/relay_common/roles"
 )
+import . "wsdk/relay_server/config"
 
 var Ctx *Context
 
 func init() {
 	Ctx = NewContext()
 }
-
-const (
-	defaultMaxListenerCount        = 1024
-	defaultAsyncPoolSize           = 2048
-	defaultServicePoolSize         = 1024
-	defaultAsyncPoolWorkerFactor   = 32
-	defaultServicePoolWorkerFactor = 16
-	defaultMaxConcurrentConnection = 2048
-	defaultSignKey                 = "d1s7218U7!d-r5b"
-)
 
 type Context struct {
 	lock                *sync.Mutex
@@ -56,23 +46,23 @@ type IContext interface {
 }
 
 func NewContext() *Context {
-	// TODO use config values from container
-	asyncPool := async.NewAsyncPool("[ctx-async-pool]", defaultAsyncPoolSize, runtime.NumCPU()*defaultAsyncPoolWorkerFactor)
+	config := Config.CommonConfig
+	asyncPool := async.NewAsyncPool("[ctx-async-pool]", config.MaxAsyncPoolSize, runtime.NumCPU()*config.AsyncPoolWorkerFactor)
 	asyncPool.Verbose(false)
-	servicePool := async.NewAsyncPool("[ctx-service-pool]", defaultServicePoolSize, runtime.NumCPU()*defaultServicePoolWorkerFactor)
+	servicePool := async.NewAsyncPool("[ctx-service-pool]", config.MaxServiceAsyncPoolSize, runtime.NumCPU()*config.ServiceAsyncPoolWorkerFactor)
 	servicePool.Verbose(false)
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Context{
 		messageParser:       messages.NewFBMessageParser(),
 		asyncTaskPool:       asyncPool,
 		serviceTaskPool:     servicePool,
-		notificationEmitter: notification.New(defaultMaxListenerCount),
+		notificationEmitter: notification.New(config.MaxListenerCount),
 		lock:                new(sync.Mutex),
 		ctx:                 &ctx,
 		cancelFunc:          cancel,
 		startWaiter:         async.NewWaitLock(),
 		logger:              logger.New(os.Stdout, "[WServer]", true),
-		signKey:             ([]byte)(defaultSignKey),
+		signKey:             ([]byte)(config.SignKey),
 	}
 }
 
@@ -95,34 +85,14 @@ func (c *Context) Server() roles.IDescribableRole {
 }
 
 func (c *Context) AsyncTaskPool() async.IAsyncPool {
-	c.withLock(func() {
-		if c.asyncTaskPool == nil {
-			workerSize := runtime.NumCPU() * defaultAsyncPoolWorkerFactor
-			c.logger.Printf("async pool initialized with maxPoolSize %d and workerSize %d", defaultAsyncPoolSize, workerSize)
-			c.asyncTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-async-pool]"), defaultAsyncPoolSize, workerSize)
-		}
-	})
 	return c.asyncTaskPool
 }
 
 func (c *Context) ServiceTaskPool() async.IAsyncPool {
-	c.withLock(func() {
-		if c.serviceTaskPool == nil {
-			workerSize := runtime.NumCPU() * defaultServicePoolWorkerFactor
-			c.logger.Printf("service async pool initialized with maxPoolSize %d and workerSize %d", defaultServicePoolSize, workerSize)
-			c.serviceTaskPool = async.NewAsyncPool(fmt.Sprintf("[ctx-service-pool]"), defaultServicePoolSize, workerSize)
-		}
-	})
 	return c.serviceTaskPool
 }
 
 func (c *Context) NotificationEmitter() notification.IWRNotificationEmitter {
-	c.withLock(func() {
-		if c.notificationEmitter == nil {
-			c.logger.Printf("notificationEmitter has been initialized with maxListenerCount %d", defaultMaxListenerCount)
-			c.notificationEmitter = notification.New(defaultMaxListenerCount)
-		}
-	})
 	return c.notificationEmitter
 }
 

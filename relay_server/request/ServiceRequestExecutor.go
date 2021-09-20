@@ -15,10 +15,10 @@ import (
 )
 
 type InternalServiceRequestExecutor struct {
-	handler service.ISimpleRequestHandler
+	handler service.IDefaultServiceHandler
 }
 
-func NewInternalServiceRequestExecutor(handler service.ISimpleRequestHandler) service.IRequestExecutor {
+func NewInternalServiceRequestExecutor(handler service.IDefaultServiceHandler) service.IRequestExecutor {
 	return &InternalServiceRequestExecutor{handler}
 }
 

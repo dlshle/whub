@@ -1,9 +1,11 @@
 package metering
 
 import (
+	"wsdk/relay_common/messages"
 	"wsdk/relay_common/metering"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/events"
 )
 
 const (
@@ -20,9 +22,17 @@ type IServerMeteringController interface {
 }
 
 func NewServerMeteringController() IServerMeteringController {
-	return &ServerMeteringController{
+	controller := &ServerMeteringController{
 		metering.NewMeteringController(context.Ctx.Logger().WithPrefix("[ServerMeteringController]")),
 	}
+	controller.initNotifications()
+	return controller
+}
+
+func (c *ServerMeteringController) initNotifications() {
+	events.OnEvent(events.EventServerClosed, func(message messages.IMessage) {
+		c.StopAll()
+	})
 }
 
 func (c *ServerMeteringController) TraceMessagePerformance(messageId string) metering.IStopWatch {

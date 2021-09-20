@@ -36,6 +36,7 @@ func (s *FileService) Init(server roles.ICommonServer) (err error) {
 	if err != nil {
 		return err
 	}
+
 	err = s.RegisterRoute(FileServiceRouteGet, s.Get)
 	if err != nil {
 		return

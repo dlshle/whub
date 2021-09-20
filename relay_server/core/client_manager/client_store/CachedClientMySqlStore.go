@@ -14,17 +14,17 @@ func init() {
 	InCompatibleError = errors.New("incompatible type conversion of Client")
 }
 
-type CachedClientMySqlStore struct {
+type CachedMySqlStore struct {
 	cachedStore *redis.RedisCachedStore
 	redisClient *redis.RedisClient
-	mySqlStore  *ClientMySqlStore
+	mySqlStore  *MySqlStore
 }
 
-func NewCachedClientMySqlStore() *CachedClientMySqlStore {
-	return &CachedClientMySqlStore{}
+func NewCachedClientMySqlStore() *CachedMySqlStore {
+	return &CachedMySqlStore{}
 }
 
-func (s *CachedClientMySqlStore) Init(fullDBUri, username, password, dbname string, redisAddr, redisPass string) error {
+func (s *CachedMySqlStore) Init(fullDBUri, username, password, dbname string, redisAddr, redisPass string) error {
 	s.mySqlStore = NewMySqlClientStore()
 	if err := s.mySqlStore.Init(fullDBUri, username, password, dbname); err != nil {
 		return err
@@ -37,7 +37,7 @@ func (s *CachedClientMySqlStore) Init(fullDBUri, username, password, dbname stri
 	return nil
 }
 
-func (s *CachedClientMySqlStore) Get(id string) (*client.Client, error) {
+func (s *CachedMySqlStore) Get(id string) (*client.Client, error) {
 	iClient, err := s.cachedStore.Get(id)
 	if err != nil {
 		return nil, err
@@ -49,36 +49,36 @@ func (s *CachedClientMySqlStore) Get(id string) (*client.Client, error) {
 	return client, nil
 }
 
-func (s *CachedClientMySqlStore) GetAll() ([]*client.Client, error) {
+func (s *CachedMySqlStore) GetAll() ([]*client.Client, error) {
 	return s.mySqlStore.GetAll()
 }
 
-func (s *CachedClientMySqlStore) Create(client *client.Client) error {
+func (s *CachedMySqlStore) Create(client *client.Client) error {
 	return s.cachedStore.Create(client.Id(), client)
 }
 
-func (s *CachedClientMySqlStore) Update(client *client.Client) error {
+func (s *CachedMySqlStore) Update(client *client.Client) error {
 	return s.cachedStore.Update(client.Id(), client)
 }
 
-func (s *CachedClientMySqlStore) Has(id string) (bool, error) {
+func (s *CachedMySqlStore) Has(id string) (bool, error) {
 	data, err := s.Get(id)
 	return data != nil, err
 }
 
-func (s *CachedClientMySqlStore) Delete(id string) error {
+func (s *CachedMySqlStore) Delete(id string) error {
 	return s.cachedStore.Delete(id)
 }
 
-func (s *CachedClientMySqlStore) Find(query *DClientQuery) ([]*client.Client, error) {
+func (s *CachedMySqlStore) Find(query *DClientQuery) ([]*client.Client, error) {
 	return s.mySqlStore.Find(query)
 }
 
 type MySqlStoreCacheAdaptor struct {
-	mySqlStore *ClientMySqlStore
+	mySqlStore *MySqlStore
 }
 
-func NewMySqlStoreCacheAdaptor(store *ClientMySqlStore) *MySqlStoreCacheAdaptor {
+func NewMySqlStoreCacheAdaptor(store *MySqlStore) *MySqlStoreCacheAdaptor {
 	return &MySqlStoreCacheAdaptor{store}
 }
 

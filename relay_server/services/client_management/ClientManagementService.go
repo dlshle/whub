@@ -4,35 +4,31 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"wsdk/common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/core/auth"
 	"wsdk/relay_server/core/client_manager"
 	"wsdk/relay_server/core/connection_manager"
 	"wsdk/relay_server/service_base"
+	"wsdk/relay_server/services/auth_service"
 )
 
 const (
 	ID                  = "client"
 	RouteSignUp         = "/signup"
-	RouteLogin          = "/login" // async only
-	RouteLogOff         = "/logoff"
+	RouteDelete         = "/delete"
 	RouteGet            = "/get/:id"
 	RouteGetAll         = "/get"
 	RouteUpdate         = "/update"
 	RouteGetConnections = "/get/:id/conn"
-	RouteRefreshToken   = "/token/refresh"
 )
 
 type ClientManagementService struct {
 	*service_base.NativeService
-	clientManager  client_manager.IClientManager         `$inject:""`
-	connManager    connection_manager.IConnectionManager `$inject:""`
-	authController auth.IAuthController                  `$inject:""`
+	clientManager client_manager.IClientManager         `$inject:""`
+	connManager   connection_manager.IConnectionManager `$inject:""`
 }
 
 func (s *ClientManagementService) Init() (err error) {
@@ -49,11 +45,9 @@ func (s *ClientManagementService) Init() (err error) {
 	routeMap[RouteSignUp] = s.SignUp
 	routeMap[RouteUpdate] = s.Update
 	routeMap[RouteGet] = s.GetById
-	routeMap[RouteLogOff] = s.LogOff
+	routeMap[RouteDelete] = s.Delete
 	routeMap[RouteGetAll] = s.GetAll
-	routeMap[RouteLogin] = s.Login
 	routeMap[RouteGetConnections] = s.GetConnections
-	routeMap[RouteRefreshToken] = s.RefreshToken
 	return s.InitRoutes(routeMap)
 }
 
@@ -62,7 +56,7 @@ func (s *ClientManagementService) SignUp(request service.IServiceRequest, pathPa
 		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "you have already logged in")
 	}
 	// body should be client descriptor
-	signupModel, err := UnmarshallClientSignupModel(request.Payload())
+	signupModel, err := auth_service.UnmarshallClientSignupModel(request.Payload())
 	if err != nil {
 		return err
 	}
@@ -73,23 +67,6 @@ func (s *ClientManagementService) SignUp(request service.IServiceRequest, pathPa
 	}
 	client.SetCKey("******")
 	s.ResolveByResponse(request, ([]byte)(client.Describe().String()))
-	return nil
-}
-
-func (s *ClientManagementService) Login(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	if request.From() != "" {
-		return s.ResolveByError(request, messages.MessageTypeSvcForbiddenError, "you have already logged in")
-	}
-	loginModel, err := UnmarshallClientLoginModel(request.Payload())
-	if err != nil {
-		return err
-	}
-	token, err := s.authController.Login(connection.TypeHTTP, loginModel.Id, loginModel.Password)
-	if err != nil {
-		return err
-	}
-	// TODO need a better model to hold token and meta-data
-	s.ResolveByResponse(request, ([]byte)(fmt.Sprintf("{\"token\":\"%s\"}", token)))
 	return nil
 }
 
@@ -154,19 +131,25 @@ func (s *ClientManagementService) getMarshalledClientInfo(client *client.Client,
 	return ([]byte)(clientDesc.String())
 }
 
-func (s *ClientManagementService) LogOff(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	clientId := request.From()
-	if request.From() == "" {
-		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "you have not logged in")
-	}
-	if clientId == "" {
-		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "invalid identity")
-	}
-	err = s.clientManager.DeleteClient(clientId)
+func (s *ClientManagementService) Delete(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	me, err := s.getCurrentUser(request.From())
 	if err != nil {
-		return err
+		return
 	}
-	s.ResolveByResponse(request, ([]byte)("deleted"))
+	if me.CType() < roles.ClientTypeManager {
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "you are not authorized to delete clients")
+	}
+	deleteClientsPayload, err := UnmarshalDeleteClientsPayload(request.Payload())
+	if err != nil {
+		return
+	}
+	for _, id := range deleteClientsPayload.ids {
+		err = s.clientManager.DeleteClient(id)
+		if err != nil {
+			return
+		}
+	}
+	s.ResolveByResponse(request, ([]byte)("ok"))
 	return nil
 }
 
@@ -226,25 +209,4 @@ func (s *ClientManagementService) GetConnections(request service.IServiceRequest
 	}
 	s.ResolveByResponse(request, marshalled)
 	return nil
-}
-
-func (s *ClientManagementService) RefreshToken(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
-	from := request.From()
-	tokenValue := request.GetContext(auth.AuthToken)
-	if from == "" || tokenValue == nil {
-		return s.ResolveByInvalidCredential(request)
-	}
-	token, ok := tokenValue.(string)
-	if !ok {
-		return s.ResolveByError(request, messages.MessageTypeSvcInternalError, "unable to cast token to string")
-	}
-	refreshTokenMessageBody, err := auth.UnmarshallRefreshTokenMessageBody(request.Message().Payload())
-	if err != nil {
-		return
-	}
-	newToken, err := s.authController.RefreshToken(token, from, refreshTokenMessageBody)
-	if err != nil {
-		return
-	}
-	return s.ResolveByResponse(request, ([]byte)(fmt.Sprintf("{\"token\":\"%s\"}", newToken)))
 }

@@ -39,11 +39,10 @@ func (s *StatusService) Init() error {
 }
 
 func (s *StatusService) initRoutes() error {
-	routeMap := make(map[string]service_common.RequestHandler)
-	routeMap[RouteGetStatus] = s.GetStatus
-	routeMap[RouteGetStatus] = s.GetAllInternalServices
-	routeMap[RouteInfo] = s.GetInfo
-	return s.InitRoutes(routeMap)
+	return s.InitHandlers(service_common.NewRequestHandlerMapBuilder().
+		Get(RouteGetStatus, s.GetStatus).
+		Get(RouteGetServices, s.GetAllInternalServices).
+		Get(RouteInfo, s.GetInfo).Build())
 }
 
 func (s *StatusService) initPubSubTopic() error {

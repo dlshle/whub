@@ -1,9 +1,11 @@
 package client_manager
 
 import (
+	"errors"
 	"time"
 	"wsdk/common/logger"
 	"wsdk/relay_server/client"
+	"wsdk/relay_server/config"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/core/client_manager/client_store"
@@ -29,24 +31,62 @@ type ClientManager struct {
 }
 
 func NewClientManager() IClientManager {
-	// TODO remove later test only
-	// sqlStore := client_store.NewMySqlClientStore()
-	// redisClient := redis.NewRedisClient(client_store.RedisAddr, client_store.RedisPass, 5)
-	store := client_store.NewCachedClientMySqlStore()
-	err := store.Init(client_store.SQLServer, client_store.SQLUserName, client_store.SQLPassword, client_store.SQLDBName, client_store.RedisAddr, client_store.RedisPass)
-	if err != nil {
-		panic(err)
-	}
-	// ^^ TEST ONLY
+	logger := context.Ctx.Logger().WithPrefix("[ClientManager]")
+	store := createClientManagerStore(logger)
 	manager := &ClientManager{
 		store:  store,
-		logger: context.Ctx.Logger().WithPrefix("[ClientManager]"),
+		logger: logger,
 	}
-	// err := container.Container.Fill(manager)
-	// if err != nil {
-	// panic(err)
-	// }
 	return manager
+}
+
+func createCachedStore(clientManagerConfig config.DomainConfig) (client_store.IClientStore, error) {
+	mySqlConfig := clientManagerConfig.Persistent
+	redisConfig := clientManagerConfig.Redis
+	if mySqlConfig.Driver != "mysql" {
+		return nil, errors.New("invalid clientManager.persistent.db value")
+	}
+	store := client_store.NewCachedClientMySqlStore()
+	err := store.Init(mySqlConfig.Server, mySqlConfig.Username, mySqlConfig.Password, mySqlConfig.Db, redisConfig.Server, redisConfig.Password)
+	return store, err
+}
+
+func createMySqlStore(clientManagerConfig config.DomainConfig) (client_store.IClientStore, error) {
+	mySqlConfig := clientManagerConfig.Persistent
+	if mySqlConfig.Driver != "mysql" {
+		return nil, errors.New("invalid clientManager.persistent.db value")
+	}
+	store := client_store.NewMySqlClientStore()
+	err := store.Init(mySqlConfig.Server, mySqlConfig.Username, mySqlConfig.Password, mySqlConfig.Db)
+	return store, err
+}
+
+func createInMemoryStore() (client_store.IClientStore, error) {
+	return client_store.NewInMemoryStore(), nil
+}
+
+func createClientManagerStore(logger *logger.SimpleLogger) client_store.IClientStore {
+	domainConfig := config.Config.DomainConfigs
+	clientManagerConfig := domainConfig["clientManager"]
+	hasPersistent := clientManagerConfig.Persistent.Server != ""
+	hasRedis := clientManagerConfig.Redis.Server != ""
+	var store client_store.IClientStore
+	var err error
+	if hasPersistent && hasRedis {
+		logger.Printf("create cached mysql client store with redisServer %s and mySqlServer %s", clientManagerConfig.Redis.Server, clientManagerConfig.Persistent.Server)
+		store, err = createCachedStore(clientManagerConfig)
+	} else if hasPersistent {
+		logger.Printf("create mysql client store with  mySqlServer %s", clientManagerConfig.Persistent.Server)
+		store, err = createMySqlStore(clientManagerConfig)
+	} else {
+		logger.Println("create in memory client store")
+		store, err = createInMemoryStore()
+	}
+	if err != nil {
+		logger.Printf("create configured store failed due to %s, will use in memory store for ClientManager", err.Error())
+		store, err = createInMemoryStore()
+	}
+	return store
 }
 
 func (m *ClientManager) HasClient(id string) (bool, error) {
