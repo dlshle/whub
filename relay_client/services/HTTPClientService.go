@@ -26,8 +26,7 @@ func (s *HTTPClientService) Init(server roles.ICommonServer) (err error) {
 	}()
 	s.IClientService = relay_client.NewClientService(HTTPClientServiceId, "simply echo messages", service.ServiceAccessTypeBoth, service.ServiceExecutionSync, server)
 	s.httpClient = http_client.NewPool("[HTTPClient]", 2, 512, 30)
-	err = s.RegisterRoute(HTTPClientServiceRouteEcho, s.Request)
-	return err
+	return s.InitHandlers(service.NewRequestHandlerMapBuilder().Get(HTTPClientServiceRouteEcho, s.Request).Build())
 }
 
 func (s *HTTPClientService) Request(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {

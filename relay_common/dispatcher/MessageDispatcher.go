@@ -1,4 +1,4 @@
-package message_actions
+package dispatcher
 
 import (
 	"sync"

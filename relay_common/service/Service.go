@@ -23,7 +23,7 @@ func init() {
 }
 
 const (
-	ServicePrefix = "/service"
+	ServicePrefix = ""
 )
 
 type ServiceDescriptor struct {

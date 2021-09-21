@@ -34,5 +34,15 @@
         "password": "19950416"
       }
     }
+  },
+  "throttleConfigs": {
+    "address": {
+      "window": 60,
+      "limit": 300
+    },
+    "client": {
+      "window": 60,
+      "limit": 300
+    }
   }
 }

@@ -36,12 +36,9 @@ func (s *FileService) Init(server roles.ICommonServer) (err error) {
 	if err != nil {
 		return err
 	}
-
-	err = s.RegisterRoute(FileServiceRouteGet, s.Get)
-	if err != nil {
-		return
-	}
-	return s.RegisterRoute(FileServiceRouteListAll, s.List)
+	return s.InitHandlers(service.NewRequestHandlerMapBuilder().
+		Get(FileServiceRouteGet, s.Get).
+		Get(FileServiceRouteListAll, s.List).Build())
 }
 
 func (s *FileService) Get(request service.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {

@@ -30,8 +30,12 @@ func NewMiddlewareManager() IMiddlewareManager {
 }
 
 func (m *MiddlewareManager) RunMiddlewares(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest {
-	m.middlewares.ForEach(func(md interface{}) {
+	m.middlewares.ForEach(func(md interface{}) bool {
 		request = md.(middleware.IServerMiddleware).Run(conn, request)
+		if request.Status() > service.ServiceRequestStatusProcessing {
+			return false
+		}
+		return true
 	})
 	return request
 }

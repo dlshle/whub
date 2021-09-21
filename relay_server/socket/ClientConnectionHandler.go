@@ -7,7 +7,7 @@ import (
 	"wsdk/common/connection"
 	"wsdk/common/logger"
 	common_connection "wsdk/relay_common/connection"
-	"wsdk/relay_common/message_actions"
+	"wsdk/relay_common/dispatcher"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
@@ -17,7 +17,7 @@ import (
 )
 
 type ClientConnectionHandler struct {
-	messageDispatcher message_actions.IMessageDispatcher
+	messageDispatcher dispatcher.IMessageDispatcher
 	connectionManager connection_manager.IConnectionManager `$inject:""`
 	authController    auth.IAuthController                  `$inject:""`
 	logger            *logger.SimpleLogger
@@ -28,7 +28,7 @@ type IClientConnectionHandler interface {
 	HandleConnectionEstablished(conn connection.IConnection, r *http.Request)
 }
 
-func NewClientConnectionHandler(messageDispatcher message_actions.IMessageDispatcher) IClientConnectionHandler {
+func NewClientConnectionHandler(messageDispatcher dispatcher.IMessageDispatcher) IClientConnectionHandler {
 	h := &ClientConnectionHandler{
 		messageDispatcher: messageDispatcher,
 		logger:            context.Ctx.Logger().WithPrefix("[ClientConnectionHandler]"),

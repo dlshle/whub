@@ -1,13 +1,12 @@
 package auth
 
 const (
-	BearerTokenLen = len("Bearer ")
-	AuthHeaderKey  = "Authorization"
+	AuthHeaderKey = "R-Token"
 )
 
 func GetTrimmedHTTPToken(header map[string][]string) string {
-	if header[AuthHeaderKey] != nil && len(header[AuthHeaderKey]) > 0 && len(header[AuthHeaderKey][0]) > BearerTokenLen {
-		return header[AuthHeaderKey][0][BearerTokenLen:]
+	if header[AuthHeaderKey] != nil && len(header[AuthHeaderKey]) > 0 {
+		return header[AuthHeaderKey][0]
 	}
 	return ""
 }

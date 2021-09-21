@@ -10,7 +10,7 @@ import (
 	"wsdk/relay_server/services/auth_service"
 	"wsdk/relay_server/services/client_management"
 	"wsdk/relay_server/services/messaging"
-	"wsdk/relay_server/services/relay_management"
+	"wsdk/relay_server/services/service_management"
 	"wsdk/relay_server/services/status"
 )
 
@@ -27,7 +27,7 @@ func init() {
 func instantiateInstances() {
 	serviceInstances = make(map[string]service_base.INativeService)
 	serviceInstances[messaging.ID] = new(messaging.MessagingService)
-	serviceInstances[relay_management.ID] = new(relay_management.RelayManagementService)
+	serviceInstances[service_management.ID] = new(service_management.ServiceManagementService)
 	serviceInstances[status.ID] = new(status.StatusService)
 	serviceInstances[client_management.ID] = new(client_management.ClientManagementService)
 	serviceInstances[auth_service.ID] = new(auth_service.AuthService)

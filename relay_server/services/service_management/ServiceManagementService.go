@@ -1,4 +1,4 @@
-package relay_management
+package service_management
 
 import (
 	"encoding/json"
@@ -24,24 +24,25 @@ import (
 )
 
 const (
-	ID                                 = "relay"
+	ID                                 = "services"
 	RouteRegisterService               = "/register"   // payload = service descriptor
 	RouteUnregisterService             = "/unregister" // payload = service descriptor
 	RouteUpdateService                 = "/update"     // payload = service descriptor
 	RouteGetAllServices                = "/services"   // need privilege, respond with all relayed services
 	RouteGetServicesByClientId         = "/clients/:clientId"
 	RouteUpdateProviderConnection      = "/providers" // need privilege, need to check if client has service
-	RouteGetServiceProviderConnections = "/services/:id/providers"
+	RouteGetServiceProviderConnections = "/:id/providers"
+	RouteGetServiceById                = "/:id"
 )
 
-type RelayManagementService struct {
+type ServiceManagementService struct {
 	*service_base.NativeService
 	clientManager  client_manager.IClientManager   `$inject:""`
 	serviceManager service_manager.IServiceManager `$inject:""`
 	servicePool    *sync.Pool
 }
 
-func (s *RelayManagementService) Init() error {
+func (s *ServiceManagementService) Init() error {
 	s.NativeService = service_base.NewNativeService(ID, "relay management service", service_common.ServiceTypeInternal, service_common.ServiceAccessTypeSocket, service_common.ServiceExecutionSync)
 	s.servicePool = &sync.Pool{
 		New: func() interface{} {
@@ -55,12 +56,12 @@ func (s *RelayManagementService) Init() error {
 	return s.init()
 }
 
-func (s *RelayManagementService) init() error {
+func (s *ServiceManagementService) init() error {
 	s.initNotificationHandlers()
 	return s.initRoutes()
 }
 
-func (s *RelayManagementService) initNotificationHandlers() {
+func (s *ServiceManagementService) initNotificationHandlers() {
 	events.OnEvent(events.EventClientConnectionGone, func(message messages.IMessage) {
 		clientId := string(message.Payload()[:])
 		s.serviceManager.UnregisterAllServicesFromClientId(clientId)
@@ -79,8 +80,9 @@ func (s *RelayManagementService) initNotificationHandlers() {
 	})
 }
 
-func (s *RelayManagementService) initRoutes() error {
+func (s *ServiceManagementService) initRoutes() error {
 	return s.InitHandlers(service_common.NewRequestHandlerMapBuilder().
+		Get(RouteGetServiceById, s.GetServiceById).
 		Post(RouteRegisterService, s.RegisterService).
 		Delete(RouteUnregisterService, s.UnregisterService).
 		Put(RouteUpdateService, s.UpdateService).
@@ -90,7 +92,7 @@ func (s *RelayManagementService) initRoutes() error {
 		Get(RouteGetServiceProviderConnections, s.GetServiceProviderConnections).Build())
 }
 
-func (s *RelayManagementService) validateClientConnection(request service_common.IServiceRequest) error {
+func (s *ServiceManagementService) validateClientConnection(request service_common.IServiceRequest) error {
 	if request.GetContext(connection_manager.IsSyncConnContextKey).(bool) {
 		return errors.New("connection type not supported")
 	}
@@ -100,7 +102,23 @@ func (s *RelayManagementService) validateClientConnection(request service_common
 	return nil
 }
 
-func (s *RelayManagementService) RegisterService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *ServiceManagementService) GetServiceById(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+	id := pathParams["id"]
+	if id == "" {
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, "invalid id path param")
+	}
+	svc := s.serviceManager.GetService(id)
+	if svc == nil {
+		return s.ResolveByError(request, messages.MessageTypeSvcNotFoundError, fmt.Sprintf("can not find service by id %s", id))
+	}
+	marshalled, err := json.Marshal(svc.Describe())
+	if err != nil {
+		return err
+	}
+	return s.ResolveByResponse(request, marshalled)
+}
+
+func (s *ServiceManagementService) RegisterService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	defer func() {
 		if err != nil {
 			s.Logger().Printf("service registration from %s failed due to %s", request.From(), err.Error())
@@ -136,13 +154,13 @@ func (s *RelayManagementService) RegisterService(request service_common.IService
 	return nil
 }
 
-func (s *RelayManagementService) createRelayService(provider *client.Client, descriptor service_common.ServiceDescriptor) service_base.IService {
+func (s *ServiceManagementService) createRelayService(provider *client.Client, descriptor service_common.ServiceDescriptor) service_base.IService {
 	service := s.servicePool.Get().(service_base.IRelayService)
 	service.Init(descriptor, provider, request_executor.NewRelayServiceRequestExecutor(descriptor.Id, provider.Id()))
 	return service
 }
 
-func (s *RelayManagementService) UnregisterService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *ServiceManagementService) UnregisterService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	defer s.Logger().Printf("service %v un-registration result: %s",
 		utils.ConditionalPick(request != nil, request.Message(), nil),
 		utils.ConditionalPick(err != nil, err, "success"))
@@ -174,7 +192,7 @@ func (s *RelayManagementService) UnregisterService(request service_common.IServi
 	return nil
 }
 
-func (s *RelayManagementService) UpdateService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *ServiceManagementService) UpdateService(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	if err := s.validateClientConnection(request); err != nil {
 		return s.ResolveByInvalidCredential(request)
 	}
@@ -194,7 +212,7 @@ func (s *RelayManagementService) UpdateService(request service_common.IServiceRe
 	return nil
 }
 
-func (s *RelayManagementService) GetServiceByClientId(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *ServiceManagementService) GetServiceByClientId(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	clientId := pathParams["clientId"]
 	if clientId == "" {
 		return errors.New("parameter [:clientId] is missing")
@@ -216,7 +234,7 @@ func (s *RelayManagementService) GetServiceByClientId(request service_common.ISe
 	return nil
 }
 
-func (s *RelayManagementService) GetAllRelayServices(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *ServiceManagementService) GetAllRelayServices(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	services := s.serviceManager.DescribeAllRelayServices()
 	marshalled, err := json.Marshal(services)
 	if err != nil {
@@ -226,7 +244,7 @@ func (s *RelayManagementService) GetAllRelayServices(request service_common.ISer
 	return nil
 }
 
-func (s *RelayManagementService) UpdateServiceProviderConnection(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
+func (s *ServiceManagementService) UpdateServiceProviderConnection(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) (err error) {
 	err = s.validateClientConnection(request)
 	if err != nil {
 		return s.ResolveByInvalidCredential(request)
@@ -253,7 +271,7 @@ func (s *RelayManagementService) UpdateServiceProviderConnection(request service
 	return s.ResolveByResponse(request, ([]byte)(descriptor.String()))
 }
 
-func (s *RelayManagementService) tryToRestoreDeadServicesFromReconnectedClient(clientId string) (err error) {
+func (s *ServiceManagementService) tryToRestoreDeadServicesFromReconnectedClient(clientId string) (err error) {
 	defer s.Logger().Printf("restore service from client %s result: %s", clientId, utils.ConditionalPick(err != nil, err, "success"))
 	s.Logger().Println("restore services from client ", clientId)
 	s.serviceManager.WithServicesFromClientId(clientId, func(services []service_base.IService) {
@@ -273,7 +291,7 @@ func (s *RelayManagementService) tryToRestoreDeadServicesFromReconnectedClient(c
 	return
 }
 
-func (s *RelayManagementService) GetServiceProviderConnections(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
+func (s *ServiceManagementService) GetServiceProviderConnections(request service_common.IServiceRequest, pathParams map[string]string, queryParams map[string]string) error {
 	if request.From() == "" {
 		return s.ResolveByInvalidCredential(request)
 	}
@@ -283,7 +301,10 @@ func (s *RelayManagementService) GetServiceProviderConnections(request service_c
 	}
 	svc := s.serviceManager.GetService(serviceId)
 	if svc == nil {
-		return s.ResolveByError(request, messages.MessageTypeSvcNotFoundError, fmt.Sprintf("can not find service by id %s", serviceId))
+		return s.ResolveByError(request, messages.MessageTypeSvcNotFoundError, fmt.Sprintf("can not find service by id [%s]", serviceId))
+	}
+	if svc.ServiceType() != service_common.ServiceTypeRelay {
+		return s.ResolveByError(request, messages.MessageTypeSvcBadRequestError, fmt.Sprintf("service [%s] is not a relay service", svc.Id()))
 	}
 	me, err := s.clientManager.GetClient(request.From())
 	if err != nil {
@@ -296,7 +317,7 @@ func (s *RelayManagementService) GetServiceProviderConnections(request service_c
 	return s.ResolveByResponse(request, ([]byte)(s.assembleConnJsonArr(conns)))
 }
 
-func (s *RelayManagementService) assembleConnJsonArr(conns []connection.IConnection) string {
+func (s *ServiceManagementService) assembleConnJsonArr(conns []connection.IConnection) string {
 	var builder strings.Builder
 	builder.WriteByte('[')
 	for i, conn := range conns {

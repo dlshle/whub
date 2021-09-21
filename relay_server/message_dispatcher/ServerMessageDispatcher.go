@@ -3,7 +3,7 @@ package message_dispatcher
 import (
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
-	"wsdk/relay_common/message_actions"
+	"wsdk/relay_common/dispatcher"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
@@ -11,13 +11,13 @@ import (
 )
 
 type ServerMessageDispatcher struct {
-	dispatcher *message_actions.MessageDispatcher
+	dispatcher *dispatcher.MessageDispatcher
 	metering   metering.IServerMeteringController `$inject:""`
 }
 
 func NewServerMessageDispatcher() *ServerMessageDispatcher {
 	md := &ServerMessageDispatcher{
-		dispatcher: message_actions.NewMessageDispatcher(context.Ctx.Logger().WithPrefix("[MessageDispatcher]")),
+		dispatcher: dispatcher.NewMessageDispatcher(context.Ctx.Logger().WithPrefix("[MessageDispatcher]")),
 	}
 	err := container.Container.Fill(md)
 	if err != nil {
@@ -27,7 +27,7 @@ func NewServerMessageDispatcher() *ServerMessageDispatcher {
 	return md
 }
 
-func (d *ServerMessageDispatcher) registerHandler(handler message_actions.IMessageHandler) {
+func (d *ServerMessageDispatcher) registerHandler(handler dispatcher.IMessageHandler) {
 	d.dispatcher.RegisterHandler(handler)
 }
 
@@ -37,8 +37,8 @@ func (d *ServerMessageDispatcher) logger() *logger.SimpleLogger {
 
 func (d *ServerMessageDispatcher) init() {
 	// register common message handlers
-	d.registerHandler(message_actions.NewPingMessageHandler(context.Ctx.Server()))
-	d.registerHandler(message_actions.NewInvalidMessageHandler(context.Ctx.Server()))
+	d.registerHandler(dispatcher.NewPingMessageHandler(context.Ctx.Server()))
+	d.registerHandler(dispatcher.NewInvalidMessageHandler(context.Ctx.Server()))
 	d.registerHandler(NewServiceRequestMessageHandler())
 }
 
@@ -62,6 +62,6 @@ func (d *ServerMessageDispatcher) Dispatch(message messages.IMessage, conn conne
 	})
 }
 
-func (d *ServerMessageDispatcher) GetHandler(msgType int) message_actions.IMessageHandler {
+func (d *ServerMessageDispatcher) GetHandler(msgType int) dispatcher.IMessageHandler {
 	return d.dispatcher.GetHandler(msgType)
 }

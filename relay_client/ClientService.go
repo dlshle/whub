@@ -78,8 +78,7 @@ type IClientService interface {
 	service.IBaseService
 	Init(server roles.ICommonServer) error
 	UpdateDescription(string) error
-	RegisterRoute(shortUri string, handler service.RequestHandler) error                    // should update service descriptor to the host
-	RegisterRouteV1(requestType int, shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
+	RegisterRoute(requestType int, shortUri string, handler service.RequestHandler) error // should update service descriptor to the host
 	InitHandlers(handlerMap map[int]map[string]service.RequestHandler) (err error)
 	UnregisterRoute(requestType int, shortUri string) (err error)
 	NotifyHostForUpdate() error
@@ -209,11 +208,7 @@ func (s *ClientService) Handle(request service.IServiceRequest) messages.IMessag
 	}
 }
 
-func (s *ClientService) RegisterRoute(shortUri string, handler service.RequestHandler) (err error) {
-	return s.RegisterRouteV1(messages.MessageTypeServiceRequest, shortUri, handler)
-}
-
-func (s *ClientService) RegisterRouteV1(requestType int, shortUri string, handler service.RequestHandler) (err error) {
+func (s *ClientService) RegisterRoute(requestType int, shortUri string, handler service.RequestHandler) (err error) {
 	if strings.HasPrefix(shortUri, s.uriPrefix) {
 		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
 	}
@@ -430,7 +425,7 @@ func (s *ClientService) Logger() *logger.SimpleLogger {
 func (s *ClientService) InitHandlers(handlerMap map[int]map[string]service.RequestHandler) (err error) {
 	for requestType, uriHandlerMap := range handlerMap {
 		for uri, handler := range uriHandlerMap {
-			if err = s.RegisterRouteV1(requestType, uri, handler); err != nil {
+			if err = s.RegisterRoute(requestType, uri, handler); err != nil {
 				return err
 			}
 			delete(uriHandlerMap, uri)

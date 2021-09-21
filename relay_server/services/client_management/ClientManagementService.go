@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	ID                  = "client"
+	ID                  = "clients"
 	RouteSignUp         = "/signup"
 	RouteDelete         = "/"
 	RouteGet            = "/:id"

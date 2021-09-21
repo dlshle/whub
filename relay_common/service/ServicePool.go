@@ -8,11 +8,6 @@ import (
 	"wsdk/relay_common/messages"
 )
 
-const (
-	MinServicePoolSize = 128
-	MaxServicePoolSize = 2048
-)
-
 type IServiceTaskQueue interface {
 	Get(id string) IServiceRequest
 	Stop()

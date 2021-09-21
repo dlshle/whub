@@ -13,7 +13,7 @@ func main() {
 		time.Sleep(time.Minute * 15)
 	*/
 	go ServerTest()
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 1)
 	go RunMultipleClientTest(1)
 	time.Sleep(time.Minute * 10)
 }

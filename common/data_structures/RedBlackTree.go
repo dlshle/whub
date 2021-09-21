@@ -31,15 +31,18 @@ func NewRedBlackTree() *Tree {
 	return &Tree{}
 }
 
-func (tree *Tree) ForEach(cb func(each interface{})) {
+// stop on cb returns false
+func (tree *Tree) ForEach(cb func(each interface{}) bool) {
 	inOrderTraverse(tree.root, cb)
 }
 
-func inOrderTraverse(node *Node, cb func(each interface{})) {
+func inOrderTraverse(node *Node, cb func(each interface{}) bool) {
 	if node.Left != nil {
 		inOrderTraverse(node.Left, cb)
 	}
-	cb(node.Value)
+	if !cb(node.Value) {
+		return
+	}
 	if node.Right != nil {
 		inOrderTraverse(node.Right, cb)
 	}

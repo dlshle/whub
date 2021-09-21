@@ -1,10 +1,11 @@
 package message_dispatcher
 
 import (
+	"fmt"
 	base_conn "wsdk/common/connection"
 	"wsdk/common/uri_trie"
 	"wsdk/relay_common/connection"
-	"wsdk/relay_common/message_actions"
+	"wsdk/relay_common/dispatcher"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
@@ -22,7 +23,7 @@ type ServiceRequestMessageHandler struct {
 	metering          metering.IServerMeteringController    `$inject:""`
 }
 
-func NewServiceRequestMessageHandler() message_actions.IMessageHandler {
+func NewServiceRequestMessageHandler() dispatcher.IMessageHandler {
 	handler := &ServiceRequestMessageHandler{}
 	err := container.Container.Fill(handler)
 	if err != nil {
@@ -40,6 +41,15 @@ func (h *ServiceRequestMessageHandler) Types() []int {
 }
 
 func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn connection.IConnection) (err error) {
+	defer func() {
+		// service panic handling
+		if recovered := recover(); recovered != nil {
+			conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(),
+				messages.MessageTypeSvcInternalError,
+				errors.NewJsonMessageError(fmt.Sprintf("unknown server internal error occurred: %v", recovered))))
+			h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
+		}
+	}()
 	h.metering.Track(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()), "in service handler")
 	// remove redundant / at the end of the uri
 	uri := message.Uri()
@@ -62,7 +72,15 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 	// free match context
 	matchContext = nil
 
-	response := svc.Handle(request)
+	var response messages.IMessage
+	if request.Status() > service.ServiceRequestStatusProcessing {
+		// request is resolved in middleware
+		response = request.Response()
+	} else {
+		// continue the request with service
+		response = svc.Handle(request)
+	}
+
 	if response == nil && !base_conn.IsAsyncType(conn.ConnectionType()) {
 		err = conn.Send(messages.NewErrorResponse(request, context.Ctx.Server().Id(),
 			messages.MessageTypeSvcForbiddenError,
@@ -75,8 +93,8 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 }
 
 func (h *ServiceRequestMessageHandler) registerRequestMetaContext(request service.IServiceRequest, matchContext *uri_trie.MatchContext) service.IServiceRequest {
-	request.SetContext("uri_pattern", matchContext.UriPattern)
-	request.SetContext("path_params", matchContext.PathParams)
-	request.SetContext("query_params", matchContext.QueryParams)
+	request.SetContext(service.ServiceRequestContextUriPattern, matchContext.UriPattern)
+	request.SetContext(service.ServiceRequestContextPathParams, matchContext.PathParams)
+	request.SetContext(service.ServiceRequestContextQueryParams, matchContext.QueryParams)
 	return request
 }

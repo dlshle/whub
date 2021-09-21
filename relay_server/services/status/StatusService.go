@@ -11,7 +11,7 @@ import (
 
 const (
 	ID               = "status"
-	RouteGetStatus   = "/get"      // payload = service descriptor
+	RouteGetStatus   = "/"         // payload = service descriptor
 	RouteInfo        = "/info"     // payload = server  descriptor
 	RouteGetServices = "/services" // payload = all internal services
 )

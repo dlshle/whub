@@ -142,7 +142,6 @@ func (s *ServiceManager) RegisterService(clientId string, service server_service
 
 func (s *ServiceManager) registerService(clientId string, svc server_service.IService) (err error) {
 	defer s.logger.Printf("register service %s from %s result: %s", svc.Id(), clientId, utils.ConditionalPick(err != nil, err, "success"))
-	s.logger.Printf("register service %s from %s", svc.Id(), clientId)
 	if clientId != context.Ctx.Server().Id() && s.serviceCountByClientId(clientId) >= server_service.MaxServicePerClient {
 		err = server_errors.NewClientExceededMaxServiceCountError(clientId, server_service.MaxServicePerClient)
 		return

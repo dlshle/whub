@@ -5,18 +5,18 @@ import (
 	"wsdk/relay_client/context"
 	"wsdk/relay_client/controllers"
 	"wsdk/relay_common/connection"
-	"wsdk/relay_common/message_actions"
+	"wsdk/relay_common/dispatcher"
 	"wsdk/relay_common/messages"
 )
 
 type ClientMessageDispatcher struct {
-	*message_actions.MessageDispatcher
+	*dispatcher.MessageDispatcher
 	m controllers.IClientMeteringController `$inject:""`
 }
 
 func NewClientMessageDispatcher() *ClientMessageDispatcher {
 	md := &ClientMessageDispatcher{
-		MessageDispatcher: message_actions.NewMessageDispatcher(context.Ctx.Logger().WithPrefix("[MessageDispatcher]")),
+		MessageDispatcher: dispatcher.NewMessageDispatcher(context.Ctx.Logger().WithPrefix("[MessageDispatcher]")),
 	}
 	err := container.Container.Fill(md)
 	if err != nil {
@@ -28,7 +28,7 @@ func NewClientMessageDispatcher() *ClientMessageDispatcher {
 
 func (d *ClientMessageDispatcher) init() {
 	// register common message handlers
-	d.RegisterHandler(message_actions.NewPingMessageHandler(context.Ctx.Identity()))
+	d.RegisterHandler(dispatcher.NewPingMessageHandler(context.Ctx.Identity()))
 }
 
 func (d *ClientMessageDispatcher) Dispatch(message messages.IMessage, conn connection.IConnection) {

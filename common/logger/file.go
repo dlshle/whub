@@ -38,10 +38,20 @@ func (w *FileWriter) write(data []byte) (int, error) {
 	if (w.size + len(data)) > w.logDataSize {
 		if err := w.handleFileSizeExceedsThreshold(); err != nil {
 			// TODO bad error handling
+			// TODO write to another file
 			panic(err)
 		}
 	}
-	return w.currentFile.Write(data)
+	return w.append(data)
+}
+
+func (w *FileWriter) append(data []byte) (int, error) {
+	// find the offset to the bottom
+	offset, err := w.currentFile.Seek(0, 2)
+	if err != nil {
+		return -1, err
+	}
+	return w.currentFile.WriteAt(data, offset)
 }
 
 // TODO maybe use a buffer when lock is in use?
@@ -53,8 +63,6 @@ func (w *FileWriter) handleFileSizeExceedsThreshold() (err error) {
 	var newLogFile *os.File
 	err = utils.ProcessWithErrors(func() error {
 		err = w.currentFile.Close()
-		return err
-	}, func() error {
 		newLogFile, err = os.Create(newLogFilePath)
 		return err
 	})

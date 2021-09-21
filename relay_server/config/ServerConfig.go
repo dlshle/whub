@@ -13,6 +13,7 @@ var Config ServerConfig
 type ServerConfig struct {
 	CommonConfig     `json:"commonConfig"`
 	DomainConfigs    `json:"domainConfig"`
+	ThrottleConfigs  `json:"throttleConfigs"`
 	DisabledServices []string `json:"disabledServices"`
 }
 
@@ -55,6 +56,13 @@ type PersistentConfig struct {
 type RedisConfig struct {
 	Server   string `json:"server"`
 	Password string `json:"password"`
+}
+
+type ThrottleConfigs map[string]ThrottleConfig
+
+type ThrottleConfig struct {
+	Window int `json:"window"` // in seconds
+	Limit  int `json:"limit"`
 }
 
 func init() {

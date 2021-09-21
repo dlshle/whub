@@ -5,18 +5,18 @@ import (
 	"net/http"
 	"sync"
 	"wsdk/common/logger"
+	"wsdk/relay_common/dispatcher"
 	whttp "wsdk/relay_common/http"
-	"wsdk/relay_common/message_actions"
 	"wsdk/relay_server/context"
 )
 
 type HTTPRequestHandler struct {
-	serviceMessageDispatcher message_actions.IMessageDispatcher
+	serviceMessageDispatcher dispatcher.IMessageDispatcher
 	logger                   *logger.SimpleLogger
 	pool                     *sync.Pool
 }
 
-func NewHTTPRequestHandler(dispatcher message_actions.IMessageDispatcher) IHTTPRequestHandler {
+func NewHTTPRequestHandler(dispatcher dispatcher.IMessageDispatcher) IHTTPRequestHandler {
 	pool := &sync.Pool{New: func() interface{} {
 		return whttp.NewHTTPWritableConnection()
 	}}

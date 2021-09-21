@@ -75,7 +75,7 @@ func (c *Client) login(retry int, err error) (string, error) {
 	}
 	loginBody := ([]byte)(fmt.Sprintf("{\"id\":\"%s\",\"password\":\"%s\"}", c.client.Id(), c.client.CKey()))
 	resp, err := c.HTTPRequest("",
-		messages.NewMessage("", "", "", "/service/auth/login",
+		messages.NewMessage("", "", "", "/auth/login",
 			messages.MessageTypeServicePostRequest, loginBody))
 	if err != nil {
 		return c.login(retry-1, err)
@@ -114,7 +114,7 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) getServerInfo() (desc roles.RoleDescriptor, err error) {
-	resp, err := c.HTTPRequest("", messages.NewMessage("", "", "", "/service/status/info", messages.MessageTypeServiceRequest, nil))
+	resp, err := c.HTTPRequest("", messages.NewMessage("", "", "", "/status/info", messages.MessageTypeServiceRequest, nil))
 	if err != nil {
 		return
 	}

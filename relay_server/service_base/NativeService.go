@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"wsdk/common/utils"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/context"
@@ -44,16 +43,21 @@ func (s *NativeService) RegisterRoute(uri string, handler service.RequestHandler
 }
 
 func (s *NativeService) RegisterRouteV1(requestType int, uri string, handler service.RequestHandler) (err error) {
-	defer s.Logger().Println(uri, "registration result: ", utils.ConditionalPick(err != nil, err, "success"))
+	defer func() {
+		if err == nil {
+			s.logger.Printf("handler %d %s has registered", requestType, uri)
+		} else {
+			s.logger.Printf("handler %d %s has registration failed due to %s", requestType, uri, err.Error())
+		}
+	}()
 	shortUri := uri
 	if strings.HasPrefix(shortUri, s.uriPrefix) {
 		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
 	}
 	// remove the extra / in the end to better format request uri(our convention is to not have / at the end)
-	if shortUri[len(shortUri)-1] == '/' {
+	if len(shortUri) > 0 && shortUri[len(shortUri)-1] == '/' {
 		shortUri = shortUri[:len(shortUri)-1]
 	}
-	s.Logger().Printf("registering new handler %d %s", requestType, shortUri)
 	s.withWrite(func() {
 		s.serviceUris = append(s.serviceUris, shortUri)
 		// handler needs full uri because service manager will provide full uri in request context
@@ -63,7 +67,6 @@ func (s *NativeService) RegisterRouteV1(requestType int, uri string, handler ser
 }
 
 func (s *NativeService) UnregisterRoute(requestType int, shortUri string) (err error) {
-	defer s.Logger().Println("route un-registration result: ", utils.ConditionalPick(err != nil, err, "success"))
 	if strings.HasPrefix(shortUri, s.uriPrefix) {
 		shortUri = strings.TrimPrefix(shortUri, s.uriPrefix)
 	}

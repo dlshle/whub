@@ -13,7 +13,7 @@ const (
 	AuthMiddlewareId       = "auth"
 	IsAuthorizedContextKey = "is_authorized"
 	AuthToken              = "token"
-	AuthMiddlewarePriority = 1
+	AuthMiddlewarePriority = 3
 )
 
 type AuthMiddleware struct {

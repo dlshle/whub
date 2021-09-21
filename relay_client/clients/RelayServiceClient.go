@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	ServerServiceManagerUri = service.ServicePrefix + "/relay"
+	ServerServiceManagerUri = service.ServicePrefix + "/services"
 )
 
 // ServerServiceManager

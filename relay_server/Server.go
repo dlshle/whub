@@ -6,7 +6,7 @@ import (
 	"wsdk/common/connection"
 	"wsdk/common/logger"
 	common_connection "wsdk/relay_common/connection"
-	"wsdk/relay_common/message_actions"
+	"wsdk/relay_common/dispatcher"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
@@ -21,7 +21,7 @@ import (
 type Server struct {
 	*wserver.WServer
 	roles.ICommonServer
-	messageDispatcher       message_actions.IMessageDispatcher
+	messageDispatcher       dispatcher.IMessageDispatcher
 	clientConnectionHandler socket.IClientConnectionHandler
 	httpRequestHandler      server_http.IHTTPRequestHandler
 	logger                  *logger.SimpleLogger

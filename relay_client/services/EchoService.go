@@ -21,7 +21,7 @@ func (s *EchoService) Init(server roles.ICommonServer) (err error) {
 		s.Logger().Println("service has been initiated with err ", err)
 	}()
 	s.IClientService = relay_client.NewClientService(EchoServiceID, "simply echo messages", service.ServiceAccessTypeBoth, service.ServiceExecutionSync, server)
-	err = s.RegisterRouteV1(messages.MessageTypeServiceGetRequest, EchoServiceRouteEcho, s.Echo)
+	err = s.RegisterRoute(messages.MessageTypeServiceGetRequest, EchoServiceRouteEcho, s.Echo)
 	return err
 }
 
