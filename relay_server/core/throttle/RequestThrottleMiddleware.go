@@ -36,7 +36,7 @@ func (m *RequestAddressThrottleMiddleware) Run(conn connection.IConnection, requ
 		remains = 0
 	}
 	// TODO if remains < BlockListThreshold, add this addr to block list for couple of hours/days
-	request.SetContext(AddressThrottleWindowExpiresContextKey, record.WindowExpiration.String())
+	request.SetContext(AddressThrottleWindowExpiresContextKey, record.WindowExpiration.Format("2006-01-02 15:04:05"))
 	request.SetContext(AddressThrottleHitRemainsContextKey, remains)
 	if err != nil {
 		request.Resolve(messages.NewErrorResponse(request, "", messages.MessageTypeSvcForbiddenError, err.Error()))
