@@ -60,8 +60,8 @@ func RegisterMiddleware(middleware middleware.IServerMiddleware) {
 	})
 }
 
-func init() {
-	container.Container.Singleton(func() IMiddlewareManager {
+func Load() error {
+	return container.Container.Singleton(func() IMiddlewareManager {
 		return NewMiddlewareManager()
 	})
 }

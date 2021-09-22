@@ -45,7 +45,6 @@ func (m *RequestAddressThrottleMiddleware) Run(conn connection.IConnection, requ
 	return request
 }
 
-func init() {
-	// TODO this never registers as no package depends on this one...
+func Register() {
 	middleware_manager.RegisterMiddleware(new(RequestAddressThrottleMiddleware))
 }

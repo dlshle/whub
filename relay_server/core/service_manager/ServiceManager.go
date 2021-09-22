@@ -17,12 +17,6 @@ import (
 	server_service "wsdk/relay_server/service_base"
 )
 
-func init() {
-	container.Container.Singleton(func() IServiceManager {
-		return NewServiceManager()
-	})
-}
-
 const ServiceManagerId = "ServiceManager"
 
 type ServiceManager struct {
@@ -291,4 +285,10 @@ func (s *ServiceManager) addUriRoute(service server_service.IService, route stri
 func (s *ServiceManager) removeUriRoute(route string) (success bool) {
 	success = s.trieTree.Remove(route)
 	return success
+}
+
+func Load() error {
+	return container.Container.Singleton(func() IServiceManager {
+		return NewServiceManager()
+	})
 }

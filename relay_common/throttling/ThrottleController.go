@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"wsdk/common/ctimer"
+	"wsdk/common/logger"
 )
 
 type ThrottleRecord struct {
@@ -57,14 +59,34 @@ type IThrottleController interface {
 }
 
 type ThrottleController struct {
-	// TODO add a job to periodically clean the map so that we don't leave too much "dead" data here
-	windowMap *sync.Map
+	windowMap     *sync.Map
+	cleanJobTimer ctimer.ICTimer
+	logger        *logger.SimpleLogger
 }
 
-func NewThrottleController() IThrottleController {
-	return &ThrottleController{
+func NewThrottleController(logger *logger.SimpleLogger) IThrottleController {
+	controller := &ThrottleController{
 		windowMap: new(sync.Map),
+		logger:    logger,
 	}
+	cleanJobTimer := ctimer.New(time.Minute, controller.cleanJob)
+	controller.cleanJobTimer = cleanJobTimer
+	cleanJobTimer.Repeat()
+	return controller
+}
+
+func (c *ThrottleController) cleanJob() {
+	now := time.Now()
+	cleaned := 0
+	c.windowMap.Range(func(key, value interface{}) bool {
+		record := value.(*ThrottleRecord)
+		if now.After(record.WindowExpiration) {
+			c.windowMap.Delete(key)
+			cleaned++
+		}
+		return true
+	})
+	c.logger.Printf("clean job done, %d records were removed", cleaned)
 }
 
 func (c *ThrottleController) Hit(id string, limit int, duration time.Duration) (ThrottleRecord, error) {
@@ -80,6 +102,6 @@ func (c *ThrottleController) createOrLoadRecord(id string, limit int, duration t
 func (c *ThrottleController) Clear() {
 	c.windowMap.Range(func(key, value interface{}) bool {
 		c.windowMap.Delete(key)
-		return false
+		return true
 	})
 }

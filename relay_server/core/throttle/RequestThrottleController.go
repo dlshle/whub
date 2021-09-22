@@ -49,6 +49,10 @@ func initGlobalVariables() {
 	}
 }
 
+func init() {
+	initGlobalVariables()
+}
+
 type ThrottleGroup struct {
 	ThrottleLevel  uint8
 	WindowDuration time.Duration
@@ -66,9 +70,10 @@ type RequestThrottleController struct {
 }
 
 func NewRequestThrottleController() IRequestThrottleController {
+	logger := context.Ctx.Logger().WithPrefix("[RequestThrottleController]")
 	return &RequestThrottleController{
-		controller: throttling.NewThrottleController(),
-		logger:     context.Ctx.Logger().WithPrefix("[RequestThrottleController]"),
+		controller: throttling.NewThrottleController(logger),
+		logger:     logger,
 	}
 }
 
@@ -87,9 +92,8 @@ func (c *RequestThrottleController) assembleThrottleId(throttleLevel uint8, id s
 	return fmt.Sprintf("%d-%s", throttleLevel, id)
 }
 
-func init() {
-	initGlobalVariables()
-	container.Container.Singleton(func() IRequestThrottleController {
+func Load() error {
+	return container.Container.Singleton(func() IRequestThrottleController {
 		return NewRequestThrottleController()
 	})
 }

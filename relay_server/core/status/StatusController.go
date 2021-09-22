@@ -117,8 +117,8 @@ func (c *ServerStatusController) SubscribeServerStatChange(cb func(stat ServerSt
 	})
 }
 
-func init() {
-	container.Container.Singleton(func() IServerStatusController {
+func Load() error {
+	return container.Container.Singleton(func() IServerStatusController {
 		return NewSystemStatusController()
 	})
 }

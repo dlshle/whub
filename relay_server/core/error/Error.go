@@ -1,4 +1,4 @@
-package core
+package error
 
 type IControllerError interface {
 	Code() int

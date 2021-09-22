@@ -3,7 +3,7 @@ package topic
 import (
 	"sync"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/core"
+	error2 "wsdk/relay_server/core/error"
 )
 
 const DefaultTopicCacheSize = 512
@@ -56,11 +56,11 @@ func (s *CacheTopicStore) set(id string, topic *Topic) {
 	})
 }
 
-func (s *CacheTopicStore) Has(id string) (bool, core.IControllerError) {
+func (s *CacheTopicStore) Has(id string) (bool, error2.IControllerError) {
 	return s.get(id) != nil, nil
 }
 
-func (s *CacheTopicStore) Create(id string, creatorClientId string) (ret *Topic, err core.IControllerError) {
+func (s *CacheTopicStore) Create(id string, creatorClientId string) (ret *Topic, err error2.IControllerError) {
 	s.withWrite(func() {
 		if len(s.topics) >= s.cacheSize {
 			err = NewTopicCacheSizeExceededError(s.cacheSize)
@@ -73,7 +73,7 @@ func (s *CacheTopicStore) Create(id string, creatorClientId string) (ret *Topic,
 	return
 }
 
-func (s *CacheTopicStore) Update(t *Topic) core.IControllerError {
+func (s *CacheTopicStore) Update(t *Topic) error2.IControllerError {
 	ret := s.get(t.Id())
 	if ret == nil {
 		_, err := s.Create(t.Id(), t.Creator())
@@ -83,14 +83,14 @@ func (s *CacheTopicStore) Update(t *Topic) core.IControllerError {
 	return nil
 }
 
-func (s *CacheTopicStore) Get(id string) (*Topic, core.IControllerError) {
+func (s *CacheTopicStore) Get(id string) (*Topic, error2.IControllerError) {
 	if t := s.get(id); t != nil {
 		return t, nil
 	}
 	return nil, NewTopicNotFoundError(id)
 }
 
-func (s *CacheTopicStore) Delete(id string) core.IControllerError {
+func (s *CacheTopicStore) Delete(id string) error2.IControllerError {
 	t := s.get(id)
 	if t == nil {
 		return NewTopicNotFoundError(id)
@@ -102,7 +102,7 @@ func (s *CacheTopicStore) Delete(id string) core.IControllerError {
 	return nil
 }
 
-func (s *CacheTopicStore) Topics() ([]*Topic, core.IControllerError) {
+func (s *CacheTopicStore) Topics() ([]*Topic, error2.IControllerError) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	topics := make([]*Topic, 0, len(s.topics))

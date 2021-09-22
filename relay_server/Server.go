@@ -10,6 +10,7 @@ import (
 	"wsdk/relay_common/roles"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/core"
 	"wsdk/relay_server/events"
 	server_http "wsdk/relay_server/http"
 	"wsdk/relay_server/message_dispatcher"
@@ -32,14 +33,16 @@ type IServer interface {
 	Stop() error
 }
 
-func (s *Server) Start() error {
+func (s *Server) Start() (err error) {
 	// dependency inject to deal w/ IServiceManager
-	err := container.Container.Call(services.InitNativeServices)
+	err = container.Container.Call(services.InitNativeServices)
 	if err != nil {
-		s.logger.Fatalln("unable to init native services due to ", err)
+		s.logger.Fatalln("unable to init native services due to ", err.Error())
 		return err
 	}
 	s.logger.Println("all native services have been initialized")
+
+	s.logger.Println("message dispatcher and http request handler has been initialized")
 	return s.WServer.Start()
 }
 
@@ -65,8 +68,12 @@ func NewServer(identity roles.ICommonServer, websocketPath string) *Server {
 	context.Ctx.Start(identity)
 	wServer := wserver.NewWServer(wserver.NewServerConfig(identity.Id(), identity.Url(), identity.Port(), websocketPath, wserver.DefaultWsConnHandler()))
 	wServer.SetLogger(logger)
+	err := core.InitCoreComponents()
+	if err != nil {
+		logger.Fatalln("unable to load core components due to ", err.Error())
+		panic(err)
+	}
 	messageDispatcher := message_dispatcher.NewServerMessageDispatcher()
-	// wServer.SetAsyncPool(context.Ctx.AsyncTaskPool())
 	server := &Server{
 		WServer:            wServer,
 		ICommonServer:      identity,

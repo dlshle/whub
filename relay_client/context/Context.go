@@ -8,7 +8,6 @@ import (
 	"sync"
 	"wsdk/common/async"
 	"wsdk/common/logger"
-	"wsdk/common/timed"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/notification"
 	"wsdk/relay_common/roles"
@@ -38,7 +37,6 @@ type Context struct {
 	server              roles.ICommonServer
 	asyncTaskPool       async.IAsyncPool
 	serviceTaskPool     async.IAsyncPool
-	timedJobPool        *timed.JobPool
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
 	logger              *logger.SimpleLogger
@@ -49,7 +47,6 @@ type IContext interface {
 	Start(identity roles.IDescribableRole, server roles.ICommonServer)
 	Identity() roles.IDescribableRole
 	Server() roles.ICommonServer
-	TimedJobPool() *timed.JobPool
 	NotificationEmitter() notification.IWRNotificationEmitter
 	AsyncTaskPool() async.IAsyncPool
 	MessageParser() messages.IMessageParser
@@ -91,15 +88,6 @@ func (c *Context) Identity() roles.IDescribableRole {
 
 func (c *Context) Server() roles.ICommonServer {
 	return c.server
-}
-
-func (c *Context) TimedJobPool() *timed.JobPool {
-	c.withLock(func() {
-		if c.timedJobPool == nil {
-			c.timedJobPool = timed.NewJobPool("Context", defaultTimedJobPoolSize, false)
-		}
-	})
-	return c.timedJobPool
 }
 
 func (c *Context) AsyncTaskPool() async.IAsyncPool {

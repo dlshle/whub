@@ -32,6 +32,6 @@ func (m *ConnectionMiddleware) Run(conn connection.IConnection, request service.
 	return request
 }
 
-func init() {
+func Register() {
 	middleware_manager.RegisterMiddleware(new(ConnectionMiddleware))
 }

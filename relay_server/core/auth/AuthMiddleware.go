@@ -46,6 +46,6 @@ func (m *AuthMiddleware) Run(conn connection.IConnection, request service.IServi
 	return request
 }
 
-func init() {
+func Register() {
 	middleware_manager.RegisterMiddleware(new(AuthMiddleware))
 }

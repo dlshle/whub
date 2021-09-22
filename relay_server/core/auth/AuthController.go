@@ -210,8 +210,8 @@ func (c *AuthController) RevokeToken(token string) error {
 	return c.store.Revoke(token)
 }
 
-func init() {
-	container.Container.Singleton(func() IAuthController {
+func Load() error {
+	return container.Container.Singleton(func() IAuthController {
 		return NewAuthController()
 	})
 }

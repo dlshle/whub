@@ -1,14 +1,14 @@
 package topic
 
 import (
-	"wsdk/relay_server/core"
+	error2 "wsdk/relay_server/core/error"
 )
 
 type ITopicStore interface {
-	Has(id string) (bool, core.IControllerError)
-	Create(id string, creatorClientId string) (*Topic, core.IControllerError)
-	Update(topic *Topic) core.IControllerError
-	Get(id string) (*Topic, core.IControllerError)
-	Delete(id string) core.IControllerError
-	Topics() ([]*Topic, core.IControllerError)
+	Has(id string) (bool, error2.IControllerError)
+	Create(id string, creatorClientId string) (*Topic, error2.IControllerError)
+	Update(topic *Topic) error2.IControllerError
+	Get(id string) (*Topic, error2.IControllerError)
+	Delete(id string) error2.IControllerError
+	Topics() ([]*Topic, error2.IControllerError)
 }

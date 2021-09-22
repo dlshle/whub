@@ -39,8 +39,8 @@ func (c *ServerMeteringController) TraceMessagePerformance(messageId string) met
 	return c.Measure(c.GetAssembledTraceId(TMessagePerformance, messageId))
 }
 
-func init() {
-	container.Container.Singleton(func() IServerMeteringController {
+func Load() error {
+	return container.Container.Singleton(func() IServerMeteringController {
 		return NewServerMeteringController()
 	})
 }

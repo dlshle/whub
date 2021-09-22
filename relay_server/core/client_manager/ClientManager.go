@@ -145,8 +145,8 @@ func (m *ClientManager) GetAllClients() ([]*client.Client, error) {
 	return m.store.GetAll()
 }
 
-func init() {
-	container.Container.Singleton(func() IClientManager {
+func Load() error {
+	return container.Container.Singleton(func() IClientManager {
 		return NewClientManager()
 	})
 }

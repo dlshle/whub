@@ -2,7 +2,7 @@ package client_manager
 
 import (
 	"fmt"
-	"wsdk/relay_server/core"
+	error2 "wsdk/relay_server/core/error"
 )
 
 const (
@@ -10,10 +10,10 @@ const (
 	InvalidClientId = 102
 )
 
-func NewClientNotFoundError(id string) core.IControllerError {
-	return core.NewControllerError(ClientNotFound, fmt.Sprintf("can not find client by id %s", id))
+func NewClientNotFoundError(id string) error2.IControllerError {
+	return error2.NewControllerError(ClientNotFound, fmt.Sprintf("can not find client by id %s", id))
 }
 
-func NewInvalidClientIdError(invalidId string) core.IControllerError {
-	return core.NewControllerError(InvalidClientId, fmt.Sprintf("invalid client id %s", invalidId))
+func NewInvalidClientIdError(invalidId string) error2.IControllerError {
+	return error2.NewControllerError(InvalidClientId, fmt.Sprintf("invalid client id %s", invalidId))
 }

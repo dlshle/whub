@@ -216,8 +216,8 @@ func (m *ConnectionManager) AddToConnectionGroup(clientId string, conn connectio
 }
 */
 
-func init() {
-	container.Container.Singleton(func() IConnectionManager {
+func Load() error {
+	return container.Container.Singleton(func() IConnectionManager {
 		return NewConnectionManager()
 	})
 }

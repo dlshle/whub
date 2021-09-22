@@ -2,7 +2,7 @@ package topic
 
 import (
 	"fmt"
-	"wsdk/relay_server/core"
+	error2 "wsdk/relay_server/core/error"
 )
 
 const (
@@ -14,25 +14,25 @@ const (
 	TopicErrExceededCacheSize      = 506
 )
 
-func NewTopicNotFoundError(id string) core.IControllerError {
-	return core.NewControllerError(TopicErrNotFound, fmt.Sprintf("topic %s is not found", id))
+func NewTopicNotFoundError(id string) error2.IControllerError {
+	return error2.NewControllerError(TopicErrNotFound, fmt.Sprintf("topic %s is not found", id))
 }
 
-func NewTopicCacheSizeExceededError(cacheSize int) core.IControllerError {
-	return core.NewControllerError(TopicErrExceededCacheSize, fmt.Sprintf("topic store size exceeded maxCacheSize %d", cacheSize))
+func NewTopicCacheSizeExceededError(cacheSize int) error2.IControllerError {
+	return error2.NewControllerError(TopicErrExceededCacheSize, fmt.Sprintf("topic store size exceeded maxCacheSize %d", cacheSize))
 }
 
-func NewTopicMaxSubscribersExceededError(id string, maxSubscribersPerTopic int) core.IControllerError {
-	return core.NewControllerError(TopicErrExceededMaxSubscriber, fmt.Sprintf("number of subscribers exceeded max subscribers count %d for topic %s", maxSubscribersPerTopic, id))
+func NewTopicMaxSubscribersExceededError(id string, maxSubscribersPerTopic int) error2.IControllerError {
+	return error2.NewControllerError(TopicErrExceededMaxSubscriber, fmt.Sprintf("number of subscribers exceeded max subscribers count %d for topic %s", maxSubscribersPerTopic, id))
 }
 
-func NewTopicClientNotValidSubscriberError(topicId string, clientId string) core.IControllerError {
-	return core.NewControllerError(TopicErrNotValidSubscriber, fmt.Sprintf("client %s is not a subscriber of topic %s", clientId, topicId))
+func NewTopicClientNotValidSubscriberError(topicId string, clientId string) error2.IControllerError {
+	return error2.NewControllerError(TopicErrNotValidSubscriber, fmt.Sprintf("client %s is not a subscriber of topic %s", clientId, topicId))
 }
-func NewTopicClientAlreadySubscribedError(topicId string, clientId string) core.IControllerError {
-	return core.NewControllerError(TopicErrAlreadySubscribed, fmt.Sprintf("subscriber %s has already subscriberd to topic %s", clientId, topicId))
+func NewTopicClientAlreadySubscribedError(topicId string, clientId string) error2.IControllerError {
+	return error2.NewControllerError(TopicErrAlreadySubscribed, fmt.Sprintf("subscriber %s has already subscriberd to topic %s", clientId, topicId))
 }
 
-func NewTopicClientInsufficientPermissionError(topicId string, clientId string, permission string) core.IControllerError {
-	return core.NewControllerError(TopicErrInsufficientPermission, fmt.Sprintf("client %s does not have [%s] permission for topic %s", clientId, permission, topicId))
+func NewTopicClientInsufficientPermissionError(topicId string, clientId string, permission string) error2.IControllerError {
+	return error2.NewControllerError(TopicErrInsufficientPermission, fmt.Sprintf("client %s does not have [%s] permission for topic %s", clientId, permission, topicId))
 }
