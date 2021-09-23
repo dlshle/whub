@@ -28,7 +28,7 @@ const (
 	defaultAsyncPoolWorkerFactor   = 16
 	defaultServicePoolWorkerFactor = 8
 	defaultMaxActiveServiceConns   = 3
-	defaultHTTPClientCount         = 5
+	defaultHTTPClientCount         = 3
 	defaultHTTPClientMaxQueueSize  = 256
 	defaultHTTPClientTimeout       = 60
 )
@@ -147,7 +147,7 @@ func (c *Context) MaxActiveServiceConnections() int {
 func (c *Context) HTTPClient() (pool http.IClientPool) {
 	c.withLock(func() {
 		if c.httpClient == nil {
-			c.httpClient = http.NewPool("[HTTPClient]", defaultHTTPClientCount, defaultHTTPClientMaxQueueSize, defaultHTTPClientTimeout)
+			c.httpClient = http.New("[HTTPClient]", defaultHTTPClientCount, defaultHTTPClientMaxQueueSize, defaultHTTPClientTimeout)
 		}
 		pool = c.httpClient
 	})
