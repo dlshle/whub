@@ -194,9 +194,6 @@ func (s *ClientService) matchUri(uri string) (string, error) {
 }
 
 func (s *ClientService) Handle(request service.IServiceRequest) messages.IMessage {
-	if strings.HasPrefix(request.Uri(), s.uriPrefix) {
-		request.SetMessage(request.Copy().SetUri(strings.TrimPrefix(request.Uri(), s.uriPrefix)))
-	}
 	s.serviceTaskQueue.Schedule(request)
 	s.m.Track(s.m.GetAssembledTraceId(controllers.TMessagePerformance, request.Id()), "request in queue")
 	if s.executionType == service.ServiceExecutionSync {

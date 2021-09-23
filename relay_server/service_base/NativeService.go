@@ -115,14 +115,6 @@ func (s *NativeService) ResolveByInvalidCredential(request service.IServiceReque
 	return s.ResolveByError(request, messages.MessageTypeSvcUnauthorizedError, "invalid credential")
 }
 
-func (s *NativeService) Handle(request service.IServiceRequest) messages.IMessage {
-	// internal(business) services use short uri
-	if s.ServiceType() == service.ServiceTypeInternal && strings.HasPrefix(request.Uri(), s.uriPrefix) {
-		request.SetMessage(request.Message().SetUri(strings.TrimPrefix(request.Uri(), s.uriPrefix)))
-	}
-	return s.Service.Handle(request)
-}
-
 func (s *Service) assembleErrorMessageData(message string) []byte {
 	return ([]byte)(fmt.Sprintf("{\"message\": \"%s\"}", message))
 }

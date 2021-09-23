@@ -10,8 +10,12 @@ import (
 type IBlockListStore interface {
 	Add(record string, ttl time.Duration) (bool, error)
 	Has(record string) (bool, error)
-	Delete(record string) (bool, error)
+	Delete(record string) error
 }
+
+const (
+	InMemoryBlockListStoreCleanJobInterval = time.Minute * 30
+)
 
 type ttlRecord struct {
 	record   string
@@ -19,9 +23,10 @@ type ttlRecord struct {
 }
 
 type InMemoryBlockListStore struct {
-	records       map[string]*ttlRecord
-	lock          *sync.RWMutex
-	cleanJobTimer ctimer.ICTimer
+	records                 map[string]*ttlRecord
+	lock                    *sync.RWMutex
+	cleanJobTimer           ctimer.ICTimer
+	hasChangeSinceLastClean bool // value will be calculated on each clean job
 }
 
 func (s *InMemoryBlockListStore) cleanJob() {
@@ -79,15 +84,13 @@ func (s *InMemoryBlockListStore) Has(id string) (exist bool, err error) {
 	return
 }
 
-func (s *InMemoryBlockListStore) Delete(id string) (success bool, err error) {
-	success = false
+func (s *InMemoryBlockListStore) Delete(id string) (err error) {
 	s.withWrite(func() {
 		if s.records[id] == nil {
 			err = errors.New("record does not exist")
 			return
 		}
 		delete(s.records, id)
-		success = true
 	})
 	return
 }
@@ -97,7 +100,7 @@ func NewInMemoryBlockListStore() IBlockListStore {
 		records: make(map[string]*ttlRecord),
 		lock:    new(sync.RWMutex),
 	}
-	timer := ctimer.New(time.Minute*time.Duration(30), store.cleanJob)
+	timer := ctimer.New(InMemoryBlockListStoreCleanJobInterval, store.cleanJob)
 	timer.Repeat()
 	return store
 }

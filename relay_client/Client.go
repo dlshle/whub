@@ -27,7 +27,7 @@ type Client struct {
 	connPool       connections.IConnectionPool
 	wclient        base_conn.IClient
 	client         roles.ICommonClient
-	httpClient     *http.ClientPool
+	httpClient     http.IClientPool
 	// serviceMap map[string]IClientService // id -- [listener functions]
 	service                     IClientService
 	server                      roles.ICommonServer
@@ -41,11 +41,11 @@ type Client struct {
 
 func NewClient(connType uint8, serverUri string, serverPort int, wsPath string, clientId string, clientCKey string) *Client {
 	serverFullUri := fmt.Sprintf("%s:%d", serverUri, serverPort)
-	addr := url.URL{Scheme: "ws", Host: serverFullUri, Path: connection.WSConnectionPath}
+	addr := url.URL{Scheme: "ws", Host: serverFullUri, Path: wsPath}
 	c := &Client{
 		connectionType: connType,
 		serverUri:      serverFullUri,
-		httpClient:     http.NewPool(clientId, 5, 128, 60),
+		httpClient:     context.Ctx.HTTPClient(),
 		wclient:        WSClient.New(WSClient.NewWClientConfig(addr.String(), nil, nil, nil, nil, nil)),
 		client:         roles.NewClient(clientId, "", roles.ClientTypeAnonymous, clientCKey, 0),
 		logger:         context.Ctx.Logger(),

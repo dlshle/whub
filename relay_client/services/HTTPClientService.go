@@ -5,6 +5,7 @@ import (
 	"strings"
 	http_client "wsdk/common/http"
 	"wsdk/relay_client"
+	"wsdk/relay_client/context"
 	"wsdk/relay_common/http"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
@@ -25,7 +26,7 @@ func (s *HTTPClientService) Init(server roles.ICommonServer) (err error) {
 		s.Logger().Println("service has been initiated with err ", err)
 	}()
 	s.IClientService = relay_client.NewClientService(HTTPClientServiceId, "simply echo messages", service.ServiceAccessTypeBoth, service.ServiceExecutionSync, server)
-	s.httpClient = http_client.NewPool("[HTTPClient]", 2, 512, 30)
+	s.httpClient = context.Ctx.HTTPClient()
 	return s.InitHandlers(service.NewRequestHandlerMapBuilder().Get(HTTPClientServiceRouteEcho, s.Request).Build())
 }
 

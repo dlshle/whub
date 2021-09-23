@@ -385,7 +385,7 @@ func newHTTPClient(timeout int) *http.Client {
 	return &http.Client{Timeout: time.Second * time.Duration(timeout)}
 }
 
-func NewPool(id string, numClients, maxQueueSize, timeoutInSec int) *ClientPool {
+func NewPool(id string, numClients, maxQueueSize, timeoutInSec int) IClientPool {
 	numClients = numWithinRange(numClients, 1, 2048)
 	maxQueueSize = numWithinRange(maxQueueSize, 1, 4096)
 	rawClients := make([]*http.Client, numClients)

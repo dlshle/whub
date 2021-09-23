@@ -51,11 +51,7 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 		}
 	}()
 	h.metering.Track(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()), "in service handler")
-	// remove redundant / at the end of the uri
-	uri := message.Uri()
-	if len(uri) > 2 && uri[len(uri)-1] == '/' && uri[len(uri)-2] != '/' {
-		message = message.SetUri(uri[:len(uri)-1])
-	}
+	message = h.processIncomingMessage(message)
 	matchContext := h.serviceManager.MatchServiceByUri(message.Uri())
 	if matchContext == nil {
 		err = service_base.NewCanNotFindServiceError(message.Uri())
@@ -66,11 +62,7 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 		return err
 	}
 	svc := matchContext.Value.(service_base.IService)
-	request := service.NewServiceRequest(message)
-	request = h.registerRequestMetaContext(request, matchContext)
-	request = h.middlewareManager.RunMiddlewares(conn, request)
-	// free match context
-	matchContext = nil
+	request := h.createRequest(message, matchContext, conn)
 
 	var response messages.IMessage
 	if request.Status() > service.ServiceRequestStatusProcessing {
@@ -88,8 +80,22 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 	} else {
 		err = conn.Send(response)
 	}
-	h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
 	return
+}
+
+func (h *ServiceRequestMessageHandler) processIncomingMessage(message messages.IMessage) messages.IMessage {
+	// remove redundant / at the end of the uri
+	uri := message.Uri()
+	if len(uri) > 2 && uri[len(uri)-1] == '/' && uri[len(uri)-2] != '/' {
+		message = message.SetUri(uri[:len(uri)-1])
+	}
+	return message
+}
+
+func (h *ServiceRequestMessageHandler) createRequest(message messages.IMessage, matchContext *uri_trie.MatchContext, conn connection.IConnection) service.IServiceRequest {
+	request := service.NewServiceRequest(message)
+	request = h.registerRequestMetaContext(request, matchContext)
+	return h.middlewareManager.RunMiddlewares(conn, request)
 }
 
 func (h *ServiceRequestMessageHandler) registerRequestMetaContext(request service.IServiceRequest, matchContext *uri_trie.MatchContext) service.IServiceRequest {

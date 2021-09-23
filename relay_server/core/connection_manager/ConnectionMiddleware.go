@@ -11,7 +11,7 @@ import (
 
 const (
 	ConnectionMiddlewareId       = "connection"
-	ConnectionMiddlewarePriority = 1
+	ConnectionMiddlewarePriority = 0
 	IsSyncConnContextKey         = "is_sync_conn"
 	AddrContextKey               = "address"
 )

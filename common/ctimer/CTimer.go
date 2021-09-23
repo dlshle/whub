@@ -104,7 +104,7 @@ func (t *CTimer) Reset() {
 }
 
 func (t *CTimer) Cancel() {
-	if t.status == StatusWaiting || t.status == StatusRepeatWaiting {
+	if t.status == StatusWaiting || t.status == StatusRepeatWaiting || t.status == StatusRunning {
 		t.status = StatusCancelled
 	}
 }

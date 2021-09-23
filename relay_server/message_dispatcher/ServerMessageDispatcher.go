@@ -55,13 +55,10 @@ func (d *ServerMessageDispatcher) Dispatch(message messages.IMessage, conn conne
 		return
 	}
 	d.logger().Printf("receive message %s from %s", message.Id(), conn.Address())
-	d.metering.TraceMessagePerformance(message.Id())
+	traceId := message.Id()
 	context.Ctx.AsyncTaskPool().Schedule(func() {
+		d.metering.TraceMessagePerformance(traceId)
 		d.dispatcher.Dispatch(message, conn)
-		d.metering.Stop(d.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
+		d.metering.Stop(traceId)
 	})
-}
-
-func (d *ServerMessageDispatcher) GetHandler(msgType int) dispatcher.IMessageHandler {
-	return d.dispatcher.GetHandler(msgType)
 }

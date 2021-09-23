@@ -9,6 +9,10 @@ import (
 	"wsdk/common/logger"
 )
 
+const (
+	RecordCleanJobInterval = time.Minute * 5
+)
+
 type ThrottleRecord struct {
 	Id               string
 	WindowExpiration time.Time
@@ -27,7 +31,7 @@ func NewThrottleRecord(id string, limit int, duration time.Duration) *ThrottleRe
 	}
 }
 
-func (r *ThrottleRecord) restartBy(windowBegin time.Time) {
+func (r *ThrottleRecord) resetThrottleWindowBy(windowBegin time.Time) {
 	r.WindowExpiration = windowBegin.Add(r.WindowDuration)
 	if r.HitsUnderWindow > r.Limit {
 		r.HitsUnderWindow = r.HitsUnderWindow - r.Limit
@@ -41,7 +45,7 @@ func (r *ThrottleRecord) restartBy(windowBegin time.Time) {
 func (r *ThrottleRecord) Hit() (ThrottleRecord, error) {
 	now := time.Now()
 	if r.WindowExpiration.Before(now) {
-		r.restartBy(now)
+		r.resetThrottleWindowBy(now)
 	}
 	r.HitsUnderWindow++
 	if r.HitsUnderWindow >= r.Limit {
@@ -69,17 +73,19 @@ func NewThrottleController(logger *logger.SimpleLogger) IThrottleController {
 		windowMap: new(sync.Map),
 		logger:    logger,
 	}
-	cleanJobTimer := ctimer.New(time.Minute, controller.cleanJob)
+	cleanJobTimer := ctimer.New(RecordCleanJobInterval, controller.cleanJob)
 	controller.cleanJobTimer = cleanJobTimer
 	cleanJobTimer.Repeat()
 	return controller
 }
 
+// periodically clean the expired records
 func (c *ThrottleController) cleanJob() {
 	now := time.Now()
 	cleaned := 0
 	c.windowMap.Range(func(key, value interface{}) bool {
 		record := value.(*ThrottleRecord)
+		// if now is later than window end time, that means the window(record) did not receive hit in current window
 		if now.After(record.WindowExpiration) {
 			c.windowMap.Delete(key)
 			cleaned++

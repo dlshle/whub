@@ -67,12 +67,6 @@ func (e *RelayServiceRequestExecutor) initNotifications() {
 	events.OnEvent(events.EventClientConnectionGone, e.handleClientConnectionChangeEvent)
 }
 
-func (e *RelayServiceRequestExecutor) handleNewServiceProviderEvent(event messages.IMessage) {
-	if (string)(event.Payload()) == e.serviceId {
-		e.updateConnections()
-	}
-}
-
 func (e *RelayServiceRequestExecutor) handleClientConnectionChangeEvent(event messages.IMessage) {
 	if (string)(event.Payload()) == e.providerId {
 		e.updateConnections()
@@ -88,7 +82,7 @@ func (e *RelayServiceRequestExecutor) updateConnections() error {
 			i--
 		}
 	}
-	e.logger.Println("connections:", e.connections)
+	e.logger.Println("service connections:", e.connections)
 	return nil
 }
 

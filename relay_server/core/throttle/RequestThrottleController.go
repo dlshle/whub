@@ -22,6 +22,8 @@ const (
 	ThrottleLevelClient  = 1
 	ThrottleLevelApi     = 2 // Per client per service API or per address per service API?
 	ThrottleLevelAddress = 3
+
+	BlockListExceedingHitFactor = 3
 )
 
 var DefaultThrottleGroup ThrottleGroup

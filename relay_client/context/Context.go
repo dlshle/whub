@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sync"
 	"wsdk/common/async"
+	"wsdk/common/http"
 	"wsdk/common/logger"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/notification"
@@ -27,6 +28,9 @@ const (
 	defaultAsyncPoolWorkerFactor   = 16
 	defaultServicePoolWorkerFactor = 8
 	defaultMaxActiveServiceConns   = 3
+	defaultHTTPClientCount         = 5
+	defaultHTTPClientMaxQueueSize  = 256
+	defaultHTTPClientTimeout       = 60
 )
 
 type Context struct {
@@ -40,6 +44,7 @@ type Context struct {
 	notificationEmitter notification.IWRNotificationEmitter
 	messageParser       messages.IMessageParser
 	logger              *logger.SimpleLogger
+	httpClient          http.IClientPool
 	startWaiter         *async.WaitLock
 }
 
@@ -53,6 +58,7 @@ type IContext interface {
 	ServiceTaskPool() async.IAsyncPool
 	Logger() *logger.SimpleLogger
 	MaxActiveServiceConnections() int
+	HTTPClient() (pool http.IClientPool)
 	Stop()
 	Context() context.Context
 }
@@ -136,4 +142,14 @@ func (c *Context) Context() context.Context {
 
 func (c *Context) MaxActiveServiceConnections() int {
 	return defaultMaxActiveServiceConns
+}
+
+func (c *Context) HTTPClient() (pool http.IClientPool) {
+	c.withLock(func() {
+		if c.httpClient == nil {
+			c.httpClient = http.NewPool("[HTTPClient]", defaultHTTPClientCount, defaultHTTPClientMaxQueueSize, defaultHTTPClientTimeout)
+		}
+		pool = c.httpClient
+	})
+	return
 }

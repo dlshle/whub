@@ -5,7 +5,6 @@ import (
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/core/middleware_manager"
 	"wsdk/relay_server/middleware"
 )
 
@@ -44,8 +43,4 @@ func (m *AuthMiddleware) Run(conn connection.IConnection, request service.IServi
 		request.SetContext(IsAuthorizedContextKey, clientId != "")
 	}
 	return request
-}
-
-func Register() {
-	middleware_manager.RegisterMiddleware(new(AuthMiddleware))
 }

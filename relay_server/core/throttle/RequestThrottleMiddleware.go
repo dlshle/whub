@@ -1,25 +1,28 @@
 package throttle
 
 import (
+	"fmt"
 	"strings"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/core/middleware_manager"
+	"wsdk/relay_server/context"
+	"wsdk/relay_server/core/blocklist"
 	"wsdk/relay_server/middleware"
 )
 
 const (
 	RequestAddressThrottleMiddlewareId       = "request_throttle"
-	RequestAddressThrottleMiddlewarePriority = 0
+	RequestAddressThrottleMiddlewarePriority = 2
 	AddressThrottleWindowExpiresContextKey   = "throttle-addr-window-expire"
 	AddressThrottleHitRemainsContextKey      = "throttle-addr-hit-remains"
 )
 
 type RequestAddressThrottleMiddleware struct {
 	*middleware.ServerMiddleware
-	IRequestThrottleController `$inject:""`
+	IRequestThrottleController     `$inject:""`
+	blocklist.IBlockListController `$inject:""`
 }
 
 func (m *RequestAddressThrottleMiddleware) Init() error {
@@ -29,22 +32,40 @@ func (m *RequestAddressThrottleMiddleware) Init() error {
 
 func (m *RequestAddressThrottleMiddleware) Run(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest {
 	splitAddr := strings.Split(conn.Address(), ":")
-	ipAddr := splitAddr[0]
-	record, err := m.Hit(AddressThrottleGroup, ipAddr)
-	remains := record.Limit - record.HitsUnderWindow
-	if remains < 0 {
-		remains = 0
-	}
-	// TODO if remains < BlockListThreshold, add this addr to block list for couple of hours/days
-	request.SetContext(AddressThrottleWindowExpiresContextKey, record.WindowExpiration.Format("2006-01-02 15:04:05"))
-	request.SetContext(AddressThrottleHitRemainsContextKey, remains)
-	if err != nil {
-		request.Resolve(messages.NewErrorResponse(request, "", messages.MessageTypeSvcForbiddenError, err.Error()))
+	if len(splitAddr) != 2 {
+		request.Resolve(messages.NewErrorResponse(request, context.Ctx.Server().Id(), messages.MessageTypeSvcInternalError, "can not parse remote address"))
 		return nil
 	}
+	ipAddr := splitAddr[0]
+	record, err := m.Hit(AddressThrottleGroup, ipAddr)
+	if err != nil {
+		m.Logger().Printf("unable to get throttle hit count for address %s due to %s", ipAddr, err.Error())
+		// if can not check throttle status, skip to the next middleware
+		return request
+	}
+	remains := record.Limit - record.HitsUnderWindow
+	if remains < 0 {
+		shouldDemote, _ := m.checkAndDemoteAddrToBlockList(remains, record.Limit, ipAddr)
+		if shouldDemote {
+			request.Resolve(messages.NewErrorResponse(request, context.Ctx.Server().Id(), messages.MessageTypeSvcForbiddenError, fmt.Sprintf("address %s has been blocklisted", ipAddr)))
+			return nil
+		}
+		remains = 0
+	}
+	request.SetContext(AddressThrottleWindowExpiresContextKey, record.WindowExpiration.Format("2006-01-02 15:04:05"))
+	request.SetContext(AddressThrottleHitRemainsContextKey, remains)
 	return request
 }
 
-func Register() {
-	middleware_manager.RegisterMiddleware(new(RequestAddressThrottleMiddleware))
+func (m *RequestAddressThrottleMiddleware) checkAndDemoteAddrToBlockList(remains, limit int, addr string) (shouldDemote bool, err error) {
+	shouldDemote = false
+	if remains < (-1 * limit * BlockListExceedingHitFactor) {
+		shouldDemote = true
+		err = m.DemoteByAddr(addr)
+		if err != nil {
+			m.Logger().Printf("unable to demote addr %s due to %s", addr, err.Error())
+			return
+		}
+	}
+	return
 }

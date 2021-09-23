@@ -4,6 +4,7 @@ import (
 	"wsdk/common/utils"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/core/auth"
+	"wsdk/relay_server/core/blocklist"
 	"wsdk/relay_server/core/client_manager"
 	"wsdk/relay_server/core/connection_manager"
 	"wsdk/relay_server/core/metering"
@@ -27,6 +28,7 @@ func initModuleLoaders() {
 		service_manager.Load,
 		status.Load,
 		throttle.Load,
+		blocklist.Load,
 	}
 }
 
@@ -35,6 +37,7 @@ func initMiddlewares() {
 		new(connection_manager.ConnectionMiddleware),
 		new(auth.AuthMiddleware),
 		new(throttle.RequestAddressThrottleMiddleware),
+		new(blocklist.BlockListMiddleware),
 	}
 }
 
