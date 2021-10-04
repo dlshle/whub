@@ -16,7 +16,7 @@ import (
 	upgrader_util "wsdk/relay_server/http"
 )
 
-type ClientConnectionHandler struct {
+type SocketConnectionHandler struct {
 	messageDispatcher dispatcher.IMessageDispatcher
 	connectionManager connection_manager.IConnectionManager `$inject:""`
 	authController    auth.IAuthController                  `$inject:""`
@@ -24,14 +24,14 @@ type ClientConnectionHandler struct {
 	connPool          *sync.Pool
 }
 
-type IClientConnectionHandler interface {
+type ISocketConnectionHandler interface {
 	HandleConnectionEstablished(conn connection.IConnection, r *http.Request)
 }
 
-func NewClientConnectionHandler(messageDispatcher dispatcher.IMessageDispatcher) IClientConnectionHandler {
-	h := &ClientConnectionHandler{
+func NewSocketConnectionHandler(messageDispatcher dispatcher.IMessageDispatcher) ISocketConnectionHandler {
+	h := &SocketConnectionHandler{
 		messageDispatcher: messageDispatcher,
-		logger:            context.Ctx.Logger().WithPrefix("[ClientConnectionHandler]"),
+		logger:            context.Ctx.Logger().WithPrefix("[SocketConnectionHandler]"),
 		connPool: &sync.Pool{New: func() interface{} {
 			return &common_connection.Connection{}
 		}},
@@ -43,7 +43,7 @@ func NewClientConnectionHandler(messageDispatcher dispatcher.IMessageDispatcher)
 	return h
 }
 
-func (h *ClientConnectionHandler) HandleConnectionEstablished(conn connection.IConnection, r *http.Request) {
+func (h *SocketConnectionHandler) HandleConnectionEstablished(conn connection.IConnection, r *http.Request) {
 	loggerPrefix := fmt.Sprintf("[conn-%s]", conn.Address())
 	wrappedConn := h.connPool.Get().(*common_connection.Connection)
 	wrappedConn.Init(

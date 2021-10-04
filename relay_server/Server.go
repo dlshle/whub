@@ -23,7 +23,7 @@ type Server struct {
 	*wserver.WServer
 	roles.ICommonServer
 	messageDispatcher       dispatcher.IMessageDispatcher
-	clientConnectionHandler socket.IClientConnectionHandler
+	clientConnectionHandler socket.ISocketConnectionHandler
 	httpRequestHandler      server_http.IHTTPRequestHandler
 	logger                  *logger.SimpleLogger
 }
@@ -84,7 +84,7 @@ func NewServer(identity roles.ICommonServer, websocketPath string) *Server {
 	server.OnClientConnected(server.handleSocketConnection)
 	server.OnNonUpgradableRequest(server.handleHTTPRequests)
 	server.SetBeforeUpgradeChecker(server_http.NewWebsocketUpgradeChecker().ShouldUpgradeProtocol)
-	server.clientConnectionHandler = socket.NewClientConnectionHandler(server.messageDispatcher)
+	server.clientConnectionHandler = socket.NewSocketConnectionHandler(server.messageDispatcher)
 	/*
 		onHttpRequest func(u func(w http.ResponseWriter, r *http.Handle) error, w http.ResponseWriter, r *http.Handle),
 	*/

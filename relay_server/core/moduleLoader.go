@@ -46,7 +46,7 @@ func init() {
 	initMiddlewares()
 }
 
-func LoadCoreModules() error {
+func loadCoreModules() error {
 	err := utils.ProcessWithError(moduleLoaders)
 	if err != nil {
 		container.Container.Reset()
@@ -55,7 +55,7 @@ func LoadCoreModules() error {
 	return nil
 }
 
-func RegisterCoreMiddlewares() {
+func registerCoreMiddlewares() {
 	for _, m := range middlewares {
 		container.Container.Call(func(manager middleware_manager.IMiddlewareManager) {
 			manager.RegisterMiddleware(m)
@@ -64,10 +64,10 @@ func RegisterCoreMiddlewares() {
 }
 
 func InitCoreComponents() error {
-	err := LoadCoreModules()
+	err := loadCoreModules()
 	if err != nil {
 		return err
 	}
-	RegisterCoreMiddlewares()
+	registerCoreMiddlewares()
 	return nil
 }
