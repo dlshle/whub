@@ -3,6 +3,7 @@ package messages
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	common_http "wsdk/common/http"
 	"wsdk/relay_common/utils"
@@ -169,11 +170,32 @@ func (t *Message) Headers() map[string]string {
 	return t.headers
 }
 
+func (t *Message) stringifyHeaders() string {
+	var builder strings.Builder
+	length := len(t.headers)
+	counter := 0
+	for k, v := range t.headers {
+		counter++
+		builder.WriteString(fmt.Sprintf(`"%s": "%s"`, k, v))
+		if counter < length {
+			builder.WriteByte(',')
+		}
+	}
+	return builder.String()
+}
+
 func (t *Message) String() string {
 	if t == nil {
 		return "nil"
 	}
-	return fmt.Sprintf("{\"id\": \"%s\", \"from\": \"%s\", \"to\": \"%s\", \"uri\": \"%s\", \"messageType\": %d, \"payload\": \"%s\"}", t.id, t.from, t.to, t.uri, t.messageType, t.payload)
+	return fmt.Sprintf("{\"id\":\"%s\",\"from\":\"%s\",\"to\":\"%s\",\"uri\":\"%s\",\"messageType\": %d,\"headers\":{%s},\"payload\":\"%s\"}",
+		t.id,
+		t.from,
+		t.to,
+		t.uri,
+		t.messageType,
+		t.stringifyHeaders(),
+		t.payload)
 }
 
 func (t *Message) Equals(m IMessage) bool {

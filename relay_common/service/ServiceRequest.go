@@ -184,7 +184,7 @@ func (t *ServiceRequest) String() string {
 	if err != nil {
 		ctxBytes = ([]byte)("{}")
 	}
-	return fmt.Sprintf("{\"id\": \"%s\", \"messsage\": %s, \"context\": %s}", t.Id(), t.Message().String(), (string)(ctxBytes))
+	return fmt.Sprintf("{\"id\":\"%s\",\"messsage\":%s,\"context\":%s}", t.Id(), t.Message().String(), (string)(ctxBytes))
 }
 
 func (t *ServiceRequest) Free() {
