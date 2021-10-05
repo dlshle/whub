@@ -9,8 +9,8 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/core/client_manager"
-	"wsdk/relay_server/core/connection_manager"
+	"wsdk/relay_server/modules/client_manager"
+	"wsdk/relay_server/modules/connection_manager"
 	"wsdk/relay_server/service_base"
 	"wsdk/relay_server/services/auth_service"
 )
@@ -27,8 +27,8 @@ const (
 
 type ClientManagementService struct {
 	*service_base.NativeService
-	clientManager client_manager.IClientManager         `$inject:""`
-	connManager   connection_manager.IConnectionManager `$inject:""`
+	clientManager client_manager.IClientManagerModule         `$inject:""`
+	connManager   connection_manager.IConnectionManagerModule `$inject:""`
 }
 
 func (s *ClientManagementService) Init() (err error) {

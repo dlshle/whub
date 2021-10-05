@@ -53,6 +53,9 @@ func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connect
 	// at least run the common middleware
 	request = middleware.ConnectionTypeMiddleware(conn, request)
 	resp := svc.Handle(request)
+
+	// request die here
+	request.Free()
 	h.m.Stop(h.m.GetAssembledTraceId(controllers.TMessagePerformance, msg.Id()))
 	return conn.Send(resp)
 }

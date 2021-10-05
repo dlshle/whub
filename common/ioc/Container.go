@@ -122,6 +122,15 @@ func (c *Container) Singleton(resolver interface{}) error {
 	return c.bindByType(resolver)
 }
 
+func (c *Container) RemoveByType(holder interface{}) error {
+	reflectType := reflect.TypeOf(holder)
+	if reflectType.Kind() == reflect.Func {
+		return errors.New("type can not be of Func")
+	}
+	delete(c.typeContainer, reflectType)
+	return nil
+}
+
 func (c *Container) RegisterSingleton(id string, resolver interface{}) error {
 	return c.bindById(id, resolver)
 }

@@ -7,12 +7,12 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/core/metering"
+	"wsdk/relay_server/modules/metering"
 )
 
 type ServerMessageDispatcher struct {
 	dispatcher *dispatcher.MessageDispatcher
-	metering   metering.IServerMeteringController `$inject:""`
+	metering   metering.IMeteringModule `$inject:""`
 }
 
 func NewServerMessageDispatcher() *ServerMessageDispatcher {

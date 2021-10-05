@@ -43,6 +43,10 @@ func NewRedisCachedStore(logger *logger.SimpleLogger, store ISingleEntityStore, 
 	}
 }
 
+func (s *RedisCachedStore) Ping() error {
+	return s.cache.Ping()
+}
+
 func (s *RedisCachedStore) ToHashMap(entity interface{}) (map[string]interface{}, error) {
 	m, e := s.store.ToHashMap(entity)
 	if e != nil {

@@ -11,7 +11,7 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/core/metering"
+	"wsdk/relay_server/modules/metering"
 )
 
 const (
@@ -36,7 +36,7 @@ type Service struct {
 	lock          *sync.RWMutex
 	serviceQueue  service.IServiceTaskQueue
 	logger        *logger.SimpleLogger
-	metering      metering.IServerMeteringController `$inject:""`
+	metering      metering.IMeteringModule `$inject:""`
 
 	onStartedCallback func(baseService service.IBaseService)
 	onStoppedCallback func(baseService service.IBaseService)

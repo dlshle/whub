@@ -19,6 +19,7 @@ func NewFBMessageParser() *FBMessageParser {
 
 func (p *FBMessageParser) Serialize(message IMessage) ([]byte, error) {
 	builder := flatbuffers.NewBuilder(16)
+	// payload
 	payload := message.Payload()
 	lPayload := len(payload)
 	Flatbuffer_Message.MessageStartPayloadVector(builder, lPayload)
@@ -26,6 +27,21 @@ func (p *FBMessageParser) Serialize(message IMessage) ([]byte, error) {
 		builder.PrependByte(payload[lPayload-i-1])
 	}
 	payloadOffset := builder.EndVector(lPayload)
+	// headers
+	headers := message.Headers()
+	lHeaders := len(headers)
+	Flatbuffer_Message.MessageStartHeaderKeysVector(builder, lHeaders)
+	for k, _ := range headers {
+		builder.CreateString(k)
+	}
+	headerKeysOffset := builder.EndVector(lHeaders)
+	Flatbuffer_Message.MessageStartHeaderValuesVector(builder, lHeaders)
+	for _, v := range headers {
+		builder.CreateString(v)
+	}
+	headerValuesOffset := builder.EndVector(lHeaders)
+
+	// primitives
 	idOffset := builder.CreateString(message.Id())
 	fromOffset := builder.CreateString(message.From())
 	toOffset := builder.CreateString(message.To())
@@ -37,6 +53,8 @@ func (p *FBMessageParser) Serialize(message IMessage) ([]byte, error) {
 	Flatbuffer_Message.MessageAddUri(builder, uriOffset)
 	Flatbuffer_Message.MessageAddMessageType(builder, (int32)(message.MessageType()))
 	Flatbuffer_Message.MessageAddPayload(builder, payloadOffset)
+	Flatbuffer_Message.MessageAddHeaderKeys(builder, headerKeysOffset)
+	Flatbuffer_Message.MessageAddHeaderValues(builder, headerValuesOffset)
 	offset := Flatbuffer_Message.MessageEnd(builder)
 	builder.Finish(offset)
 	return builder.Bytes[builder.Head():], nil
@@ -59,8 +77,14 @@ func (p *FBMessageParser) Deserialize(buffer []byte) (msg IMessage, err error) {
 	uri := (string)(fbMessage.Uri())
 	msgType := fbMessage.MessageType()
 	payload := fbMessage.Payload()
-	if err := recover(); err != nil {
-		return nil, errors.New("unable to deserialize message")
+	// headers
+	message := NewMessage(id, from, to, uri, (int)(msgType), payload)
+	headerLen := fbMessage.HeaderKeysLength()
+	if headerLen != fbMessage.HeaderValuesLength() {
+		return nil, errors.New("invalid message format")
 	}
-	return NewMessage(id, from, to, uri, (int)(msgType), payload), nil
+	for i := 0; i < headerLen; i++ {
+		message.SetHeader((string)(fbMessage.HeaderKeys(i)), (string)(fbMessage.HeaderValues(i)))
+	}
+	return message, nil
 }

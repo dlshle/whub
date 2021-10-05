@@ -44,6 +44,7 @@ type IRedisClient interface {
 	HSet(key string, m map[string]interface{}) error
 	Get(key string) (string, error)
 	Client() *redis.Client
+	Close() error
 }
 
 type RedisClient struct {
@@ -67,6 +68,10 @@ func NewRedisClient(addr, pass string, maxRetries int) *RedisClient {
 
 func isErrNotFound(err error) bool {
 	return err == redis.Nil
+}
+
+func (c *RedisClient) Close() error {
+	return c.client.Close()
 }
 
 func (c *RedisClient) Ping() (err error) {

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/core/auth"
+	"wsdk/relay_server/modules/auth"
 )
 
 type IWebsocketUpgradeChecker interface {
@@ -12,7 +12,7 @@ type IWebsocketUpgradeChecker interface {
 }
 
 type WebsocketUpgradeChecker struct {
-	authController auth.IAuthController `$inject:""`
+	authController auth.IAuthModule `$inject:""`
 }
 
 func NewWebsocketUpgradeChecker() IWebsocketUpgradeChecker {

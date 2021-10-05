@@ -91,7 +91,6 @@ func (m *ConnectionPool) producer() {
 func (m *ConnectionPool) produce() error {
 	conn, err := m.tryToCreateConnection(3, nil)
 	if err != nil {
-		m.onProducerError(err)
 		m.handleError(err)
 		return err
 	}

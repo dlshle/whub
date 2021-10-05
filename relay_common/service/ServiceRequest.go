@@ -4,13 +4,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"wsdk/common/async"
 	"wsdk/relay_common/messages"
 )
 
+var requestPool sync.Pool
+
 var ServiceRequestMessageHandlerTypes []int
 
 func init() {
+	initRequestPool()
 	initServiceRequest()
 	ServiceRequestMessageHandlerTypes = []int{
 		messages.MessageTypeServiceRequest,
@@ -22,6 +26,16 @@ func init() {
 		messages.MessageTypeServiceOptionsRequest,
 		messages.MessageTypeServiceHeadRequest,
 	}
+}
+
+func initRequestPool() {
+	requestPool = sync.Pool{New: func() interface{} {
+		return &ServiceRequest{
+			status:         ServiceRequestStatusQueued,
+			barrier:        async.NewStatefulBarrier(),
+			requestContext: make(map[string]interface{}),
+		}
+	}}
 }
 
 const (
@@ -60,14 +74,17 @@ type ServiceRequest struct {
 }
 
 func NewServiceRequest(m messages.IMessage) IServiceRequest {
-	return &ServiceRequest{async.NewStatefulBarrier(), ServiceRequestStatusQueued, m, make(map[string]interface{})}
+	request := requestPool.Get().(*ServiceRequest)
+	request.requestContext = make(map[string]interface{})
+	request.barrier = async.NewStatefulBarrier()
+	request.status = ServiceRequestStatusQueued
+	request.IMessage = m
+	return request
 }
 
-// TODO not good, need refactor
 type IServiceRequest interface {
 	messages.IMessage
 	Message() messages.IMessage
-	SetMessage(message messages.IMessage)
 	Status() int
 	Kill() error
 	Cancel() error
@@ -80,6 +97,7 @@ type IServiceRequest interface {
 	TransitStatus(int)
 	GetContext(key string) interface{}
 	SetContext(key string, value interface{})
+	Free()
 }
 
 func (t *ServiceRequest) setStatus(status int) {
@@ -161,14 +179,16 @@ func (t *ServiceRequest) Message() messages.IMessage {
 	return t.IMessage
 }
 
-func (t *ServiceRequest) SetMessage(message messages.IMessage) {
-	t.IMessage = message
-}
-
 func (t *ServiceRequest) String() string {
 	ctxBytes, err := json.Marshal(t.requestContext)
 	if err != nil {
 		ctxBytes = ([]byte)("{}")
 	}
 	return fmt.Sprintf("{\"id\": \"%s\", \"messsage\": %s, \"context\": %s}", t.Id(), t.Message().String(), (string)(ctxBytes))
+}
+
+func (t *ServiceRequest) Free() {
+	t.requestContext = nil
+	t.barrier = nil
+	requestPool.Put(t)
 }

@@ -11,15 +11,15 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/core/auth"
-	"wsdk/relay_server/core/connection_manager"
 	upgrader_util "wsdk/relay_server/http"
+	"wsdk/relay_server/modules/auth"
+	"wsdk/relay_server/modules/connection_manager"
 )
 
 type SocketConnectionHandler struct {
 	messageDispatcher dispatcher.IMessageDispatcher
-	connectionManager connection_manager.IConnectionManager `$inject:""`
-	authController    auth.IAuthController                  `$inject:""`
+	connectionManager connection_manager.IConnectionManagerModule `$inject:""`
+	authController    auth.IAuthModule                            `$inject:""`
 	logger            *logger.SimpleLogger
 	connPool          *sync.Pool
 }

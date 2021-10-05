@@ -8,8 +8,8 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
-	client_manager "wsdk/relay_server/core/client_manager"
-	"wsdk/relay_server/core/connection_manager"
+	client_manager "wsdk/relay_server/modules/client_manager"
+	"wsdk/relay_server/modules/connection_manager"
 	"wsdk/relay_server/service_base"
 )
 
@@ -21,8 +21,8 @@ const (
 
 type MessagingService struct {
 	*service_base.NativeService
-	client_manager.IClientManager `$inject:""`
-	connManager                   connection_manager.IConnectionManager `$inject:""`
+	client_manager.IClientManagerModule `$inject:""`
+	connManager                         connection_manager.IConnectionManagerModule `$inject:""`
 	// logger *logger.SimpleLogger
 }
 
@@ -45,7 +45,7 @@ func (s *MessagingService) Init() (err error) {
 	if err != nil {
 		return err
 	}
-	if s.IClientManager == nil {
+	if s.IClientManagerModule == nil {
 		return errors.New("can not get clientManager from container")
 	}
 	err = s.RegisterRoute(RouteSend, s.Send)

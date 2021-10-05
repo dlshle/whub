@@ -33,3 +33,7 @@ func EmitEvent(eventId string, message string) {
 func OnEvent(eventId string, listener notification.MessageListener) (notification.Disposable, error) {
 	return context.Ctx.NotificationEmitter().On(eventId, listener)
 }
+
+func OffEvent(eventId string, listener notification.MessageListener) {
+	context.Ctx.NotificationEmitter().Off(eventId, listener)
+}

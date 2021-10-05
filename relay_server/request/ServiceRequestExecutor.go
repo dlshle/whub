@@ -9,9 +9,9 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/core/connection_manager"
 	server_errors "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
+	"wsdk/relay_server/modules/connection_manager"
 )
 
 type InternalServiceRequestExecutor struct {
@@ -36,7 +36,7 @@ type RelayServiceRequestExecutor struct {
 	hostId            string
 	connections       []connection.IConnection
 	lastSucceededConn int
-	connectionManager connection_manager.IConnectionManager `$inject:""`
+	connectionManager connection_manager.IConnectionManagerModule `$inject:""`
 	logger            *logger.SimpleLogger
 }
 

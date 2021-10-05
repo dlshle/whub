@@ -6,8 +6,26 @@ import (
 	"net/http"
 	whttp "wsdk/relay_common/http"
 	"wsdk/relay_common/messages"
-	"wsdk/relay_server/core/auth"
+	"wsdk/relay_server/modules/auth"
 )
+
+var reservedHeaders map[string]bool
+
+func init() {
+	reservedHeaders = make(map[string]bool)
+	reservedHeaders["Whr"] = true
+	reservedHeaders["From"] = true
+	reservedHeaders["To"] = true
+	reservedHeaders["Id"] = true
+	reservedHeaders["Content-Type"] = true
+	reservedHeaders["Content-Length"] = true
+	reservedHeaders["Host"] = true
+	reservedHeaders["User-Agent"] = true
+	reservedHeaders["Accept"] = true
+	reservedHeaders["Accept-Encoding"] = true
+	reservedHeaders["Connection"] = true
+	reservedHeaders["R-Token"] = true
+}
 
 func isWhrRequest(r *http.Request) bool {
 	return r.Header["Whr"] != nil && len(r.Header["Whr"]) > 0
@@ -29,7 +47,7 @@ func TransformRequest(r *http.Request) (messages.IMessage, error) {
 	var from, to, url string
 	// from should only be the auth token represents a client
 	from = auth.GetTrimmedHTTPToken(r.Header)
-	if r.Header["To"] != nil && len(r.Header["To"]) > 0 {
+	if len(r.Header["To"]) > 0 {
 		to = r.Header["To"][0]
 	}
 	url = r.URL.Path
@@ -37,7 +55,18 @@ func TransformRequest(r *http.Request) (messages.IMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	return messages.DraftMessage(from, to, url, msgType, body), nil
+	message := messages.DraftMessage(from, to, url, msgType, body)
+	message = transformHeaderFields(message, r.Header)
+	return message, nil
+}
+
+func transformHeaderFields(message messages.IMessage, httpHeaders map[string][]string) messages.IMessage {
+	for k, v := range httpHeaders {
+		if !reservedHeaders[k] && len(v) > 0 {
+			message.SetHeader(k, v[0])
+		}
+	}
+	return message
 }
 
 func mapHttpRequestMethodToMessageType(method string) (int, error) {

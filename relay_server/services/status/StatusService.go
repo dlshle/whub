@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/core/service_manager"
-	"wsdk/relay_server/core/status"
+	"wsdk/relay_server/modules/service_manager"
+	"wsdk/relay_server/modules/status"
 	"wsdk/relay_server/service_base"
 )
 
@@ -18,8 +18,8 @@ const (
 
 type StatusService struct {
 	service_base.INativeService
-	systemStatusController status.IServerStatusController  `$inject:""`
-	serviceManager         service_manager.IServiceManager `$inject:""`
+	systemStatusController status.IServerStatusModule            `$inject:""`
+	serviceManager         service_manager.IServiceManagerModule `$inject:""`
 }
 
 func (s *StatusService) Init() error {

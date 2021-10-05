@@ -10,10 +10,10 @@ import (
 	"wsdk/relay_common/roles"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/core"
 	"wsdk/relay_server/events"
 	server_http "wsdk/relay_server/http"
 	"wsdk/relay_server/message_dispatcher"
+	"wsdk/relay_server/modules"
 	"wsdk/relay_server/services"
 	"wsdk/relay_server/socket"
 	"wsdk/websocket/wserver"
@@ -68,9 +68,9 @@ func NewServer(identity roles.ICommonServer, websocketPath string) *Server {
 	context.Ctx.Start(identity)
 	wServer := wserver.NewWServer(wserver.NewServerConfig(identity.Id(), identity.Url(), identity.Port(), websocketPath, wserver.DefaultWsConnHandler()))
 	wServer.SetLogger(logger)
-	err := core.InitCoreComponents()
+	err := modules.InitCoreComponents()
 	if err != nil {
-		logger.Fatalln("unable to load core components due to ", err.Error())
+		logger.Fatalln("unable to load modules components due to ", err.Error())
 		panic(err)
 	}
 	messageDispatcher := message_dispatcher.NewServerMessageDispatcher()

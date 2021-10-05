@@ -74,6 +74,7 @@ type Message struct {
 	to          string // use id or credential here
 	uri         string
 	messageType int
+	headers     map[string]string
 	payload     []byte
 }
 
@@ -91,6 +92,9 @@ type IMessage interface {
 	SetPayload([]byte) IMessage
 	String() string
 	Copy() IMessage
+	GetHeader(key string) string
+	SetHeader(key string, value string)
+	Headers() map[string]string
 
 	IsErrorMessage() bool
 	Dispose()
@@ -146,6 +150,18 @@ func (t *Message) SetPayload(payload []byte) IMessage {
 	return t
 }
 
+func (t *Message) GetHeader(key string) string {
+	return t.headers[key]
+}
+
+func (t *Message) SetHeader(key string, value string) {
+	t.headers[key] = value
+}
+
+func (t *Message) Headers() map[string]string {
+	return t.headers
+}
+
 func (t *Message) String() string {
 	if t == nil {
 		return "nil"
@@ -158,7 +174,11 @@ func (t *Message) Equals(m IMessage) bool {
 }
 
 func (t *Message) Copy() IMessage {
-	return NewMessage(t.id, t.from, t.to, t.uri, t.messageType, t.payload)
+	newMsg := NewMessage(t.id, t.from, t.to, t.uri, t.messageType, t.payload)
+	for k, v := range t.headers {
+		newMsg.SetHeader(k, v)
+	}
+	return newMsg
 }
 
 func (t *Message) IsErrorMessage() bool {
@@ -193,6 +213,7 @@ func NewMessage(id string, from string, to string, uri string, messageType int, 
 	msg.uri = uri
 	msg.messageType = messageType
 	msg.payload = payload
+	msg.headers = make(map[string]string)
 	return msg
 }
 
@@ -225,7 +246,11 @@ func NewNotification(id string, message string) IMessage {
 }
 
 func NewErrorResponse(request IMessage, from string, errType int, errMsg string) IMessage {
-	return NewMessage(request.Id(), from, request.From(), request.Uri(), errType, ([]byte)(fmt.Sprintf("{\"message\":\"%s\"}", errMsg)))
+	resp := NewMessage(request.Id(), from, request.From(), request.Uri(), errType, ([]byte)(fmt.Sprintf("{\"message\":\"%s\"}", errMsg)))
+	for k, v := range request.Headers() {
+		resp.SetHeader(k, v)
+	}
+	return resp
 }
 
 func mapMessageTypeToRequestMethod(message *Message) string {

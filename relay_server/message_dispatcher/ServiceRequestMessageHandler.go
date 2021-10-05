@@ -10,17 +10,17 @@ import (
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
-	"wsdk/relay_server/core/metering"
-	"wsdk/relay_server/core/middleware_manager"
-	"wsdk/relay_server/core/service_manager"
 	"wsdk/relay_server/errors"
+	"wsdk/relay_server/modules/metering"
+	"wsdk/relay_server/modules/middleware_manager"
+	"wsdk/relay_server/modules/service_manager"
 	"wsdk/relay_server/service_base"
 )
 
 type ServiceRequestMessageHandler struct {
-	serviceManager    service_manager.IServiceManager       `$inject:""`
-	middlewareManager middleware_manager.IMiddlewareManager `$inject:""`
-	metering          metering.IServerMeteringController    `$inject:""`
+	serviceManager    service_manager.IServiceManagerModule       `$inject:""`
+	middlewareManager middleware_manager.IMiddlewareManagerModule `$inject:""`
+	metering          metering.IMeteringModule                    `$inject:""`
 }
 
 func NewServiceRequestMessageHandler() dispatcher.IMessageHandler {
@@ -72,6 +72,8 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 		// continue the request with service
 		response = svc.Handle(request)
 	}
+	// request die here
+	request.Free()
 
 	if response == nil && !base_conn.IsAsyncType(conn.ConnectionType()) {
 		err = conn.Send(messages.NewErrorResponse(request, context.Ctx.Server().Id(),

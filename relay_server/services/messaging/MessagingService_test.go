@@ -26,7 +26,7 @@ func TestMessagingService(t *testing.T) {
 		}),
 		test_utils.NewTestCase("test ioc", "", func() bool {
 			ms := service.(*MessagingService)
-			return ms.IClientManager != nil
+			return ms.IClientManagerModule != nil
 		}),
 	}).Do(t)
 }

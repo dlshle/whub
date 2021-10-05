@@ -8,7 +8,7 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/core/auth"
+	"wsdk/relay_server/modules/auth"
 	"wsdk/relay_server/service_base"
 )
 
@@ -21,7 +21,7 @@ const (
 
 type AuthService struct {
 	*service_base.NativeService
-	authController auth.IAuthController `$inject:""`
+	authController auth.IAuthModule `$inject:""`
 	logger         *logger.SimpleLogger
 }
 

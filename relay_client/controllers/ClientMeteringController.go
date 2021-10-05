@@ -21,7 +21,7 @@ type IClientMeteringController interface {
 
 func NewClientMeteringController() IClientMeteringController {
 	return &ClientMeteringController{
-		metering.NewMeteringController(context.Ctx.Logger().WithPrefix("[ServerMeteringController]")),
+		metering.NewMeteringController(context.Ctx.Logger().WithPrefix("[MeteringModule]")),
 	}
 }
 

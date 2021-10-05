@@ -13,11 +13,11 @@ import (
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/container"
-	"wsdk/relay_server/core/client_manager"
-	"wsdk/relay_server/core/connection_manager"
-	"wsdk/relay_server/core/service_manager"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
+	"wsdk/relay_server/modules/client_manager"
+	"wsdk/relay_server/modules/connection_manager"
+	"wsdk/relay_server/modules/service_manager"
 	request_executor "wsdk/relay_server/request"
 	"wsdk/relay_server/service_base"
 	server_utils "wsdk/relay_server/utils"
@@ -37,8 +37,8 @@ const (
 
 type ServiceManagementService struct {
 	*service_base.NativeService
-	clientManager  client_manager.IClientManager   `$inject:""`
-	serviceManager service_manager.IServiceManager `$inject:""`
+	clientManager  client_manager.IClientManagerModule   `$inject:""`
+	serviceManager service_manager.IServiceManagerModule `$inject:""`
 	servicePool    *sync.Pool
 }
 
