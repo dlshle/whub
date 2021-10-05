@@ -61,12 +61,14 @@ func (h *HTTPWritableConnection) Send(m messages.IMessage) error {
 }
 
 func (h *HTTPWritableConnection) writeMessageResponse(m messages.IMessage) (err error) {
-	h.w.Header().Set("message-id", m.Id())
-	h.w.Header().Set("from", m.From())
-	h.w.Header().Set("to", m.To())
+	h.w.Header().Set(messages.MessageHTTPHeaderId, m.Id())
+	h.w.Header().Set(messages.MessageHTTPHeaderFrom, m.From())
+	h.w.Header().Set(messages.MessageHTTPHeaderTo, m.To())
 
 	// TODO need to add a payload-type as content-type equivalent
-	h.w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	if m.GetHeader("Content-Type") == "" {
+		h.w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	}
 	h.w.WriteHeader(m.MessageType())
 	h.writeMessageHeaders(m)
 	_, err = h.w.Write(m.Payload())
@@ -75,9 +77,7 @@ func (h *HTTPWritableConnection) writeMessageResponse(m messages.IMessage) (err 
 
 func (h *HTTPWritableConnection) writeMessageHeaders(m messages.IMessage) {
 	for k, v := range m.Headers() {
-		if k != "Authorization" {
-			h.w.Header().Set(k, v)
-		}
+		h.w.Header().Set(k, v)
 	}
 }
 

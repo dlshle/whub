@@ -211,8 +211,8 @@ func (c *Client) HTTPRequest(token string, message messages.IMessage) (messages.
 		return nil, errors.New(resp.Body)
 	}
 	header := resp.Header
-	if resp.Header.Get("Message-Id") != "" {
-		return messages.NewMessage(header.Get("Message-Id"), header.Get("From"), header.Get("To"),
+	if resp.Header.Get(messages.MessageHTTPHeaderId) != "" {
+		return messages.NewMessage(header.Get(messages.MessageHTTPHeaderId), header.Get(messages.MessageHTTPHeaderFrom), header.Get(messages.MessageHTTPHeaderTo),
 			message.Uri(), resp.Code, ([]byte)(resp.Body)), nil
 	}
 	return nil, errors.New("invalid server response")

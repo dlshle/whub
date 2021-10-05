@@ -18,6 +18,13 @@ func init() {
 	}
 }
 
+// Message HTTP-Headers
+const (
+	MessageHTTPHeaderFrom = "X-From"
+	MessageHTTPHeaderTo   = "X-To"
+	MessageHTTPHeaderId   = "X-Request-Id"
+)
+
 // Message Protocol
 const (
 	MessageProtocolSimple     = 0 // use json string

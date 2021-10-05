@@ -47,8 +47,8 @@ func TransformRequest(r *http.Request) (messages.IMessage, error) {
 	var from, to, url string
 	// from should only be the auth token represents a client
 	from = auth.GetTrimmedHTTPToken(r.Header)
-	if len(r.Header["To"]) > 0 {
-		to = r.Header["To"][0]
+	if len(r.Header[messages.MessageHTTPHeaderTo]) > 0 {
+		to = r.Header[messages.MessageHTTPHeaderTo][0]
 	}
 	url = r.URL.Path
 	body, err := ioutil.ReadAll(r.Body)
