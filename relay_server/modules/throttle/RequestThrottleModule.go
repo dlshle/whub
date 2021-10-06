@@ -6,8 +6,6 @@ import (
 	"wsdk/common/logger"
 	"wsdk/relay_common/throttling"
 	"wsdk/relay_server/config"
-	"wsdk/relay_server/container"
-	"wsdk/relay_server/context"
 	"wsdk/relay_server/module_base"
 )
 
@@ -19,6 +17,7 @@ import (
  */
 
 const (
+	ID                   = "RequestThrottle"
 	ThrottleLevelService = 0 // Per client per service or per address per service?
 	ThrottleLevelClient  = 1
 	ThrottleLevelApi     = 2 // Per client per service API or per address per service API?
@@ -73,24 +72,11 @@ type RequestThrottleModule struct {
 	logger     *logger.SimpleLogger
 }
 
-func NewRequestThrottleModule() IRequestThrottleModule {
-	logger := context.Ctx.Logger().WithPrefix("[RequestThrottleModule]")
-	return &RequestThrottleModule{
-		controller: throttling.NewThrottleController(logger),
-		logger:     logger,
-	}
-}
-
 func (m *RequestThrottleModule) Init() error {
-	m.ModuleBase = module_base.NewModuleBase("RequestThrottle", func() error {
-		var holder IRequestThrottleModule
-		return container.Container.RemoveByType(holder)
-	})
+	m.ModuleBase = module_base.NewModuleBase(ID, nil)
 	m.controller = throttling.NewThrottleController(m.Logger())
 	m.logger = m.Logger()
-	return container.Container.Singleton(func() IRequestThrottleModule {
-		return m
-	})
+	return nil
 }
 
 func (c *RequestThrottleModule) Hit(group ThrottleGroup, id string) (record throttling.ThrottleRecord, err error) {
@@ -106,10 +92,4 @@ func (c *RequestThrottleModule) GetRequestThrottleGroup(clientId string) Throttl
 
 func (c *RequestThrottleModule) assembleThrottleId(throttleLevel uint8, id string) string {
 	return fmt.Sprintf("%d-%s", throttleLevel, id)
-}
-
-func Load() error {
-	return container.Container.Singleton(func() IRequestThrottleModule {
-		return NewRequestThrottleModule()
-	})
 }

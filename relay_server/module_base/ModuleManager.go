@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"sync"
 	"unsafe"
+	"wsdk/common/logger"
+	"wsdk/relay_server/context"
 )
 
 var Manager IModuleManager
@@ -27,14 +29,18 @@ type IModuleManager interface {
 }
 
 type ModuleManager struct {
-	modules map[string]IModule
-	lock    *sync.RWMutex
+	modules       map[string]IModule
+	moduleTypeMap map[reflect.Type]IModule
+	lock          *sync.RWMutex
+	logger        *logger.SimpleLogger
 }
 
 func NewModuleManager() IModuleManager {
 	return ModuleManager{
-		modules: make(map[string]IModule),
-		lock:    new(sync.RWMutex),
+		modules:       make(map[string]IModule),
+		moduleTypeMap: make(map[reflect.Type]IModule),
+		lock:          new(sync.RWMutex),
+		logger:        context.Ctx.Logger().WithPrefix("[ModuleManager]"),
 	}
 }
 
@@ -53,9 +59,12 @@ func (m ModuleManager) RegisterModule(module IModule) error {
 	if m.GetModule(module.Id()) != nil {
 		return errors.New(fmt.Sprintf("module [%s] has already been registered", module.Id()))
 	}
+	reflectType := reflect.TypeOf(module)
 	m.withWrite(func() {
 		m.modules[module.Id()] = module
+		m.moduleTypeMap[reflectType] = module
 	})
+	m.logger.Printf("module %s is registered", module.Id())
 	return nil
 }
 
@@ -89,6 +98,7 @@ func (m ModuleManager) unregisterModule(module IModule) (err error) {
 	m.withWrite(func() {
 		delete(m.modules, module.Id())
 	})
+	m.logger.Printf("module %s is unregistered", module.Id())
 	return
 }
 
@@ -111,33 +121,75 @@ func (m ModuleManager) AutoFill(object interface{}) error {
 	return m.autoFill(object)
 }
 
-func (m ModuleManager) autoFill(object interface{}) error {
+func (m ModuleManager) autoFill(object interface{}) (err error) {
+	defer func() {
+		if err != nil {
+			m.logger.Printf("autofill failed due to %s", err.Error())
+		}
+	}()
 	recvType := reflect.TypeOf(object)
 	if recvType.Kind() == reflect.Ptr {
-		return m.autoFillValue(reflect.ValueOf(object).Elem())
+		err = m.autoFillValue(reflect.ValueOf(object).Elem())
+		return
 	} else if recvType.Kind() == reflect.Struct {
-		return m.autoFillValue(reflect.ValueOf(object))
+		err = m.autoFillValue(reflect.ValueOf(object))
+		return
 	}
-	return errors.New("invalid object type for AutoFill")
+	err = errors.New("invalid object type for AutoFill")
+	return
 }
 
-func (m ModuleManager) autoFillValue(value reflect.Value) error {
+func (m ModuleManager) autoFillValue(value reflect.Value) (err error) {
 	for i := 0; i < value.NumField(); i++ {
 		f := value.Field(i)
 		if t, ok := value.Type().Field(i).Tag.Lookup(TagModule); ok {
 			if len(t) == 0 {
-				return errors.New("empty module tag identifier")
+				err = m.autoFillByType(f)
+			} else {
+				err = m.autoFillById(f, t)
 			}
-			module := m.GetModule(t)
-			if module == nil {
-				return errors.New(fmt.Sprintf("can not find module by id %s", t))
+			if err != nil {
+				return
 			}
-			ptr := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
-			if !ptr.CanSet() {
-				return errors.New(fmt.Sprintf("can not set field %s with module %s", f.String(), module.Id()))
-			}
-			ptr.Set(reflect.ValueOf(module))
 		}
 	}
+	return nil
+}
+
+func (m ModuleManager) autoFillById(f reflect.Value, id string) (err error) {
+	module := m.GetModule(id)
+	if module == nil {
+		return errors.New(fmt.Sprintf("can not find module by id %s", id))
+	}
+	err = m.tryToFillField(f, module)
+	return
+}
+
+func (m ModuleManager) autoFillByType(reflectValue reflect.Value) error {
+	var module IModule
+	reflectType := reflectValue.Type()
+	m.lock.RLock()
+	module = m.moduleTypeMap[reflectType]
+	// only search when miss
+	if module == nil {
+		for k, v := range m.moduleTypeMap {
+			if k.Implements(reflectType) {
+				module = v
+			}
+		}
+	}
+	m.lock.RUnlock()
+	if module == nil {
+		return errors.New(fmt.Sprintf("can not find module by type %s", reflectType.String()))
+	}
+	return m.tryToFillField(reflectValue, module)
+}
+
+func (m ModuleManager) tryToFillField(f reflect.Value, module IModule) error {
+	ptr := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
+	if !ptr.CanSet() {
+		return errors.New(fmt.Sprintf("can not set field %s with module %s", f.String(), module.Id()))
+	}
+	ptr.Set(reflect.ValueOf(module))
 	return nil
 }

@@ -6,11 +6,11 @@ import (
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server/container"
-	"wsdk/relay_server/context"
 	"wsdk/relay_server/middleware"
 	"wsdk/relay_server/module_base"
 )
+
+const ID = "MiddlewareManager"
 
 type IMiddlewareManagerModule interface {
 	RegisterMiddleware(middleware middleware.IServerMiddleware) error
@@ -24,23 +24,11 @@ type MiddlewareManagerModule struct {
 	logger      *logger.SimpleLogger
 }
 
-func NewMiddlewareManagerModule() IMiddlewareManagerModule {
-	return &MiddlewareManagerModule{
-		middlewares: data_structures.NewRedBlackTree(),
-		logger:      context.Ctx.Logger().WithPrefix("[MiddlewareManagerModule]"),
-	}
-}
-
 func (m *MiddlewareManagerModule) Init() error {
-	m.ModuleBase = module_base.NewModuleBase("MiddlewareManager", func() error {
-		var holder IMiddlewareManagerModule
-		return container.Container.RemoveByType(holder)
-	})
+	m.ModuleBase = module_base.NewModuleBase(ID, nil)
 	m.middlewares = data_structures.NewRedBlackTree()
 	m.logger = m.Logger()
-	return container.Container.Singleton(func() IMiddlewareManagerModule {
-		return m
-	})
+	return nil
 }
 
 func (m *MiddlewareManagerModule) RunMiddlewares(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest {
@@ -66,16 +54,4 @@ func (m *MiddlewareManagerModule) RegisterMiddleware(middleware middleware.IServ
 	m.middlewares.PutKeyAsValue(middleware)
 	m.logger.Println(fmt.Sprintf("middleware %s init success", middleware.Id()))
 	return nil
-}
-
-func RegisterMiddleware(middleware middleware.IServerMiddleware) {
-	container.Container.Call(func(manager IMiddlewareManagerModule) {
-		manager.RegisterMiddleware(middleware)
-	})
-}
-
-func Load() error {
-	return container.Container.Singleton(func() IMiddlewareManagerModule {
-		return NewMiddlewareManagerModule()
-	})
 }

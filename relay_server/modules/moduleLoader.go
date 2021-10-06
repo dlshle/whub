@@ -1,7 +1,6 @@
 package modules
 
 import (
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/middleware"
 	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/auth"
@@ -15,23 +14,8 @@ import (
 	"wsdk/relay_server/modules/throttle"
 )
 
-var moduleLoaders []func() error
 var middlewares []middleware.IServerMiddleware
 var moduleInstances []module_base.IModule
-
-func initModuleLoaders() {
-	moduleLoaders = []func() error{
-		middleware_manager.Load,
-		client_manager.Load,
-		connection_manager.Load,
-		auth.Load,
-		metering.Load,
-		service_manager.Load,
-		status.Load,
-		throttle.Load,
-		blocklist.Load,
-	}
-}
 
 func initModuleInstances() {
 	moduleInstances = []module_base.IModule{
@@ -58,27 +42,17 @@ func initMiddlewares() {
 
 func init() {
 	initModuleInstances()
-	initModuleLoaders()
 	initMiddlewares()
 }
 
 func loadCoreModules() error {
-	/*
-		err := utils.ProcessWithError(moduleLoaders)
-		if err != nil {
-			container.Container.Reset()
-			return err
-		}
-		return nil
-	*/
 	return module_base.Manager.RegisterModules(moduleInstances)
 }
 
 func registerCoreMiddlewares() {
+	middlewareManager := module_base.Manager.GetModule(middleware_manager.ID).(middleware_manager.IMiddlewareManagerModule)
 	for _, m := range middlewares {
-		container.Container.Call(func(manager middleware_manager.IMiddlewareManagerModule) {
-			manager.RegisterMiddleware(m)
-		})
+		middlewareManager.RegisterMiddleware(m)
 	}
 }
 

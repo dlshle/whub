@@ -8,7 +8,7 @@ import (
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
-	"wsdk/relay_server/container"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/client_manager"
 	"wsdk/relay_server/modules/connection_manager"
 	"wsdk/relay_server/service_base"
@@ -27,8 +27,8 @@ const (
 
 type ClientManagementService struct {
 	*service_base.NativeService
-	clientManager client_manager.IClientManagerModule         `$inject:""`
-	connManager   connection_manager.IConnectionManagerModule `$inject:""`
+	clientManager client_manager.IClientManagerModule         `module:""`
+	connManager   connection_manager.IConnectionManagerModule `module:""`
 }
 
 func (s *ClientManagementService) Init() (err error) {
@@ -37,11 +37,11 @@ func (s *ClientManagementService) Init() (err error) {
 		service.ServiceTypeInternal,
 		service.ServiceAccessTypeBoth,
 		service.ServiceExecutionBoth)
-	err = container.Container.Fill(s)
+	err = module_base.Manager.AutoFill(s)
 	if err != nil {
 		return err
 	}
-	return s.InitHandlers(service.NewRequestHandlerMapBuilder().
+	return s.RegisterRoutes(service.NewRequestHandlerMapBuilder().
 		Post(RouteSignUp, s.SignUp).
 		Put(RouteUpdate, s.Update).
 		Get(RouteGet, s.GetById).

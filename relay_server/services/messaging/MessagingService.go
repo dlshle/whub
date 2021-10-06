@@ -7,7 +7,7 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/client"
-	"wsdk/relay_server/container"
+	"wsdk/relay_server/module_base"
 	client_manager "wsdk/relay_server/modules/client_manager"
 	"wsdk/relay_server/modules/connection_manager"
 	"wsdk/relay_server/service_base"
@@ -21,38 +21,24 @@ const (
 
 type MessagingService struct {
 	*service_base.NativeService
-	client_manager.IClientManagerModule `$inject:""`
-	connManager                         connection_manager.IConnectionManagerModule `$inject:""`
+	client_manager.IClientManagerModule `module:""`
+	connManager                         connection_manager.IConnectionManagerModule `module:""`
 	// logger *logger.SimpleLogger
-}
-
-func New() service_base.INativeService {
-	messagingService := &MessagingService{
-		NativeService: service_base.NewNativeService(ID, "basic messaging service", service.ServiceTypeInternal, service.ServiceAccessTypeSocket, service.ServiceExecutionSync),
-	}
-	err := container.Container.Fill(messagingService)
-	if err != nil {
-		messagingService.Logger().Println(err)
-	}
-	messagingService.RegisterRoute(RouteSend, messagingService.Send)
-	messagingService.RegisterRoute(RouteBroadcast, messagingService.Broadcast)
-	return messagingService
 }
 
 func (s *MessagingService) Init() (err error) {
 	s.NativeService = service_base.NewNativeService(ID, "basic messaging service", service.ServiceTypeInternal, service.ServiceAccessTypeSocket, service.ServiceExecutionSync)
-	err = container.Container.Fill(s)
+	err = module_base.Manager.AutoFill(s)
 	if err != nil {
 		return err
 	}
 	if s.IClientManagerModule == nil {
 		return errors.New("can not get clientManager from container")
 	}
-	err = s.RegisterRoute(RouteSend, s.Send)
-	if err != nil {
-		return
-	}
-	return s.RegisterRoute(RouteBroadcast, s.Broadcast)
+	return s.RegisterRoutes(service.NewRequestHandlerMapBuilder().
+		Post(RouteSend, s.Send).
+		Post(RouteBroadcast, s.Broadcast).
+		Build())
 }
 
 func (s *MessagingService) sendToClient(id string, message messages.IMessage, onSendErr func(err error)) error {

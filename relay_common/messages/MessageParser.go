@@ -30,14 +30,22 @@ func (p *FBMessageParser) Serialize(message IMessage) ([]byte, error) {
 	// headers
 	headers := message.Headers()
 	lHeaders := len(headers)
-	Flatbuffer_Message.MessageStartHeaderKeysVector(builder, lHeaders)
+	var headerKeyOffsets []flatbuffers.UOffsetT
 	for k, _ := range headers {
-		builder.CreateString(k)
+		headerKeyOffsets = append(headerKeyOffsets, builder.CreateString(k))
+	}
+	Flatbuffer_Message.MessageStartHeaderKeysVector(builder, lHeaders)
+	for _, offset := range headerKeyOffsets {
+		builder.PrependUOffsetT(offset)
 	}
 	headerKeysOffset := builder.EndVector(lHeaders)
-	Flatbuffer_Message.MessageStartHeaderValuesVector(builder, lHeaders)
+	var headerValueOffsets []flatbuffers.UOffsetT
 	for _, v := range headers {
-		builder.CreateString(v)
+		headerValueOffsets = append(headerValueOffsets, builder.CreateString(v))
+	}
+	Flatbuffer_Message.MessageStartHeaderValuesVector(builder, lHeaders)
+	for _, offset := range headerValueOffsets {
+		builder.PrependUOffsetT(offset)
 	}
 	headerValuesOffset := builder.EndVector(lHeaders)
 

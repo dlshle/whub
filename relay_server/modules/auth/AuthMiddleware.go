@@ -4,8 +4,8 @@ import (
 	base_conn "wsdk/common/connection"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/middleware"
+	"wsdk/relay_server/module_base"
 )
 
 const (
@@ -17,12 +17,12 @@ const (
 
 type AuthMiddleware struct {
 	*middleware.ServerMiddleware
-	authController IAuthModule `$inject:""`
+	authController IAuthModule `module:""`
 }
 
 func (m *AuthMiddleware) Init() error {
 	m.ServerMiddleware = middleware.NewServerMiddleware(AuthMiddlewareId, AuthMiddlewarePriority)
-	err := container.Container.Fill(m)
+	err := module_base.Manager.AutoFill(m)
 	if err != nil {
 		panic(err)
 	}

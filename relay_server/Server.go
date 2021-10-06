@@ -8,7 +8,6 @@ import (
 	common_connection "wsdk/relay_common/connection"
 	"wsdk/relay_common/dispatcher"
 	"wsdk/relay_common/roles"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/events"
 	server_http "wsdk/relay_server/http"
@@ -34,8 +33,7 @@ type IServer interface {
 }
 
 func (s *Server) Start() (err error) {
-	// dependency inject to deal w/ IServiceManager
-	err = container.Container.Call(services.InitNativeServices)
+	err = services.InitNativeServices()
 	if err != nil {
 		s.logger.Fatalln("unable to init native services due to ", err.Error())
 		return err

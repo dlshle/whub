@@ -6,7 +6,6 @@ import (
 	base_middleware "wsdk/relay_common/middleware"
 	"wsdk/relay_common/service"
 	"wsdk/relay_server/middleware"
-	"wsdk/relay_server/modules/middleware_manager"
 )
 
 const (
@@ -30,8 +29,4 @@ func (m *ConnectionMiddleware) Run(conn connection.IConnection, request service.
 	request.SetContext(IsSyncConnContextKey, !base_conn.IsAsyncType(conn.ConnectionType()))
 	request.SetContext(AddrContextKey, conn.Address())
 	return request
-}
-
-func Register() {
-	middleware_manager.RegisterMiddleware(new(ConnectionMiddleware))
 }

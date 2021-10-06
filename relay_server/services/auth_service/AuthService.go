@@ -7,7 +7,7 @@ import (
 	"wsdk/common/logger"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server/container"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/auth"
 	"wsdk/relay_server/service_base"
 )
@@ -21,7 +21,7 @@ const (
 
 type AuthService struct {
 	*service_base.NativeService
-	authController auth.IAuthModule `$inject:""`
+	authController auth.IAuthModule `module:""`
 	logger         *logger.SimpleLogger
 }
 
@@ -31,11 +31,11 @@ type TokenPayload struct {
 
 func (s *AuthService) Init() (err error) {
 	s.NativeService = service_base.NewNativeService(ID, "basic auth services", service.ServiceTypeInternal, service.ServiceAccessTypeBoth, service.ServiceExecutionSync)
-	err = container.Container.Fill(s)
+	err = module_base.Manager.AutoFill(s)
 	if err != nil {
 		return err
 	}
-	return s.InitHandlers(service.NewRequestHandlerMapBuilder().
+	return s.RegisterRoutes(service.NewRequestHandlerMapBuilder().
 		Post(RouteLogin, s.Login).
 		Post(RouteValidateToken, s.ValidateToken).
 		Post(RouteLogout, s.Logout).Build())

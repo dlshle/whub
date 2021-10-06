@@ -6,11 +6,11 @@ import (
 	"wsdk/common/logger"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/config"
-	"wsdk/relay_server/container"
-	"wsdk/relay_server/context"
 	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/client_manager/client_store"
 )
+
+const ID = "ClientManager"
 
 type IClientManagerModule interface {
 	HasClient(id string) (bool, error)
@@ -32,27 +32,13 @@ type ClientManagerModule struct {
 	logger *logger.SimpleLogger
 }
 
-func NewClientManagerModule() IClientManagerModule {
-	logger := context.Ctx.Logger().WithPrefix("[ClientManagerModule]")
-	store := createClientManagerStore(logger)
-	manager := &ClientManagerModule{
-		store:  store,
-		logger: logger,
-	}
-	return manager
-}
-
 func (c *ClientManagerModule) Init() error {
-	c.ModuleBase = module_base.NewModuleBase("ClientManager", func() error {
-		var holder IClientManagerModule
-		c.store.Close()
-		return container.Container.RemoveByType(holder)
+	c.ModuleBase = module_base.NewModuleBase(ID, func() error {
+		return c.store.Close()
 	})
 	c.logger = c.Logger()
 	c.store = createClientManagerStore(c.logger)
-	return container.Container.Singleton(func() IClientManagerModule {
-		return c
-	})
+	return nil
 }
 
 func createCachedStore(clientManagerConfig config.DomainConfig) (client_store.IClientStore, error) {
@@ -158,10 +144,4 @@ func (m *ClientManagerModule) GetClientsCreatedBefore(time time.Time) ([]*client
 
 func (m *ClientManagerModule) GetAllClients() ([]*client.Client, error) {
 	return m.store.GetAll()
-}
-
-func Load() error {
-	return container.Container.Singleton(func() IClientManagerModule {
-		return NewClientManagerModule()
-	})
 }

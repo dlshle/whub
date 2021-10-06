@@ -12,14 +12,13 @@ import (
 	"wsdk/relay_common/roles"
 	"wsdk/relay_server/client"
 	"wsdk/relay_server/config"
-	"wsdk/relay_server/container"
-	"wsdk/relay_server/context"
 	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/client_manager"
 	"wsdk/relay_server/modules/connection_manager"
 )
 
 const (
+	ID           = "Auth"
 	AsyncConnTtl = time.Hour
 	SyncConnTtl  = time.Minute * 30
 	MaxTokenTtl  = time.Hour * 24
@@ -35,43 +34,20 @@ type IAuthModule interface {
 
 type AuthModule struct {
 	*module_base.ModuleBase
-	clientManager client_manager.IClientManagerModule         `$inject:""`
-	connManager   connection_manager.IConnectionManagerModule `$inject:""`
+	clientManager client_manager.IClientManagerModule         `module:""`
+	connManager   connection_manager.IConnectionManagerModule `module:""`
 	store         ITokenStore
 	logger        *logger.SimpleLogger
 }
 
-func NewAuthModule() IAuthModule {
-	logger := context.Ctx.Logger().WithPrefix("[AuthModule]")
-	store := createTokenStore(logger)
-	controller := &AuthModule{
-		logger: logger,
-		store:  store,
-	}
-	if err := container.Container.Fill(controller); err != nil {
-		panic(err)
-	}
-	return controller
-}
-
 func (c *AuthModule) Init() error {
-	c.ModuleBase = module_base.NewModuleBase("AuthModule", func() (err error) {
-		var holder IAuthModule
+	c.ModuleBase = module_base.NewModuleBase(ID, func() (err error) {
 		err = c.store.Close()
-		err = container.Container.RemoveByType(holder)
 		return
 	})
 	c.logger = c.Logger()
 	c.store = createTokenStore(c.logger)
-	if err := container.Container.Fill(c); err != nil {
-		return err
-	}
-	container.Container.Singleton(func() IAuthModule {
-		return c
-	})
-	return container.Container.Singleton(func() IAuthModule {
-		return c
-	})
+	return module_base.Manager.AutoFill(c)
 }
 
 func createTokenStore(logger *logger.SimpleLogger) ITokenStore {
@@ -230,10 +206,4 @@ func (c *AuthModule) refreshToken(oldToken string, clientId string, ttl time.Dur
 
 func (c *AuthModule) RevokeToken(token string) error {
 	return c.store.Revoke(token)
-}
-
-func Load() error {
-	return container.Container.Singleton(func() IAuthModule {
-		return NewAuthModule()
-	})
 }

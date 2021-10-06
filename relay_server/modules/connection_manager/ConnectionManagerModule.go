@@ -6,11 +6,11 @@ import (
 	"wsdk/common/logger"
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
-	"wsdk/relay_server/container"
-	"wsdk/relay_server/context"
 	"wsdk/relay_server/events"
 	"wsdk/relay_server/module_base"
 )
+
+const ID = "ConnectionManager"
 
 type ConnectionManagerModule struct {
 	*module_base.ModuleBase
@@ -31,29 +31,16 @@ type IConnectionManagerModule interface {
 	// AddToConnectionGroup(clientId string, conn connection.IConnection, groupId string) error
 }
 
-func NewConnectionManagerModule() IConnectionManagerModule {
-	manager := &ConnectionManagerModule{
-		logger:            context.Ctx.Logger().WithPrefix("[ConnectionManagerModule]"),
-		connStore:         NewInMemoryConnectionStore(),
-		activeClientStore: NewInMemoryActiveClientConnectionStore(),
-	}
-	manager.initNotifications()
-	return manager
-}
-
 func (m *ConnectionManagerModule) Init() error {
-	m.ModuleBase = module_base.NewModuleBase("ConnectionManager", func() error {
-		var holder IConnectionManagerModule
+	m.ModuleBase = module_base.NewModuleBase(ID, func() error {
 		m.disposeNotifications()
-		return container.Container.RemoveByType(holder)
+		return nil
 	})
 	m.logger = m.Logger()
 	m.connStore = NewInMemoryConnectionStore()
 	m.activeClientStore = NewInMemoryActiveClientConnectionStore()
 	m.initNotifications()
-	return container.Container.Singleton(func() IConnectionManagerModule {
-		return m
-	})
+	return nil
 }
 
 func (m *ConnectionManagerModule) onServerCloseHandler(message messages.IMessage) {
@@ -238,9 +225,3 @@ func (m *ConnectionManagerModule) AddToConnectionGroup(clientId string, conn con
 	return nil
 }
 */
-
-func Load() error {
-	return container.Container.Singleton(func() IConnectionManagerModule {
-		return NewConnectionManagerModule()
-	})
-}

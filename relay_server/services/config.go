@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"wsdk/relay_server/config"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/service_manager"
 	"wsdk/relay_server/service_base"
 	"wsdk/relay_server/services/auth_service"
@@ -54,10 +55,11 @@ func resetInstances() {
 	instantiateInstances()
 }
 
-func InitNativeServices(serviceManager service_manager.IServiceManagerModule) (err error) {
+func InitNativeServices() (err error) {
 	if initiated {
 		return errors.New("services has already been initiated")
 	}
+	serviceManager := module_base.Manager.GetModule(service_manager.ID).(service_manager.IServiceManagerModule)
 	for k, v := range serviceInstances {
 		err = v.Init()
 		if err != nil {

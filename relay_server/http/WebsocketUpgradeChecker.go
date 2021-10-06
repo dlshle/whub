@@ -3,7 +3,7 @@ package http
 import (
 	"errors"
 	"net/http"
-	"wsdk/relay_server/container"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/auth"
 )
 
@@ -12,12 +12,12 @@ type IWebsocketUpgradeChecker interface {
 }
 
 type WebsocketUpgradeChecker struct {
-	authController auth.IAuthModule `$inject:""`
+	authController auth.IAuthModule `module:""`
 }
 
 func NewWebsocketUpgradeChecker() IWebsocketUpgradeChecker {
 	checker := &WebsocketUpgradeChecker{}
-	err := container.Container.Fill(checker)
+	err := module_base.Manager.AutoFill(checker)
 	if err != nil {
 		panic(err)
 	}

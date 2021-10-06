@@ -9,8 +9,8 @@ import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/roles"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/metering"
 )
 
@@ -36,7 +36,7 @@ type Service struct {
 	lock          *sync.RWMutex
 	serviceQueue  service.IServiceTaskQueue
 	logger        *logger.SimpleLogger
-	metering      metering.IMeteringModule `$inject:""`
+	metering      metering.IMeteringModule `module:""`
 
 	onStartedCallback func(baseService service.IBaseService)
 	onStoppedCallback func(baseService service.IBaseService)
@@ -68,7 +68,7 @@ func NewService(id string, description string, provider IServiceProvider, execut
 		serviceQueue:  service.NewServiceTaskQueue(context.Ctx.Server().Id(), executor, context.Ctx.ServiceTaskPool()),
 		logger:        context.Ctx.Logger().WithPrefix(fmt.Sprintf("[Service-%s]", id)),
 	}
-	err := container.Container.Fill(service)
+	err := module_base.Manager.AutoFill(service)
 	if err != nil {
 		panic(err)
 	}

@@ -3,12 +3,11 @@ package blocklist
 import (
 	"time"
 	"wsdk/common/logger"
-	"wsdk/relay_server/container"
-	"wsdk/relay_server/context"
 	"wsdk/relay_server/module_base"
 )
 
 const (
+	ID                  = "BlockList"
 	DefaultBlockListTtl = time.Hour
 )
 
@@ -25,23 +24,11 @@ type BlockListModule struct {
 	logger *logger.SimpleLogger
 }
 
-func NewBlockListModule() IBlockListModule {
-	return &BlockListModule{
-		store:  NewInMemoryBlockListStore(),
-		logger: context.Ctx.Logger().WithPrefix("[BlockListModule]"),
-	}
-}
-
 func (c *BlockListModule) Init() error {
-	c.ModuleBase = module_base.NewModuleBase("BlockList", func() error {
-		var holder IBlockListModule
-		return container.Container.RemoveByType(holder)
-	})
+	c.ModuleBase = module_base.NewModuleBase(ID, nil)
 	c.store = NewInMemoryBlockListStore()
 	c.logger = c.Logger()
-	return container.Container.Singleton(func() IBlockListModule {
-		return c
-	})
+	return nil
 }
 
 func (c *BlockListModule) Add(record string, ttl time.Duration) error {
@@ -70,10 +57,4 @@ func (c *BlockListModule) Remove(record string) error {
 		c.logger.Printf("record %s has been removed from the store", record)
 	}
 	return err
-}
-
-func Load() error {
-	return container.Container.Singleton(func() IBlockListModule {
-		return NewBlockListModule()
-	})
 }

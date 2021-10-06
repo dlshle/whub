@@ -6,9 +6,9 @@ import (
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/middleware"
+	"wsdk/relay_server/module_base"
 )
 
 const (
@@ -18,12 +18,12 @@ const (
 
 type BlockListMiddleware struct {
 	*middleware.ServerMiddleware
-	IBlockListModule `$inject:""`
+	IBlockListModule `module:""`
 }
 
 func (m *BlockListMiddleware) Init() error {
 	m.ServerMiddleware = middleware.NewServerMiddleware(BlockListMiddlewareId, BlockListPriority)
-	err := container.Container.Fill(m)
+	err := module_base.Manager.AutoFill(m)
 	if err != nil {
 		panic(err)
 	}

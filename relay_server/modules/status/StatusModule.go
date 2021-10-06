@@ -8,11 +8,11 @@ import (
 	"wsdk/common/ctimer"
 	"wsdk/common/logger"
 	"wsdk/common/observable"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/module_base"
 )
 
+const ID = "Status"
 const DefaultStatReadInterval = time.Second * 30
 
 type ServerStat struct {
@@ -61,28 +61,8 @@ type IServerStatusModule interface {
 	SubscribeServerStatChange(cb func(stat ServerStat)) func()
 }
 
-func NewSystemStatusModule() IServerStatusModule {
-	controller := &ServerStatusModule{
-		observableStat: observable.NewObservableWith(&ServerStat{
-			SystemStat:      new(SystemStat),
-			AsyncPoolStat:   new(AsyncWorkerPoolStat),
-			ServicePoolStat: new(AsyncWorkerPoolStat),
-		}),
-		asyncPool:   context.Ctx.AsyncTaskPool(),
-		servicePool: context.Ctx.ServiceTaskPool(),
-		logger:      context.Ctx.Logger().WithPrefix("[ServerStatusModule]"),
-	}
-	controller.statReadTimer = ctimer.New(DefaultStatReadInterval, controller.readAndUpdateSystemStat)
-	controller.readAndUpdateSystemStat()
-	controller.statReadTimer.Repeat()
-	return controller
-}
-
 func (m *ServerStatusModule) Init() error {
-	m.ModuleBase = module_base.NewModuleBase("Status", func() error {
-		var holder IServerStatusModule
-		return container.Container.RemoveByType(holder)
-	})
+	m.ModuleBase = module_base.NewModuleBase(ID, nil)
 	m.observableStat = observable.NewObservableWith(&ServerStat{
 		SystemStat:      new(SystemStat),
 		AsyncPoolStat:   new(AsyncWorkerPoolStat),
@@ -94,9 +74,7 @@ func (m *ServerStatusModule) Init() error {
 	m.statReadTimer = ctimer.New(DefaultStatReadInterval, m.readAndUpdateSystemStat)
 	m.readAndUpdateSystemStat()
 	m.statReadTimer.Repeat()
-	return container.Container.Singleton(func() IServerStatusModule {
-		return m
-	})
+	return nil
 }
 
 func (c *ServerStatusModule) readSystemStat(stat *SystemStat) {
@@ -137,11 +115,5 @@ func (c *ServerStatusModule) GetServerStat() ServerStat {
 func (c *ServerStatusModule) SubscribeServerStatChange(cb func(stat ServerStat)) func() {
 	return c.observableStat.On(func(interface{}) {
 		cb(c.GetServerStat())
-	})
-}
-
-func Load() error {
-	return container.Container.Singleton(func() IServerStatusModule {
-		return NewSystemStatusModule()
 	})
 }

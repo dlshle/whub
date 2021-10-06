@@ -10,7 +10,6 @@ import (
 	"wsdk/common/utils"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	server_errors "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
@@ -18,7 +17,7 @@ import (
 	server_service "wsdk/relay_server/service_base"
 )
 
-const ServiceManagerId = "ServiceManagerModule"
+const ID = "ServiceManager"
 
 type ServiceManagerModule struct {
 	*module_base.ModuleBase
@@ -49,30 +48,16 @@ type IServiceManagerModule interface {
 	UpdateService(descriptor service.ServiceDescriptor) error
 }
 
-func NewServiceManagerModule() IServiceManagerModule {
-	manager := &ServiceManagerModule{
-		trieTree:   uri_trie.NewTrieTree(),
-		serviceMap: make(map[string]server_service.IService),
-		lock:       new(sync.RWMutex),
-		logger:     context.Ctx.Logger().WithPrefix("[ServiceManagerModule]"),
-	}
-	manager.initNotifications()
-	return manager
-}
-
 func (m *ServiceManagerModule) Init() error {
-	m.ModuleBase = module_base.NewModuleBase("ServiceManager", func() error {
-		var holder IServiceManagerModule
+	m.ModuleBase = module_base.NewModuleBase(ID, func() error {
 		m.disposeNotifications()
-		return container.Container.RemoveByType(holder)
+		return nil
 	})
 	m.trieTree = uri_trie.NewTrieTree()
 	m.serviceMap = make(map[string]server_service.IService)
 	m.lock = new(sync.RWMutex)
 	m.logger = m.Logger()
-	return container.Container.Singleton(func() IServiceManagerModule {
-		return m
-	})
+	return nil
 }
 
 func (m *ServiceManagerModule) handleServerClosed(msg messages.IMessage) {
@@ -308,10 +293,4 @@ func (s *ServiceManagerModule) addUriRoute(service server_service.IService, rout
 func (s *ServiceManagerModule) removeUriRoute(route string) (success bool) {
 	success = s.trieTree.Remove(route)
 	return success
-}
-
-func Load() error {
-	return container.Container.Singleton(func() IServiceManagerModule {
-		return NewServiceManagerModule()
-	})
 }

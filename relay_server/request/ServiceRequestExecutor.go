@@ -7,10 +7,10 @@ import (
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	server_errors "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/connection_manager"
 )
 
@@ -36,7 +36,7 @@ type RelayServiceRequestExecutor struct {
 	hostId            string
 	connections       []connection.IConnection
 	lastSucceededConn int
-	connectionManager connection_manager.IConnectionManagerModule `$inject:""`
+	connectionManager connection_manager.IConnectionManagerModule `module:""`
 	logger            *logger.SimpleLogger
 }
 
@@ -47,7 +47,7 @@ func NewRelayServiceRequestExecutor(serviceId string, providerId string) *RelayS
 		providerId: providerId,
 		logger:     context.Ctx.Logger().WithPrefix(fmt.Sprintf("[RelayServiceRequestExecutor-%s]", serviceId)),
 	}
-	err := container.Container.Fill(e)
+	err := module_base.Manager.AutoFill(e)
 	if err != nil {
 		panic(err)
 	}

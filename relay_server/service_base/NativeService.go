@@ -17,10 +17,8 @@ type NativeService struct {
 
 type INativeService interface {
 	IService
-	RegisterRoute(shortUri string, handler service.RequestHandler) (err error)
-	RegisterRouteV1(requestType int, uri string, handler service.RequestHandler) (err error)
-	InitRoutes(routes map[string]service.RequestHandler) (err error)
-	InitHandlers(handlerMap map[int]map[string]service.RequestHandler) (err error)
+	RegisterRoute(requestType int, uri string, handler service.RequestHandler) (err error)
+	RegisterRoutes(handlerMap map[int]map[string]service.RequestHandler) (err error)
 	UnregisterRoute(requestType int, shortUri string) (err error)
 	ResolveByAck(request service.IServiceRequest) error
 	ResolveByResponse(request service.IServiceRequest, responseData []byte) error
@@ -37,12 +35,7 @@ func NewNativeService(id, description string, serviceType, accessType, exeType i
 	}
 }
 
-// TODO deperacate this later
-func (s *NativeService) RegisterRoute(uri string, handler service.RequestHandler) (err error) {
-	return s.RegisterRouteV1(messages.MessageTypeServiceRequest, uri, handler)
-}
-
-func (s *NativeService) RegisterRouteV1(requestType int, uri string, handler service.RequestHandler) (err error) {
+func (s *NativeService) RegisterRoute(requestType int, uri string, handler service.RequestHandler) (err error) {
 	defer func() {
 		if err == nil {
 			s.logger.Printf("handler %d %s has registered", requestType, uri)
@@ -123,19 +116,10 @@ func (s *NativeService) Init() error {
 	return errors.New("current native service did not implement Init() interface")
 }
 
-func (s *NativeService) InitRoutes(routes map[string]service.RequestHandler) (err error) {
-	for k, v := range routes {
-		if err = s.RegisterRoute(k, v); err != nil {
-			return err
-		}
-	}
-	return
-}
-
-func (s *NativeService) InitHandlers(handlerMap map[int]map[string]service.RequestHandler) (err error) {
+func (s *NativeService) RegisterRoutes(handlerMap map[int]map[string]service.RequestHandler) (err error) {
 	for requestType, uriHandlerMap := range handlerMap {
 		for uri, handler := range uriHandlerMap {
-			if err = s.RegisterRouteV1(requestType, uri, handler); err != nil {
+			if err = s.RegisterRoute(requestType, uri, handler); err != nil {
 				return err
 			}
 			delete(uriHandlerMap, uri)

@@ -6,9 +6,9 @@ import (
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/middleware"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/blocklist"
 )
 
@@ -21,13 +21,13 @@ const (
 
 type RequestAddressThrottleMiddleware struct {
 	*middleware.ServerMiddleware
-	IRequestThrottleModule     `$inject:""`
-	blocklist.IBlockListModule `$inject:""`
+	IRequestThrottleModule     `module:""`
+	blocklist.IBlockListModule `module:""`
 }
 
 func (m *RequestAddressThrottleMiddleware) Init() error {
 	m.ServerMiddleware = middleware.NewServerMiddleware(RequestAddressThrottleMiddlewareId, RequestAddressThrottleMiddlewarePriority)
-	return container.Container.Fill(m)
+	return module_base.Manager.AutoFill(m)
 }
 
 func (m *RequestAddressThrottleMiddleware) Run(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest {

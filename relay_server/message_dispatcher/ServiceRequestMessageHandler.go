@@ -8,9 +8,9 @@ import (
 	"wsdk/relay_common/dispatcher"
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/service"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	"wsdk/relay_server/errors"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/metering"
 	"wsdk/relay_server/modules/middleware_manager"
 	"wsdk/relay_server/modules/service_manager"
@@ -18,14 +18,14 @@ import (
 )
 
 type ServiceRequestMessageHandler struct {
-	serviceManager    service_manager.IServiceManagerModule       `$inject:""`
-	middlewareManager middleware_manager.IMiddlewareManagerModule `$inject:""`
-	metering          metering.IMeteringModule                    `$inject:""`
+	serviceManager    service_manager.IServiceManagerModule       `module:""`
+	middlewareManager middleware_manager.IMiddlewareManagerModule `module:""`
+	metering          metering.IMeteringModule                    `module:""`
 }
 
 func NewServiceRequestMessageHandler() dispatcher.IMessageHandler {
 	handler := &ServiceRequestMessageHandler{}
-	err := container.Container.Fill(handler)
+	err := module_base.Manager.AutoFill(handler)
 	if err != nil {
 		panic(err)
 	}
@@ -42,12 +42,12 @@ func (h *ServiceRequestMessageHandler) Types() []int {
 
 func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn connection.IConnection) (err error) {
 	defer func() {
+		h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
 		// service panic handling
 		if recovered := recover(); recovered != nil {
 			conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(),
 				messages.MessageTypeSvcInternalError,
 				errors.NewJsonMessageError(fmt.Sprintf("unknown server internal error occurred: %v", recovered))))
-			h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
 		}
 	}()
 	h.metering.Track(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()), "in service handler")

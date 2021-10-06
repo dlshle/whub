@@ -5,21 +5,21 @@ import (
 	"wsdk/relay_common/connection"
 	"wsdk/relay_common/dispatcher"
 	"wsdk/relay_common/messages"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/metering"
 )
 
 type ServerMessageDispatcher struct {
 	dispatcher *dispatcher.MessageDispatcher
-	metering   metering.IMeteringModule `$inject:""`
+	metering   metering.IMeteringModule `module:""`
 }
 
 func NewServerMessageDispatcher() *ServerMessageDispatcher {
 	md := &ServerMessageDispatcher{
 		dispatcher: dispatcher.NewMessageDispatcher(context.Ctx.Logger().WithPrefix("[MessageDispatcher]")),
 	}
-	err := container.Container.Fill(md)
+	err := module_base.Manager.AutoFill(md)
 	if err != nil {
 		panic(err)
 	}

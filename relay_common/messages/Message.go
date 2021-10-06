@@ -276,9 +276,6 @@ func NewNotification(id string, message string) IMessage {
 
 func NewErrorResponse(request IMessage, from string, errType int, errMsg string) IMessage {
 	resp := NewMessage(request.Id(), from, request.From(), request.Uri(), errType, ([]byte)(fmt.Sprintf("{\"message\":\"%s\"}", errMsg)))
-	for k, v := range request.Headers() {
-		resp.SetHeader(k, v)
-	}
 	return resp
 }
 

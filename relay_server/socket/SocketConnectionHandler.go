@@ -9,17 +9,17 @@ import (
 	common_connection "wsdk/relay_common/connection"
 	"wsdk/relay_common/dispatcher"
 	"wsdk/relay_common/messages"
-	"wsdk/relay_server/container"
 	"wsdk/relay_server/context"
 	upgrader_util "wsdk/relay_server/http"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/auth"
 	"wsdk/relay_server/modules/connection_manager"
 )
 
 type SocketConnectionHandler struct {
 	messageDispatcher dispatcher.IMessageDispatcher
-	connectionManager connection_manager.IConnectionManagerModule `$inject:""`
-	authController    auth.IAuthModule                            `$inject:""`
+	connectionManager connection_manager.IConnectionManagerModule `module:""`
+	authController    auth.IAuthModule                            `module:""`
 	logger            *logger.SimpleLogger
 	connPool          *sync.Pool
 }
@@ -36,7 +36,7 @@ func NewSocketConnectionHandler(messageDispatcher dispatcher.IMessageDispatcher)
 			return &common_connection.Connection{}
 		}},
 	}
-	err := container.Container.Fill(h)
+	err := module_base.Manager.AutoFill(h)
 	if err != nil {
 		panic(err)
 	}

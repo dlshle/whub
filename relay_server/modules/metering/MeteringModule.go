@@ -3,13 +3,12 @@ package metering
 import (
 	"wsdk/relay_common/messages"
 	"wsdk/relay_common/metering"
-	"wsdk/relay_server/container"
-	"wsdk/relay_server/context"
 	"wsdk/relay_server/events"
 	"wsdk/relay_server/module_base"
 )
 
 const (
+	ID                  = "Metering"
 	TMessagePerformance = "TMessagePerformance"
 )
 
@@ -23,24 +22,13 @@ type IMeteringModule interface {
 	TraceMessagePerformance(messageId string) metering.IStopWatch
 }
 
-func NewMeteringModule() IMeteringModule {
-	controller := &MeteringModule{
-		IMeteringController: metering.NewMeteringController(context.Ctx.Logger().WithPrefix("[MeteringModule]")),
-	}
-	controller.initNotifications()
-	return controller
-}
-
 func (m *MeteringModule) Init() error {
-	m.ModuleBase = module_base.NewModuleBase("Metering", func() error {
-		var holder IMeteringModule
+	m.ModuleBase = module_base.NewModuleBase(ID, func() error {
 		m.disposeNotifications()
-		return container.Container.RemoveByType(holder)
+		return nil
 	})
 	m.IMeteringController = metering.NewMeteringController(m.Logger())
-	return container.Container.Singleton(func() IMeteringModule {
-		return m
-	})
+	return nil
 }
 
 func (c *MeteringModule) handleServerClose(message messages.IMessage) {
@@ -57,10 +45,4 @@ func (c *MeteringModule) disposeNotifications() {
 
 func (c *MeteringModule) TraceMessagePerformance(messageId string) metering.IStopWatch {
 	return c.Measure(c.GetAssembledTraceId(TMessagePerformance, messageId))
-}
-
-func Load() error {
-	return container.Container.Singleton(func() IMeteringModule {
-		return NewMeteringModule()
-	})
 }

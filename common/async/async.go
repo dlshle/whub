@@ -9,6 +9,11 @@ import (
 	"wsdk/common/logger"
 )
 
+const (
+	MaxOutPolicyWait = 0 // wait for next available worker
+	maxOutPolicyRun  = 1 // run on new goroutine
+)
+
 var statusStringMap map[byte]string
 
 func init() {
@@ -42,6 +47,8 @@ type AsyncPool struct {
 	numBusyWorkers    int
 	status            byte
 	logger            *logger.SimpleLogger
+	maxPoolSize       int
+	maxOutPolicy      uint8
 }
 
 type IAsyncPool interface {
@@ -76,6 +83,8 @@ func NewAsyncPool(id string, maxPoolSize, workerSize int) IAsyncPool {
 		0,
 		0,
 		logger.New(os.Stdout, fmt.Sprintf("AsyncPool[%s]", id), false),
+		maxPoolSize,
+		MaxOutPolicyWait,
 	}
 }
 
@@ -198,6 +207,7 @@ func (p *AsyncPool) schedule(task AsyncTask) {
 	if p.NumBusyWorkers() == p.NumStartedWorkers() {
 		p.tryAddAndRunWorker()
 	}
+	// TODO: schedule the task or run task immediately depending on maxOutPolicy
 	p.channel <- task
 	p.logger.Printf("Task %p has been scheduled\n", task)
 }

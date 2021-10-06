@@ -3,7 +3,7 @@ package status
 import (
 	"encoding/json"
 	service_common "wsdk/relay_common/service"
-	"wsdk/relay_server/container"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/service_manager"
 	"wsdk/relay_server/modules/status"
 	"wsdk/relay_server/service_base"
@@ -18,8 +18,8 @@ const (
 
 type StatusService struct {
 	service_base.INativeService
-	systemStatusController status.IServerStatusModule            `$inject:""`
-	serviceManager         service_manager.IServiceManagerModule `$inject:""`
+	systemStatusController status.IServerStatusModule            `module:""`
+	serviceManager         service_manager.IServiceManagerModule `module:""`
 }
 
 func (s *StatusService) Init() error {
@@ -28,7 +28,7 @@ func (s *StatusService) Init() error {
 		service_common.ServiceTypeInternal,
 		service_common.ServiceAccessTypeSocket,
 		service_common.ServiceExecutionSync)
-	err := container.Container.Fill(s)
+	err := module_base.Manager.AutoFill(s)
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (s *StatusService) Init() error {
 }
 
 func (s *StatusService) initRoutes() error {
-	return s.InitHandlers(service_common.NewRequestHandlerMapBuilder().
+	return s.RegisterRoutes(service_common.NewRequestHandlerMapBuilder().
 		Get(RouteGetStatus, s.GetStatus).
 		Get(RouteGetServices, s.GetAllInternalServices).
 		Get(RouteInfo, s.GetInfo).Build())

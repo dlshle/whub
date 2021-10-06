@@ -12,9 +12,9 @@ import (
 	"wsdk/relay_common/roles"
 	service_common "wsdk/relay_common/service"
 	"wsdk/relay_server/client"
-	"wsdk/relay_server/container"
 	servererror "wsdk/relay_server/errors"
 	"wsdk/relay_server/events"
+	"wsdk/relay_server/module_base"
 	"wsdk/relay_server/modules/client_manager"
 	"wsdk/relay_server/modules/connection_manager"
 	"wsdk/relay_server/modules/service_manager"
@@ -37,8 +37,8 @@ const (
 
 type ServiceManagementService struct {
 	*service_base.NativeService
-	clientManager  client_manager.IClientManagerModule   `$inject:""`
-	serviceManager service_manager.IServiceManagerModule `$inject:""`
+	clientManager  client_manager.IClientManagerModule   `module:""`
+	serviceManager service_manager.IServiceManagerModule `module:""`
 	servicePool    *sync.Pool
 }
 
@@ -49,7 +49,7 @@ func (s *ServiceManagementService) Init() error {
 			return new(service_base.RelayService)
 		},
 	}
-	err := container.Container.Fill(s)
+	err := module_base.Manager.AutoFill(s)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (s *ServiceManagementService) initNotificationHandlers() {
 }
 
 func (s *ServiceManagementService) initRoutes() error {
-	return s.InitHandlers(service_common.NewRequestHandlerMapBuilder().
+	return s.RegisterRoutes(service_common.NewRequestHandlerMapBuilder().
 		Get(RouteGetServiceById, s.GetServiceById).
 		Post(RouteRegisterService, s.RegisterService).
 		Delete(RouteUnregisterService, s.UnregisterService).
