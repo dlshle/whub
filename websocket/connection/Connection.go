@@ -105,7 +105,7 @@ func (c *WsConnection) Write(stream []byte) (err error) {
 	// use write lock to prevent concurrent write
 	c.withLock(func() {
 		t := time.Now()
-		err = c.conn.WriteMessage(1, stream)
+		err = c.conn.WriteMessage(2, stream)
 		if err != nil {
 			c.lastSendTime = t
 		}
