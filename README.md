@@ -10,13 +10,13 @@ The project consists of three parts: Common, Server,  Client.
 * Client consists of only client side logic(e.g. server connection management/service framework/etc...)
 
 Consideration of supporting TCP/UDP/WebRTC?
-The project now supports TCP poorly(still dealing with sticky packet and packet seperation issues). The reason WebSocket was considered as the first choice is because it deals with such issues internally so application does not have to deal with it.
+The project now supports TCP poorly(still dealing with sticky packet and packet separation issues). The reason WebSocket was considered as the first choice is because it deals with such issues internally so application does not have to deal with it.
 
 ## What does it do?
 WebSocket Hub is a WebSocket server that manages and proxies serialized messages to service providers.
 
 A service provider is a WebSocket client that handles certain service logic(e.g. a micro-service 
-or reads a file, etc) and respondes the processed result as a WebSocket message back to the server.
+or read static files, etc) and responds the processed result as a WebSocket message back to the server.
 
 Ideally, one client handles one service(maybe will handler multiple services in the future).
 
@@ -28,17 +28,17 @@ a new connection channel for the service is established.
 ## TODO Tasks
 * Better client design
   * No connection inside client
-  * When needed, use ConnectionManager to get connections of a client
-* Client manager w/ DB
+  * ~~When needed, use ConnectionManager to get connections of a client~~
+* ~~Client manager w/ DB~~
 * Proper service provider registration
-* Common auth layer
-* Proper async client auth
-* Multiple connection per service provider
-* Maybe multiple clients per service(for better availability)
+* ~~Common auth layer~~
+* ~~Proper async client auth~~
+* ~~Multiple connection per service provider~~
+* ~~Maybe multiple clients per service(for better availability)~~
 * Separation of client access layer and service layer(service and service provider management)
   * Client request to access layer, access layer proxies the request to service layer, service will then handle the request
   * Service provider connects to the service layer directly to maintain continues connection
-* Client SDK for other languages(Java, TypeScript, Rust)
+* Client SDK for other languages(Java, ~~TypeScript~~, Rust)
 * UDP connection
 * WebRTC supports
 * Distributed server
