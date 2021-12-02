@@ -69,8 +69,8 @@ func (h *HTTPWritableConnection) writeMessageResponse(m messages.IMessage) (err 
 	if m.GetHeader("Content-Type") == "" {
 		h.w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	}
-	h.w.WriteHeader(m.MessageType())
 	h.writeMessageHeaders(m)
+	h.w.WriteHeader(m.MessageType())
 	_, err = h.w.Write(m.Payload())
 	return
 }
@@ -124,7 +124,7 @@ func (h *HTTPWritableConnection) OnClose(f func(error)) {
 }
 
 func (h *HTTPWritableConnection) Close() error {
-	return h.Send(messages.NewACKMessage("", "", h.addr, h.addr))
+	return h.Send(messages.NewACKMessage("", "", h.addr, h.addr, nil))
 }
 
 func (h *HTTPWritableConnection) String() string {

@@ -91,7 +91,7 @@ func (h *DefaultServiceHandler) Handle(request IServiceRequest) (err error) {
 		if requestTypeMap == nil {
 			request.Resolve(messages.NewErrorResponse(request, "",
 				messages.MessageTypeSvcNotFoundError,
-				fmt.Sprintf("can not handle uri %s(%s): unregistered route", request.Uri(), pattern.(string))))
+				fmt.Sprintf("can not handle uri %s(%s): unregistered route", request.Uri(), pattern.(string)), request.Headers()))
 		}
 		handler = requestTypeMap[request.MessageType()]
 		if handler == nil {
@@ -104,7 +104,7 @@ func (h *DefaultServiceHandler) Handle(request IServiceRequest) (err error) {
 			}
 			request.Resolve(messages.NewErrorResponse(request, "",
 				messages.MessageTypeSvcMethodNotAllowedError,
-				fmt.Sprintf("unsupported method for uri %s", pattern.(string))))
+				fmt.Sprintf("unsupported method for uri %s", pattern.(string)), request.Headers()))
 		}
 	})
 	if handler != nil {

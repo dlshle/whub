@@ -33,7 +33,7 @@ func (m *RequestAddressThrottleMiddleware) Init() error {
 func (m *RequestAddressThrottleMiddleware) Run(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest {
 	splitAddr := strings.Split(conn.Address(), ":")
 	if len(splitAddr) != 2 {
-		request.Resolve(messages.NewErrorResponse(request, context.Ctx.Server().Id(), messages.MessageTypeSvcInternalError, "can not parse remote address"))
+		request.Resolve(messages.NewErrorResponse(request, context.Ctx.Server().Id(), messages.MessageTypeSvcInternalError, "can not parse remote address", request.Headers()))
 		return nil
 	}
 	ipAddr := splitAddr[0]
@@ -47,7 +47,7 @@ func (m *RequestAddressThrottleMiddleware) Run(conn connection.IConnection, requ
 	if remains < 0 {
 		shouldDemote, _ := m.checkAndDemoteAddrToBlockList(remains, record.Limit, ipAddr)
 		if shouldDemote {
-			request.Resolve(messages.NewErrorResponse(request, context.Ctx.Server().Id(), messages.MessageTypeSvcForbiddenError, fmt.Sprintf("address %s has been blocklisted", ipAddr)))
+			request.Resolve(messages.NewErrorResponse(request, context.Ctx.Server().Id(), messages.MessageTypeSvcForbiddenError, fmt.Sprintf("address %s has been blocklisted", ipAddr), request.Headers()))
 			return nil
 		}
 		remains = 0

@@ -67,8 +67,14 @@ Clinet receives the websocket message from server. Client the deserialize the me
 
 
 ## TODO Tasks
+* Message header sanitizing
+  * Option 1: discard all block-list header keys in a middleware
+  * Option 2: middlewares to keep desired header keys
+  * Option 3: headers in request are kept as request-headers, Hub Server keeps desired headers as response header.
+    * Do we need a set of middlewares that run after request is handled?
 * Better client design
   * No connection inside client
+      * How? Make a sidecar for each client to handle connections?
   * ~~When needed, use ConnectionManager to get connections of a client~~
 * ~~Client manager w/ DB~~
 * Proper service provider registration
@@ -79,9 +85,12 @@ Clinet receives the websocket message from server. Client the deserialize the me
 * Separation of client access layer and service layer(service and service provider management)
   * Client request to access layer, access layer proxies the request to service layer, service will then handle the request
   * Service provider connects to the service layer directly to maintain continues connection
+  * What's the benefits of this compared to sidecars?
 * Client SDK for other languages(Java, ~~TypeScript~~, Rust)
-* Supporting HTTP Client connection(HTTP health check, HTTP based RPC via Flatbuffers)
+* Supporting HTTP Client connection(HTTP health check, ~~HTTP based RPC via Flatbuffers~~)
 * UDP connection
 * WebRTC supports
 * Distributed server
+  * Use ETCD for common state sharing(services, connections?, etc)
 * If possible, one listener for all protocols
+  * Rewriting net.Listener?

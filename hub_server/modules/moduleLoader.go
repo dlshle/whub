@@ -26,8 +26,8 @@ func initModuleInstances() {
 		new(metering.MeteringModule),
 		new(service_manager.ServiceManagerModule),
 		new(status.ServerStatusModule),
-		new(throttle.RequestThrottleModule),
 		new(blocklist.BlockListModule),
+		new(throttle.RequestThrottleModule),
 	}
 }
 

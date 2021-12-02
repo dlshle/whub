@@ -194,6 +194,7 @@ func (s *ClientService) matchUri(uri string) (string, error) {
 }
 
 func (s *ClientService) Handle(request service.IServiceRequest) messages.IMessage {
+	s.Logger().Printf("handle request %s", request.String())
 	s.serviceTaskQueue.Schedule(request)
 	s.m.Track(s.m.GetAssembledTraceId(controllers.TMessagePerformance, request.Id()), "request in queue")
 	if s.executionType == service.ServiceExecutionSync {
@@ -393,18 +394,18 @@ func (s *ClientService) OnStopped(cb func(service.IBaseService)) {
 }
 
 func (s *ClientService) ResolveByAck(request service.IServiceRequest) error {
-	return request.Resolve(messages.NewACKMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri()))
+	return request.Resolve(messages.NewACKMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), request.Headers()))
 }
 
 func (s *ClientService) ResolveByResponse(request service.IServiceRequest, responseData []byte) error {
-	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), messages.MessageTypeSvcResponseOK, responseData))
+	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), messages.MessageTypeSvcResponseOK, responseData, request.Headers()))
 }
 
 func (s *ClientService) ResolveByError(request service.IServiceRequest, errType int, msg string) error {
 	if errType < 400 || errType > 500 {
 		return errors.New("invalid error code")
 	}
-	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), errType, s.assembleErrorMessageData(msg)))
+	return request.Resolve(messages.NewMessage(request.Id(), s.ProviderInfo().Id, request.From(), request.Uri(), errType, s.assembleErrorMessageData(msg), request.Headers()))
 }
 
 func (s *ClientService) ResolveByInvalidCredential(request service.IServiceRequest) error {

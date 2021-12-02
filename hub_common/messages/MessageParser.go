@@ -86,13 +86,14 @@ func (p *FBMessageParser) Deserialize(buffer []byte) (msg IMessage, err error) {
 	msgType := fbMessage.MessageType()
 	payload := fbMessage.Payload()
 	// headers
-	message := NewMessage(id, from, to, uri, (int)(msgType), payload)
+	headers := make(map[string]string)
 	headerLen := fbMessage.HeaderKeysLength()
 	if headerLen != fbMessage.HeaderValuesLength() {
 		return nil, errors.New("invalid message format")
 	}
 	for i := 0; i < headerLen; i++ {
-		message.SetHeader((string)(fbMessage.HeaderKeys(i)), (string)(fbMessage.HeaderValues(i)))
+		headers[(string)(fbMessage.HeaderKeys(i))] = (string)(fbMessage.HeaderValues(i))
 	}
+	message := NewMessage(id, from, to, uri, (int)(msgType), payload, headers)
 	return message, nil
 }

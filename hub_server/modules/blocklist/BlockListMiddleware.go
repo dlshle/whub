@@ -33,7 +33,7 @@ func (m *BlockListMiddleware) Init() error {
 func (m *BlockListMiddleware) Run(conn connection.IConnection, request service.IServiceRequest) service.IServiceRequest {
 	ipPortArr := strings.Split(conn.Address(), ":")
 	if len(ipPortArr) != 2 {
-		request.Resolve(messages.NewErrorResponse(request, context.Ctx.Server().Id(), messages.MessageTypeSvcInternalError, "can not parse remote address"))
+		request.Resolve(messages.NewErrorResponse(request, context.Ctx.Server().Id(), messages.MessageTypeSvcInternalError, "can not parse remote address", request.Headers()))
 		return nil
 	}
 	ipAddr := ipPortArr[0]
@@ -42,7 +42,7 @@ func (m *BlockListMiddleware) Run(conn connection.IConnection, request service.I
 		m.Logger().Printf("unable to check if address %s should be blocked due to %s", ipAddr, err.Error())
 	}
 	if exist {
-		request.Resolve(messages.NewErrorResponse(request, context.Ctx.Server().Id(), messages.MessageTypeSvcForbiddenError, fmt.Sprintf("address %s has been blocklisted", ipAddr)))
+		request.Resolve(messages.NewErrorResponse(request, context.Ctx.Server().Id(), messages.MessageTypeSvcForbiddenError, fmt.Sprintf("address %s has been blocklisted", ipAddr), request.Headers()))
 		return nil
 	}
 	return request

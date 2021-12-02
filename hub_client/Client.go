@@ -76,7 +76,7 @@ func (c *Client) login(retry int, err error) (string, error) {
 	loginBody := ([]byte)(fmt.Sprintf("{\"id\":\"%s\",\"password\":\"%s\"}", c.client.Id(), c.client.CKey()))
 	resp, err := c.HTTPRequest("",
 		messages.NewMessage("", "", "", "/auth/login",
-			messages.MessageTypeServicePostRequest, loginBody))
+			messages.MessageTypeServicePostRequest, loginBody, nil))
 	if err != nil {
 		return c.login(retry-1, err)
 	}
@@ -114,7 +114,7 @@ func (c *Client) Connect() error {
 }
 
 func (c *Client) getServerInfo() (desc roles.RoleDescriptor, err error) {
-	resp, err := c.HTTPRequest("", messages.NewMessage("", "", "", "/status/info", messages.MessageTypeServiceRequest, nil))
+	resp, err := c.HTTPRequest("", messages.NewMessage("", "", "", "/status/info", messages.MessageTypeServiceRequest, nil, nil))
 	if err != nil {
 		return
 	}
@@ -213,7 +213,7 @@ func (c *Client) HTTPRequest(token string, message messages.IMessage) (messages.
 	header := resp.Header
 	if resp.Header.Get(messages.MessageHTTPHeaderId) != "" {
 		return messages.NewMessage(header.Get(messages.MessageHTTPHeaderId), header.Get(messages.MessageHTTPHeaderFrom), header.Get(messages.MessageHTTPHeaderTo),
-			message.Uri(), resp.Code, ([]byte)(resp.Body)), nil
+			message.Uri(), resp.Code, ([]byte)(resp.Body), nil), nil
 	}
 	return nil, errors.New("invalid server response")
 }
@@ -227,7 +227,7 @@ func (c *Client) httpRequest(r *http.Request) (messages.IMessage, error) {
 	if resp.Header.Get("Message-Id") != "" {
 		return messages.NewMessage(header.Get("Message-Id"), header.Get("From"), header.Get("To"),
 			// HOW TO GET URI?
-			"", resp.Code, ([]byte)(resp.Body)), nil
+			"", resp.Code, ([]byte)(resp.Body), nil), nil
 	}
 	return nil, errors.New("invalid server response")
 }

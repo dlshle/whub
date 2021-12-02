@@ -1,6 +1,7 @@
 package hub_client
 
 import (
+	"fmt"
 	"whub/hub_client/container"
 	"whub/hub_client/context"
 	"whub/hub_client/controllers"
@@ -42,7 +43,8 @@ func (h *ClientServiceMessageHandler) Handle(msg messages.IMessage, conn connect
 			context.Ctx.Identity().Id(),
 			msg.From(),
 			msg.Uri(),
-			err.Error(),
+			fmt.Sprintf(`{"error":"%s"}`, err.Error()),
+			msg.Headers(),
 		))
 	}
 	svc := matchContext.Value.(IClientService)

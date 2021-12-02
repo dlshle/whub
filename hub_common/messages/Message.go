@@ -203,7 +203,7 @@ func (t *Message) Equals(m IMessage) bool {
 }
 
 func (t *Message) Copy() IMessage {
-	newMsg := NewMessage(t.id, t.from, t.to, t.uri, t.messageType, t.payload)
+	newMsg := NewMessage(t.id, t.from, t.to, t.uri, t.messageType, t.payload, t.headers)
 	for k, v := range t.headers {
 		newMsg.SetHeader(k, v)
 	}
@@ -234,7 +234,7 @@ func (t *Message) ToHTTPRequest(protocol, baseUri, token string) *http.Request {
 		Build()
 }
 
-func NewMessage(id string, from string, to string, uri string, messageType int, payload []byte) IMessage {
+func NewMessage(id string, from string, to string, uri string, messageType int, payload []byte, headers map[string]string) IMessage {
 	msg := messagePool.Get().(*Message)
 	msg.id = id
 	msg.from = from
@@ -243,19 +243,24 @@ func NewMessage(id string, from string, to string, uri string, messageType int, 
 	msg.messageType = messageType
 	msg.payload = payload
 	msg.headers = make(map[string]string)
+	if headers != nil {
+		for k, v := range headers {
+			msg.headers[k] = v
+		}
+	}
 	return msg
 }
 
 func DraftMessage(from string, to string, uri string, messageType int, payload []byte) IMessage {
-	return NewMessage(utils.GenStringId(), from, to, uri, messageType, payload)
+	return NewMessage(utils.GenStringId(), from, to, uri, messageType, payload, nil)
 }
 
-func NewInternalErrorMessage(id string, from string, to string, uri string, errorMessage string) IMessage {
-	return NewMessage(id, from, to, uri, MessageTypeSvcInternalError, ([]byte)(errorMessage))
+func NewInternalErrorMessage(id string, from string, to string, uri string, errorMessage string, headers map[string]string) IMessage {
+	return NewMessage(id, from, to, uri, MessageTypeSvcInternalError, ([]byte)(errorMessage), headers)
 }
 
-func NewErrorMessage(id string, from string, to string, uri string, errType int, errorMessage string) IMessage {
-	return NewMessage(id, from, to, uri, errType, ([]byte)(errorMessage))
+func NewErrorMessage(id string, from string, to string, uri string, errType int, errorMessage string, headers map[string]string) IMessage {
+	return NewMessage(id, from, to, uri, errType, ([]byte)(errorMessage), headers)
 }
 
 func NewPingMessage(from string, to string) IMessage {
@@ -263,19 +268,19 @@ func NewPingMessage(from string, to string) IMessage {
 }
 
 func NewPongMessage(id string, from string, to string) IMessage {
-	return NewMessage(id, from, to, "", MessageTypePong, nil)
+	return NewMessage(id, from, to, "", MessageTypePong, nil, nil)
 }
 
-func NewACKMessage(id string, from string, to string, uri string) IMessage {
-	return NewMessage(id, from, to, uri, MessageTypeACK, []byte{})
+func NewACKMessage(id string, from string, to string, uri string, headers map[string]string) IMessage {
+	return NewMessage(id, from, to, uri, MessageTypeACK, []byte{}, headers)
 }
 
 func NewNotification(id string, message string) IMessage {
-	return NewMessage(id, "", "", "", MessageTypeInternalNotification, ([]byte)(message))
+	return NewMessage(id, "", "", "", MessageTypeInternalNotification, ([]byte)(message), nil)
 }
 
-func NewErrorResponse(request IMessage, from string, errType int, errMsg string) IMessage {
-	resp := NewMessage(request.Id(), from, request.From(), request.Uri(), errType, ([]byte)(fmt.Sprintf("{\"message\":\"%s\"}", errMsg)))
+func NewErrorResponse(request IMessage, from string, errType int, errMsg string, headers map[string]string) IMessage {
+	resp := NewMessage(request.Id(), from, request.From(), request.Uri(), errType, ([]byte)(fmt.Sprintf("{\"message\":\"%s\"}", errMsg)), headers)
 	return resp
 }
 

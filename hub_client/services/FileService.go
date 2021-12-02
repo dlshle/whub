@@ -15,7 +15,7 @@ const (
 	FileServiceRouteGet     = "/get/:fileName"
 	FileServiceRouteGetInfo = "/get/:fileName/info"
 	FileServiceGetSection   = "/get/:fileName/:section"
-	FileServiceRouteListAll = "/files"
+	FileServiceRouteListAll = "/list"
 	FileServiceStreamFile   = "/stream/:fileName"
 
 	FileServicePath        = "fs"

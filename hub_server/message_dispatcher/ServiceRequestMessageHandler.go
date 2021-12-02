@@ -47,7 +47,7 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 		if recovered := recover(); recovered != nil {
 			conn.Send(messages.NewErrorResponse(message, context.Ctx.Server().Id(),
 				messages.MessageTypeSvcInternalError,
-				errors.NewJsonMessageError(fmt.Sprintf("unknown server internal error occurred: %v", recovered))))
+				errors.NewJsonMessageError(fmt.Sprintf("unknown server internal error occurred: %v", recovered)), message.Headers()))
 		}
 	}()
 	h.metering.Track(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()), "in service handler")
@@ -57,7 +57,7 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 		err = service_base.NewCanNotFindServiceError(message.Uri())
 		conn.Send(messages.NewErrorMessage(message.Id(), context.Ctx.Server().Id(), message.From(), message.Uri(),
 			messages.MessageTypeSvcNotFoundError,
-			errors.NewJsonMessageError(err.Error())))
+			errors.NewJsonMessageError(err.Error()), message.Headers()))
 		h.metering.Stop(h.metering.GetAssembledTraceId(metering.TMessagePerformance, message.Id()))
 		return err
 	}
@@ -78,7 +78,7 @@ func (h *ServiceRequestMessageHandler) Handle(message messages.IMessage, conn co
 	if response == nil && !base_conn.IsAsyncType(conn.ConnectionType()) {
 		err = conn.Send(messages.NewErrorResponse(request, context.Ctx.Server().Id(),
 			messages.MessageTypeSvcForbiddenError,
-			errors.NewJsonMessageError("service does not support sync requests")))
+			errors.NewJsonMessageError("service does not support sync requests"), request.Headers()))
 	} else {
 		err = conn.Send(response)
 	}

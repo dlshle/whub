@@ -25,7 +25,7 @@ func NewPingMessageHandler(role roles.IDescribableRole) IMessageHandler {
 func (h *PingMessageHandler) Handle(message messages.IMessage, conn connection.IConnection) error {
 	var resp messages.IMessage
 	if message.To() != h.role.Id() {
-		resp = messages.NewInternalErrorMessage(message.Id(), h.role.Id(), message.From(), message.Uri(), "incorrect receiver id")
+		resp = messages.NewInternalErrorMessage(message.Id(), h.role.Id(), message.From(), message.Uri(), `{"error": "incorrect receiver id"}"`, message.Headers())
 	} else {
 		resp = messages.NewPongMessage(message.Id(), h.role.Id(), message.From())
 	}
@@ -49,7 +49,7 @@ func NewInvalidMessageHandler(role roles.IDescribableRole) IMessageHandler {
 }
 
 func (h *InvalidMessageHandler) Handle(message messages.IMessage, conn connection.IConnection) error {
-	return conn.Send(messages.NewInternalErrorMessage(message.Id(), h.role.Id(), message.From(), message.Uri(), "invalid message(no handler found)"))
+	return conn.Send(messages.NewInternalErrorMessage(message.Id(), h.role.Id(), message.From(), message.Uri(), "invalid message(no handler found)", message.Headers()))
 }
 
 func (h *InvalidMessageHandler) Type() int {

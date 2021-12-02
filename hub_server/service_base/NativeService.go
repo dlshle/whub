@@ -90,18 +90,18 @@ func (s *NativeService) CheckCredential(request service.IServiceRequest) error {
 }
 
 func (s *NativeService) ResolveByAck(request service.IServiceRequest) error {
-	return request.Resolve(messages.NewACKMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri()))
+	return request.Resolve(messages.NewACKMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), request.Headers()))
 }
 
 func (s *NativeService) ResolveByResponse(request service.IServiceRequest, responseData []byte) error {
-	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeSvcResponseOK, responseData))
+	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), messages.MessageTypeSvcResponseOK, responseData, request.Headers()))
 }
 
 func (s *NativeService) ResolveByError(request service.IServiceRequest, errType int, msg string) error {
 	if errType < 400 || errType > 500 {
 		return errors.New("invalid error code")
 	}
-	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), errType, s.assembleErrorMessageData(msg)))
+	return request.Resolve(messages.NewMessage(request.Id(), s.HostInfo().Id, request.From(), request.Uri(), errType, s.assembleErrorMessageData(msg), request.Headers()))
 }
 
 func (s *NativeService) ResolveByInvalidCredential(request service.IServiceRequest) error {

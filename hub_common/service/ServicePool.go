@@ -93,7 +93,7 @@ func (p *ServiceTaskQueue) Schedule(request IServiceRequest) *async.WaitLock {
 	return p.pool.Schedule(func() {
 		// check if message_dispatcher is processable
 		if UnProcessableServiceRequestMap[request.Status()] {
-			request.Resolve(messages.NewErrorResponse(request, p.hostId, 503, "request has been cancelled or target server is dead"))
+			request.Resolve(messages.NewErrorResponse(request, p.hostId, 503, "request has been cancelled or target server is dead", request.Headers()))
 			return
 		}
 		request.TransitStatus(ServiceRequestStatusProcessing)

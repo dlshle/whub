@@ -1,6 +1,7 @@
 package hub_client
 
 import (
+	"fmt"
 	"whub/hub_client/context"
 	"whub/hub_common/messages"
 	"whub/hub_common/service"
@@ -19,6 +20,6 @@ func NewClientServiceExecutor(handler service.IDefaultServiceHandler) *ClientSer
 func (e *ClientServiceExecutor) Execute(request service.IServiceRequest) {
 	err := e.handler.Handle(request)
 	if err != nil {
-		request.Resolve(messages.NewInternalErrorMessage(request.Id(), context.Ctx.Identity().Id(), request.From(), request.Uri(), err.Error()))
+		request.Resolve(messages.NewInternalErrorMessage(request.Id(), context.Ctx.Identity().Id(), request.From(), request.Uri(), fmt.Sprintf(`{"error": "%s"}`,err.Error()), request.Headers()))
 	}
 }
