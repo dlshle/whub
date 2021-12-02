@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"wsdk/common/utils"
+	"whub/common/utils"
 )
 
 const (
@@ -358,6 +358,7 @@ func (t *TrieTree) Match(path string) (*MatchContext, error) {
 	if path == "" {
 		return nil, errors.New("empty path")
 	}
+	path = t.sanitizePath(path)
 	paramStr, remaining := splitQueryParams(path)
 	queryParams, err := parseQueryParams(paramStr)
 	if err != nil {
@@ -393,6 +394,7 @@ func (t *TrieTree) SupportsUri(path string) bool {
 	if path == "" {
 		return false
 	}
+	path = t.sanitizePath(path)
 	paramStr, remaining := splitQueryParams(path)
 	_, err := parseQueryParams(paramStr)
 	if err != nil {
@@ -407,4 +409,12 @@ func (t *TrieTree) SupportsUri(path string) bool {
 
 func (t *TrieTree) RemoveAll() {
 	t.root.clean()
+}
+
+func (t *TrieTree) sanitizePath(path string) string {
+	// special case when there's an extra '/' at the bottom of path
+	if path[len(path)-1] == '/' {
+		path = path[:len(path)-1]
+	}
+	return path
 }

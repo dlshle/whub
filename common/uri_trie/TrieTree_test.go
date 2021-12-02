@@ -2,7 +2,7 @@ package uri_trie
 
 import (
 	"testing"
-	"wsdk/common/test_utils"
+	"whub/common/test_utils"
 )
 
 func TestTrieTree(t *testing.T) {

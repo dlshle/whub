@@ -3,8 +3,8 @@ package async
 import (
 	"testing"
 	"time"
-	"wsdk/common/ctimer"
-	"wsdk/common/test_utils"
+	"whub/common/ctimer"
+	"whub/common/test_utils"
 )
 
 func TestAsyncPool(t *testing.T) {

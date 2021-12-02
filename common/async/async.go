@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"wsdk/common/logger"
+	"whub/common/logger"
 )
 
 const (

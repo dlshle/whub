@@ -6,10 +6,10 @@ import (
 	"net"
 	"net/http"
 	"os"
-	base_conn "wsdk/common/connection"
-	"wsdk/common/logger"
-	common_connection "wsdk/relay_common/connection"
-	"wsdk/websocket/connection"
+	base_conn "whub/common/connection"
+	"whub/common/logger"
+	common_connection "whub/hub_common/connection"
+	"whub/websocket/connection"
 )
 
 type WServer struct {
@@ -102,9 +102,6 @@ func (ws *WServer) handleUpgradeFailure(w http.ResponseWriter, message string) {
 func (ws *WServer) handleHTTPRequest(w http.ResponseWriter, r *http.Request) {
 	// each HTTP request is a new goroutine, so no need to add extra concurrency here
 	path := r.URL.Path
-	if path[len(path)-1] == '/' {
-		path = path[:len(path)-1]
-	}
 	if path != ws.upgradeUrlPath {
 		ws.handler.HandleNoUpgradableRequest(w, r)
 		return

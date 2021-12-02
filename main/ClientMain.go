@@ -3,15 +3,15 @@ package main
 import (
 	"fmt"
 	"time"
-	"wsdk/common/connection"
-	"wsdk/relay_client"
-	"wsdk/relay_client/services"
-	base_conn "wsdk/relay_common/connection"
-	"wsdk/relay_common/messages"
+	"whub/common/connection"
+	"whub/hub_client"
+	"whub/hub_client/services"
+	base_conn "whub/hub_common/connection"
+	"whub/hub_common/messages"
 )
 
 func ClientTest() {
-	c := relay_client.NewClient(connection.TypeWS, "192.168.0.182", 1234, base_conn.WSConnectionPath, "test1", "123456")
+	c := hub_client.NewClient(connection.TypeWS, "192.168.0.182", 1234, base_conn.WSConnectionPath, "test1", "123456")
 	err := c.Start()
 	if err != nil {
 		panic(err)
@@ -34,7 +34,7 @@ func RunMultipleClientTest(n int) {
 	}
 }
 
-func registerSvc(c *relay_client.Client, svc relay_client.IClientService) {
+func registerSvc(c *hub_client.Client, svc hub_client.IClientService) {
 	err := c.RegisterService(svc)
 	if err != nil {
 		fmt.Println("register service error: ", err)

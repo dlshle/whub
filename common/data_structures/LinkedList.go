@@ -2,7 +2,7 @@ package data_structures
 
 import (
 	"sync"
-	"wsdk/common/utils"
+	"whub/common/utils"
 )
 
 func defaultComparator(a interface{}, b interface{}) int {

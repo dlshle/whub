@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"wsdk/common/connection"
+	"whub/common/connection"
 )
 
 const (
@@ -72,6 +72,7 @@ func (c *TCPConnection) OnMessage(cb func([]byte)) {
 	c.onMessageCb = cb
 }
 
+// TODO need a policy to handle packet separation and sticky packet
 func (c *TCPConnection) handleMessage(message []byte) {
 	if c.onMessageCb != nil {
 		c.onMessageCb(message)

@@ -1,6 +1,6 @@
 package test_utils
 
-import "wsdk/common/utils"
+import "whub/common/utils"
 
 func AssertSlicesEqual(l []interface{}, r []interface{}) bool {
 	if len(l) != len(r) {

@@ -14,7 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"wsdk/common/logger"
+	"whub/common/logger"
 )
 
 // New version, need to deprecate http_client

@@ -6,7 +6,7 @@ import (
 	"github.com/gorilla/websocket"
 	"sync"
 	"time"
-	"wsdk/common/connection"
+	"whub/common/connection"
 )
 
 const (

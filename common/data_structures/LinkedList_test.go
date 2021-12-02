@@ -2,8 +2,8 @@ package data_structures
 
 import (
 	"testing"
-	"wsdk/common/test_utils"
-	"wsdk/common/utils"
+	"whub/common/test_utils"
+	"whub/common/utils"
 )
 
 func TestLinkedList(t *testing.T) {

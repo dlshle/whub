@@ -3,7 +3,7 @@ package ctimer
 import (
 	"testing"
 	"time"
-	"wsdk/common/test_utils"
+	"whub/common/test_utils"
 )
 
 func TestCTimer(t *testing.T) {

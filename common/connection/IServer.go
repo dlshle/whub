@@ -2,7 +2,7 @@ package connection
 
 import (
 	"net/http"
-	"wsdk/common/logger"
+	"whub/common/logger"
 )
 
 type IServer interface {

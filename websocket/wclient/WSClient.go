@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"os"
-	base_conn "wsdk/common/connection"
-	"wsdk/common/logger"
-	"wsdk/websocket/connection"
+	base_conn "whub/common/connection"
+	"whub/common/logger"
+	"whub/websocket/connection"
 )
 
 type WClientConnectionHandler struct {

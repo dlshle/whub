@@ -2,7 +2,7 @@ package wserver
 
 import (
 	"net/http"
-	"wsdk/common/connection"
+	"whub/common/connection"
 )
 
 type IWsConnectionHandler interface {

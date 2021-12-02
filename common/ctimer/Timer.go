@@ -5,7 +5,7 @@ package ctimer
 import (
 	"context"
 	"time"
-	"wsdk/common/async"
+	"whub/common/async"
 )
 
 type task struct {

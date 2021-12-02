@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"wsdk/common/connection"
-	"wsdk/common/logger"
+	"whub/common/connection"
+	"whub/common/logger"
 )
 
 const DefaultRetryCount = 3

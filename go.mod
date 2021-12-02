@@ -1,4 +1,4 @@
-module wsdk
+module whub
 
 go 1.16
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"wsdk/common/connection"
-	"wsdk/common/logger"
+	"whub/common/connection"
+	"whub/common/logger"
 )
 
 type TCPServer struct {

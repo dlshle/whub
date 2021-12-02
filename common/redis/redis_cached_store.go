@@ -1,7 +1,7 @@
 package redis
 
 import (
-	"wsdk/common/logger"
+	"whub/common/logger"
 )
 
 const (
